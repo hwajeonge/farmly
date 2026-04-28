@@ -1,0 +1,7 @@
+{
+  "name": "사과밭영주는 나 (My Apple)",
+  "description": "영주 사과나무 NFT 가상 농장 플랫폼. AI와 공공데이터를 활용한 체험형 지역경제 활성화 서비스.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}

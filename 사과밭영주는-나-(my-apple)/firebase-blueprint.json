@@ -1,0 +1,29 @@
+{
+  "entities": {
+    "users": {
+      "title": "UserProfile",
+      "description": "User profile data including points, assets, and progress",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { 
+          "type": "string",
+          "enum": ["general", "farm_owner", "gov_admin"]
+        },
+        "email": { "type": "string" },
+        "points": { "type": "integer" },
+        "lives": { "type": "integer" },
+        "isHonoraryCitizen": { "type": "boolean" },
+        "badges": { "type": "array" }
+      },
+      "required": ["uid", "name", "points"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "users",
+      "description": "Individual user profiles"
+    }
+  }
+}
