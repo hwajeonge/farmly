@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { showAlert } from '../lib/alertEmitter';
 import { motion, AnimatePresence } from 'motion/react';
 import { Star, MapPin, ChevronLeft, CheckCircle2, Map as MapIcon, List, Hammer, ShoppingBag, Lock } from 'lucide-react';
 import { Farm, AppleVariety, Decoration, TreeState } from '../types';
@@ -326,8 +327,14 @@ export const FarmSelection: React.FC<FarmSelectionProps> = ({
 
               {ownedItems.some(i => i.id === `seed_${selectedFarm.id}`) ? (
                 <button
-                  onClick={() => onAdopt(selectedFarm, surveyResult, nickname || `${selectedFarm.name}의 나무`)}
-                  className="btn-primary w-full justify-center text-center"
+                  onClick={() => {
+                    if (!nickname.trim()) {
+                      showAlert('나무 이름을 입력해주세요!\n소중한 나무에게 이름을 지어주세요 🌳', '🌳', 'warning');
+                      return;
+                    }
+                    onAdopt(selectedFarm, surveyResult, nickname.trim());
+                  }}
+                  className={`btn-primary w-full justify-center text-center transition-opacity ${!nickname.trim() ? 'opacity-50' : ''}`}
                 >
                   🌱 씨앗 사용하여 분양받기
                 </button>

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { showAlert } from '../lib/alertEmitter';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Gift, Check, Mail, Truck, Info, Apple } from 'lucide-react';
 import { cn } from '../lib/utils';
@@ -29,7 +30,7 @@ export const HarvestDeliveryModal: React.FC<HarvestDeliveryModalProps> = ({ onCl
     if (step === 'options') setStep('address');
     else if (step === 'address') {
       if (!formData.name || !formData.phone || !formData.address) {
-        alert('모든 필수 정보를 입력해주세요.');
+        showAlert('이름, 연락처, 주소를\n모두 입력해주세요!', '📦', 'warning');
         return;
       }
       setStep('thanks');
@@ -39,7 +40,7 @@ export const HarvestDeliveryModal: React.FC<HarvestDeliveryModalProps> = ({ onCl
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center px-4">
+    <div className="fixed inset-0 z-60 flex items-center justify-center px-4">
       <motion.div 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -163,7 +164,7 @@ export const HarvestDeliveryModal: React.FC<HarvestDeliveryModalProps> = ({ onCl
 
                 <div>
                   <h3 className="text-2xl font-black text-stone-800 mb-2">수확을 축하합니다!</h3>
-                  <div className="bg-stone-50 p-6 rounded-[2rem] border-2 border-stone-100 relative text-left">
+                  <div className="bg-stone-50 p-6 rounded-4xl border-2 border-stone-100 relative text-left">
                     <Mail size={24} className="absolute -top-3 -right-3 text-yeoju-gold transform rotate-12" />
                     <p className="text-xs font-bold text-stone-600 leading-relaxed italic">
                       "저의 사과나무 소수( nickname )가 영주의 맑은 바람과 높은 햇살 아래 무럭무럭 자라 드디어 저희 집 식탁까지 오게 되었네요. 
@@ -184,7 +185,7 @@ export const HarvestDeliveryModal: React.FC<HarvestDeliveryModalProps> = ({ onCl
 
           <button
             onClick={handleNext}
-            className="w-full py-5 bg-stone-800 text-white rounded-[1.5rem] font-black text-lg shadow-xl shadow-stone-200 active:scale-95 transition-all mt-10"
+            className="w-full py-5 bg-stone-800 text-white rounded-3xl font-black text-lg shadow-xl shadow-stone-200 active:scale-95 transition-all mt-10"
           >
             {step === 'options' ? '다음 단계로' : step === 'address' ? '신청 완료하기' : '닫기'}
           </button>
@@ -202,7 +203,7 @@ const Input = ({ label, placeholder, value, onChange, isTextArea }: { label: str
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full bg-stone-50 border-2 border-stone-100 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-apple-green focus:border-transparent outline-none transition-all min-h-[80px]"
+        className="w-full bg-stone-50 border-2 border-stone-100 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-apple-green focus:border-transparent outline-none transition-all min-h-20"
       />
     ) : (
       <input

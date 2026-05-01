@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { showAlert } from '../lib/alertEmitter';
 import { motion } from 'motion/react';
 import { Share2, Info, Calendar, MapPin, Star, Apple, Droplets, TrendingUp, Sparkles, X, Users } from 'lucide-react';
 import { TreeState, AppleVariety } from '../types';
@@ -31,7 +32,7 @@ export const TreeOwnershipCard: React.FC<TreeOwnershipCardProps> = ({ tree, owne
 
   const handleShare = (e: React.MouseEvent) => {
     e.stopPropagation();
-    alert('소유권 카드가 클립보드에 복사되었습니다!');
+    showAlert('소유권 카드가\n클립보드에 복사됐어요!', '🃏', 'success');
   };
 
   return (

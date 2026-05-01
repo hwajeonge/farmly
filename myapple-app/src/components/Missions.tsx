@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { showAlert } from '../lib/alertEmitter';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Play, Info, X, Trophy, Star, MapPin, Camera, 
@@ -118,7 +119,7 @@ export const MissionsView: React.FC<MissionsViewProps> = ({
               key={game.id} 
               onClick={() => {
                 if (lives <= 0) {
-                  alert('하트가 부족합니다! 광고를 시청하거나 내일 다시 도전해 보세요.');
+                  showAlert('하트가 부족해요!\n광고를 보거나 내일 다시 도전해보세요.', '❤️', 'warning');
                   return;
                 }
                 if (game.id === 'catch') setShowCatchGame(true);

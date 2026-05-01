@@ -25,6 +25,8 @@ import { NotificationCenter } from './components/NotificationCenter';
 import { LoginView } from './components/LoginView';
 import { authService } from './services/authService';
 import { User } from 'firebase/auth';
+import { alertEmitter, showAlert, AlertType } from './lib/alertEmitter';
+import { AlertModal } from './components/AlertModal';
 
 export default function App() {
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
@@ -42,6 +44,12 @@ export default function App() {
 
   const [profilePending, setProfilePending] = useState(false);
   const fromFirebase = useRef(false);
+  const [alertState, setAlertState] = useState<{ message: string; emoji: string; type: AlertType } | null>(null);
+
+  useEffect(() => {
+    alertEmitter.on((message, emoji, type) => setAlertState({ message, emoji, type }));
+    return () => alertEmitter.off();
+  }, []);
 
   // Firebase Auth & Data Sync
   useEffect(() => {
@@ -243,7 +251,7 @@ export default function App() {
       const lockedUntil = new Date(user.slotCooldowns[cooldownKey].lockedUntil);
       if (lockedUntil > new Date()) {
         const daysLeft = Math.ceil((lockedUntil.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-        alert(`해당 슬롯은 현재 비활성화 상태입니다. ${daysLeft}일 후에 다시 심을 수 있습니다.`);
+        showAlert(`해당 슬롯은 현재 비활성화 상태입니다.\n${daysLeft}일 후에 다시 심을 수 있어요.`, '⏳', 'warning');
         return;
       }
     }
@@ -252,7 +260,7 @@ export default function App() {
     const hasSeed = user.items.some(i => i.id === seedId);
 
     if (!hasSeed) {
-      alert('농장 씨앗이 필요합니다!');
+      showAlert('농장 씨앗이 필요합니다!\n상점에서 씨앗을 구매해보세요.', '🌱', 'warning');
       return;
     }
 
@@ -358,7 +366,7 @@ export default function App() {
       if (action === 'water') {
         const today = new Date().toDateString();
         if (new Date(tree.lastWatered).toDateString() === today) {
-          alert('오늘은 이미 물을 주었습니다!');
+          showAlert('오늘은 이미 물을 주었어요!\n내일 다시 와주세요 🌤️', '💧', 'info');
           return prev;
         }
         tree.water = Math.min(100, tree.water + 20);
@@ -367,11 +375,11 @@ export default function App() {
       } else if (action === 'nutrient') {
         const itemIdx = updatedItems.findIndex(i => i.id === 'nutrient');
         if (itemIdx === -1 || updatedItems[itemIdx].count <= 0) {
-          alert('영양제가 부족합니다!');
+          showAlert('영양제가 부족해요!\n상점에서 구매할 수 있어요.', '🌿', 'warning');
           return prev;
         }
         if (tree.nutrientsUsed >= 2) {
-          alert('이번 시즌에는 더 이상 영양제를 줄 수 없습니다 (최대 2회).');
+          showAlert('이번 시즌 영양제는 최대 2회예요.\n다음 시즌을 기다려주세요!', '🌿', 'info');
           return prev;
         }
         tree.growthRate = Math.min(100, tree.growthRate + 10);
@@ -381,11 +389,11 @@ export default function App() {
       } else if (action === 'medicine') {
         const itemIdx = updatedItems.findIndex(i => i.id === 'medicine');
         if (itemIdx === -1 || updatedItems[itemIdx].count <= 0) {
-          alert('치료약이 부족합니다!');
+          showAlert('치료약이 부족해요!\n상점에서 구매할 수 있어요.', '💊', 'warning');
           return prev;
         }
         if (tree.pestStatus === 'none') {
-          alert('병충해가 없습니다.');
+          showAlert('지금은 병충해가 없어요!\n나무가 건강한 상태예요 🌳', '✅', 'success');
           return prev;
         }
         tree.pestStatus = 'none';
@@ -394,7 +402,7 @@ export default function App() {
       } else if (action === 'shield') {
         const itemIdx = updatedItems.findIndex(i => i.id === 'shield');
         if (itemIdx === -1 || updatedItems[itemIdx].count <= 0) {
-          alert('방풍막이 부족합니다!');
+          showAlert('방풍막이 부족해요!\n상점에서 구매할 수 있어요.', '🛡️', 'warning');
           return prev;
         }
         tree.shieldActive = true;
@@ -542,7 +550,7 @@ export default function App() {
 
   const handleBuyWithApples = (itemId: string, applePrice: number) => {
     if (!user || user.apples < applePrice) {
-      alert('보유한 사과가 부족합니다!');
+      showAlert('보유한 사과가 부족해요!\n나무를 키워 사과를 수확해보세요.', '🍎', 'warning');
       return;
     }
     addNotification("🛍️ 구매 완료!", "사과로 아이템을 교환했습니다.", 'info');
@@ -578,7 +586,7 @@ export default function App() {
       if (!prev) return prev;
       const activeFarms = (prev.adoptedFarmIds || []).filter(id => !(prev.storedFarmIds || []).includes(id));
       if (activeFarms.length >= 3) {
-        alert('동시에 최대 3개의 농가만 활성화할 수 있습니다. 다른 농가를 먼저 보관해주세요.');
+        showAlert('동시에 최대 3개의 농가만 활성화할 수 있어요.\n다른 농가를 먼저 보관해주세요.', '🚜', 'warning');
         return prev;
       }
       return {
@@ -596,7 +604,7 @@ export default function App() {
       // Requirement: can store if 5 trees completed? or just any time? 
       // Spec says "농가 내 나무 5개 생성 완료 시 보관 가능 상태로 변경" (FARM05_STORE01)
       if (treesInFarm.length < 5) {
-        alert('농가 내에 나무 5개를 모두 심어야 보관할 수 있습니다.');
+        showAlert('나무 5개를 모두 심어야\n농가를 보관할 수 있어요.', '🌳', 'info');
         return prev;
       }
       if ((prev.storedFarmIds || []).includes(farmId)) return prev;
@@ -920,13 +928,21 @@ export default function App() {
         isAdmin={user.role === 'farm_owner' || user.role === 'gov_admin'} 
       />
 
-      <NotificationCenter 
+      <NotificationCenter
         notifications={notifications}
         isOpen={isNotificationOpen}
         onClose={() => setIsNotificationOpen(false)}
         onRead={handleReadNotification}
         onDelete={handleDeleteNotification}
         onAction={handleActionNotification}
+      />
+
+      <AlertModal
+        open={!!alertState}
+        message={alertState?.message ?? ''}
+        emoji={alertState?.emoji ?? '🍎'}
+        type={alertState?.type ?? 'info'}
+        onClose={() => setAlertState(null)}
       />
     </div>
   );

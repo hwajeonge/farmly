@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { showAlert } from '../lib/alertEmitter';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Users, Trophy, Target, Gift, Search, 
@@ -61,7 +62,7 @@ const NeighborhoodTab = ({ user }: { user: UserProfile }) => {
   const handleTrade = (neighborName: string) => {
     const confirmed = window.confirm(`${neighborName}님과 '사과 1개 ↔ 비료 5개' 물물교환을 제안하시겠습니까?`);
     if (confirmed) {
-      alert('교환 요청이 전송되었습니다! 상대방이 수락하면 아이템이 지급됩니다.');
+      showAlert('교환 요청이 전송됐어요!\n상대방이 수락하면 아이템이 지급됩니다.', '🤝', 'success');
     }
   };
 
@@ -107,7 +108,7 @@ const NeighborhoodTab = ({ user }: { user: UserProfile }) => {
                 <ArrowRightLeft size={18} />
               </button>
               <button 
-                onClick={() => alert(`${neighbor.name}님에게 사과 선물을 보내시겠습니까?`)}
+                onClick={() => showAlert(`${neighbor.name}님에게\n사과 선물을 보냈어요! 🎁`, '🎁', 'success')}
                 className="w-10 h-10 bg-apple-green/10 text-apple-green rounded-xl flex items-center justify-center hover:bg-apple-green hover:text-white transition-all shadow-sm active:scale-95"
               >
                 <GiftIcon size={18} />

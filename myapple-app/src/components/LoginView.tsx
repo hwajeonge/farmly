@@ -1,26 +1,54 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { authService } from '../services/authService';
+import { AlertModal } from './AlertModal';
+import { AlertType } from '../lib/alertEmitter';
 
 interface LoginViewProps {
   onLoginSuccess: () => void;
 }
 
 export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [alertState, setAlertState] = useState<{ message: string; emoji: string; type: AlertType } | null>(null);
+
+  const showLocalAlert = (message: string, emoji: string, type: AlertType) => {
+    setAlertState({ message, emoji, type });
+  };
 
   const handleGoogleLogin = async () => {
-    setError('');
     setLoading(true);
+    let handled = false;
+    let focusTimer: ReturnType<typeof setTimeout>;
+
+    const onWindowFocus = () => {
+      focusTimer = setTimeout(() => {
+        if (!handled) {
+          handled = true;
+          setLoading(false);
+          showLocalAlert('로그인이 취소되었어요.\n다시 시도해 주세요!', '🙂', 'info');
+        }
+      }, 300);
+    };
+
+    window.addEventListener('focus', onWindowFocus, { once: true });
+
     try {
       await authService.signInWithGoogle();
+      handled = true;
+      clearTimeout(focusTimer);
+      window.removeEventListener('focus', onWindowFocus);
       onLoginSuccess();
     } catch (err: any) {
-      if (err.code === 'auth/popup-closed-by-user') {
-        setError('로그인 창이 닫혔어요. 다시 시도해 주세요 🙂');
-      } else {
-        setError('로그인 중 오류가 발생했어요.');
+      clearTimeout(focusTimer);
+      window.removeEventListener('focus', onWindowFocus);
+      if (!handled) {
+        handled = true;
+        if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
+          showLocalAlert('로그인이 취소되었어요.\n다시 시도해 주세요!', '🙂', 'info');
+        } else {
+          showLocalAlert('로그인 중 오류가 발생했어요.\n잠시 후 다시 시도해 주세요.', '😓', 'error');
+        }
       }
     } finally {
       setLoading(false);
@@ -107,11 +135,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
             )}
           </button>
 
-          {error && (
-            <p className="mt-3 text-xs font-bold text-red-500 bg-red-50 px-4 py-2.5 rounded-xl text-center">
-              {error}
-            </p>
-          )}
         </div>
 
         {/* 신규 혜택 배지 */}
@@ -130,6 +153,13 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
           </p>
         </motion.div>
       </motion.div>
+      <AlertModal
+        open={!!alertState}
+        message={alertState?.message ?? ''}
+        emoji={alertState?.emoji ?? '🍎'}
+        type={alertState?.type ?? 'info'}
+        onClose={() => setAlertState(null)}
+      />
     </div>
   );
 };
