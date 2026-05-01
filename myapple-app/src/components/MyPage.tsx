@@ -174,12 +174,12 @@ const ProfileView = ({ user, handleLogout, onOpenHarvestModal }: {
     <section className="cute-card p-5">
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-sm font-black text-stone-700">🎯 수확 보상 마일스톤</h3>
-        <span className="text-[10px] font-black text-apple-red">{user.accumulatedApples} / 220개</span>
+        <span className="text-[10px] font-black text-apple-red">{user.accumulatedApples ?? 0} / 220개</span>
       </div>
       <div className="progress-track h-3 mb-5">
         <motion.div
           initial={{ width: 0 }}
-          animate={{ width: `${Math.min(100, (user.accumulatedApples / 220) * 100)}%` }}
+          animate={{ width: `${Math.min(100, ((user.accumulatedApples ?? 0) / 220) * 100)}%` }}
           transition={{ duration: 0.8, ease: 'easeOut' }}
           className="progress-gold h-full"
         />
@@ -194,11 +194,11 @@ const ProfileView = ({ user, handleLogout, onOpenHarvestModal }: {
           <div key={item.m} className="text-center">
             <div className={cn(
               'w-10 h-10 rounded-2xl flex items-center justify-center text-xs font-black mb-1 mx-auto border-2',
-              user.accumulatedApples >= item.m
+              (user.accumulatedApples ?? 0) >= item.m
                 ? 'bg-yeoju-gold text-white border-yellow-300 shadow-[0_3px_0_0_#b07a00]'
                 : 'bg-stone-50 text-stone-300 border-stone-100',
             )}>
-              {user.accumulatedApples >= item.m ? '✓' : item.m}
+              {(user.accumulatedApples ?? 0) >= item.m ? '✓' : item.m}
             </div>
             <p className="text-[9px] font-black text-stone-500">{item.label}</p>
           </div>
@@ -246,10 +246,10 @@ const ProfileView = ({ user, handleLogout, onOpenHarvestModal }: {
         </div>
         <button
           onClick={onOpenHarvestModal}
-          disabled={user.accumulatedApples < 10 && !(user.claimedMilestones || []).includes(10)}
+          disabled={(user.accumulatedApples ?? 0) < 10 && !(user.claimedMilestones || []).includes(10)}
           className="w-full py-3.5 bg-white text-stone-800 rounded-2xl font-black text-sm active:scale-95 transition-all shadow-xl shadow-black/20 disabled:bg-stone-700 disabled:text-stone-500"
         >
-          {user.accumulatedApples >= 10 ? '수확 및 배송 신청하기 →' : `사과 10개 수확 시 오픈 (${user.accumulatedApples}/10)`}
+          {(user.accumulatedApples ?? 0) >= 10 ? '수확 및 배송 신청하기 →' : `사과 10개 수확 시 오픈 (${user.accumulatedApples ?? 0}/10)`}
         </button>
       </div>
       <Apple className="absolute -right-5 -bottom-5 w-28 h-28 opacity-[0.07] -rotate-12" />

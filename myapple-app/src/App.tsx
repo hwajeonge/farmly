@@ -72,6 +72,9 @@ export default function App() {
           if (!migProfile.items) migProfile.items = [];
           if (!migProfile.badges) migProfile.badges = [];
           if (!migProfile.trees) migProfile.trees = [];
+          if (migProfile.accumulatedApples == null) migProfile.accumulatedApples = 0;
+          if (migProfile.apples == null) migProfile.apples = 0;
+          if (migProfile.lives == null) migProfile.lives = 5;
 
           fromFirebase.current = true;
           setUser(migProfile);
