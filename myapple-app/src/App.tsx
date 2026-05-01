@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Header } from './components/Header';
 import { Navbar } from './components/Navbar';
@@ -41,6 +41,7 @@ export default function App() {
   const [weather, setWeather] = useState('맑음');
 
   const [profilePending, setProfilePending] = useState(false);
+  const fromFirebase = useRef(false);
 
   // Firebase Auth & Data Sync
   useEffect(() => {
@@ -72,6 +73,7 @@ export default function App() {
           if (!migProfile.badges) migProfile.badges = [];
           if (!migProfile.trees) migProfile.trees = [];
 
+          fromFirebase.current = true;
           setUser(migProfile);
           setProfilePending(false);
         } else {
@@ -82,6 +84,20 @@ export default function App() {
       return () => unsubscribeProfile();
     }
   }, [firebaseUser]);
+
+  // Auto-save: whenever user state changes locally, persist to Firestore.
+  // fromFirebase flag prevents save loops (Firebase update → onSnapshot → setUser → save → loop).
+  useEffect(() => {
+    if (fromFirebase.current) {
+      fromFirebase.current = false;
+      return;
+    }
+    if (!user || !firebaseUser) return;
+    const timer = setTimeout(() => {
+      authService.saveProfile(firebaseUser.uid, user).catch(console.error);
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [user]);
 
   const handleRoleSelect = async (role: UserRole) => {
     if (!firebaseUser) return;

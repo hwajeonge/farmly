@@ -89,5 +89,9 @@ export const authService = {
     await updateDoc(doc(db, 'users', uid), {
       points: increment(amount)
     });
+  },
+
+  async saveProfile(uid: string, profile: UserProfile) {
+    await setDoc(doc(db, 'users', uid), profile);
   }
 };
