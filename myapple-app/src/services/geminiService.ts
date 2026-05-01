@@ -39,9 +39,9 @@ const courseTools: FunctionDeclaration[] = [
 
 export async function getTreeMessage(treeName: string, personality: string, stage: string, weather: string, userInput?: string) {
   try {
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
     if (!apiKey) throw new Error("API Key missing");
-    
+
     const ai = new GoogleGenAI({ apiKey });
 
     const personalityPrompt = `
@@ -93,9 +93,9 @@ export async function getChatResponseStream(
   }
 ) {
   try {
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
     if (!apiKey) throw new Error("API Key missing");
-    
+
     const ai = new GoogleGenAI({ apiKey });
 
     const placesStr = JSON.stringify(PLACES);
@@ -197,9 +197,9 @@ export async function getChatResponse(
   }
 ) {
   try {
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
     if (!apiKey) throw new Error("API Key missing");
-    
+
     const ai = new GoogleGenAI({ apiKey });
 
     const placesStr = JSON.stringify(PLACES);
