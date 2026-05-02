@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, X, MapPin, Gamepad2, Info, Gift, Trash2, ChevronRight } from 'lucide-react';
 import { AppNotification } from '../types';
 

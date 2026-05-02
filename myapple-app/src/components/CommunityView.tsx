@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { showAlert } from '../lib/alertEmitter';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Users, Trophy, Target, Gift, Search, 
   UserPlus, MessageSquare, TrendingUp, 

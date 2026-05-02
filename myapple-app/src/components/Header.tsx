@@ -1,5 +1,6 @@
 import React from 'react';
-import { Bell } from 'lucide-react';
+import { Bell, Heart, Sparkles } from 'lucide-react';
+import { FARMLY_LOGO_ALT, FARMLY_LOGO_SRC, SERVICE_NAME } from '../brand';
 
 interface HeaderProps {
   userName: string;
@@ -10,48 +11,47 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({
+  userName,
   points,
   lives,
   unreadNotifications,
   onOpenNotifications,
 }) => {
   return (
-    <header className="px-4 py-3 flex justify-between items-center bg-white/90 backdrop-blur-lg sticky top-0 z-40 border-b-2 border-red-50 max-w-md mx-auto w-full shadow-[0_2px_16px_rgba(255,107,107,0.07)]">
-      {/* 로고 */}
-      <div className="flex items-center gap-2.5 min-w-0 flex-1">
-        <div className="w-9 h-9 bg-linear-to-br from-red-400 to-apple-red rounded-[14px] flex items-center justify-center text-lg shadow-[0_3px_8px_rgba(255,107,107,0.35)] shrink-0">
-          🍎
+    <header className="sticky top-0 z-40 mx-auto flex w-full max-w-md items-center justify-between border-b-2 border-red-50 bg-white/92 px-4 py-3 shadow-[0_2px_16px_rgba(255,107,107,0.07)] backdrop-blur-lg">
+      <div className="flex min-w-0 flex-1 items-center gap-2.5">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border-2 border-white bg-[#fff7e8] p-1 shadow-[0_4px_10px_rgba(255,107,107,0.20)]">
+          <img src={FARMLY_LOGO_SRC} alt={FARMLY_LOGO_ALT} className="h-full w-full object-contain object-center" />
         </div>
         <div className="min-w-0">
-          <h1 className="text-[15px] font-black tracking-tight text-stone-800 leading-tight truncate">
-            사과밭영주는 나
+          <h1 className="truncate text-[17px] font-black leading-tight tracking-tight text-stone-800">
+            {SERVICE_NAME}
           </h1>
-          <p className="text-[9px] text-warm-gray font-bold truncate">나만의 사과나무를 키워요 🌱</p>
+          <p className="truncate text-[10px] font-bold text-warm-gray">
+            {userName}님의 영주 사과나무 모험
+          </p>
         </div>
       </div>
 
-      {/* 상태 표시 */}
-      <div className="flex items-center gap-2 shrink-0">
-        {/* 하트 */}
-        <div className="flex items-center gap-1 bg-red-50 px-2.5 py-1.5 rounded-full border border-red-100">
-          <span className="text-xs leading-none">❤️</span>
-          <span className="text-xs font-black text-red-500 leading-none">{lives}</span>
+      <div className="flex shrink-0 items-center gap-2">
+        <div className="flex items-center gap-1 rounded-full border border-red-100 bg-red-50 px-2.5 py-1.5">
+          <Heart size={13} className="fill-red-400 text-red-400" />
+          <span className="text-xs font-black leading-none text-red-500">{lives}</span>
         </div>
 
-        {/* 포인트 */}
-        <div className="flex items-center gap-1 bg-yellow-50 px-2.5 py-1.5 rounded-full border border-yellow-100">
-          <span className="text-xs leading-none">🪙</span>
-          <span className="text-xs font-black text-yellow-600 leading-none">{points.toLocaleString()}</span>
+        <div className="flex items-center gap-1 rounded-full border border-yellow-100 bg-yellow-50 px-2.5 py-1.5">
+          <Sparkles size={13} className="text-yellow-600" />
+          <span className="text-xs font-black leading-none text-yellow-700">{points.toLocaleString()}</span>
         </div>
 
-        {/* 알림 */}
         <button
           onClick={onOpenNotifications}
-          className="relative w-8 h-8 bg-stone-100 rounded-full flex items-center justify-center active:scale-90 transition-all hover:bg-stone-200"
+          className="relative flex h-9 w-9 items-center justify-center rounded-full bg-stone-100 transition-all hover:bg-stone-200 active:scale-90"
+          aria-label="알림 보기"
         >
-          <Bell size={15} className="text-stone-500" />
+          <Bell size={16} className="text-stone-500" />
           {unreadNotifications > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-apple-red text-white text-[9px] font-black rounded-full flex items-center justify-center border-2 border-white leading-none">
+            <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full border-2 border-white bg-apple-red text-[9px] font-black leading-none text-white">
               {unreadNotifications > 9 ? '9+' : unreadNotifications}
             </span>
           )}

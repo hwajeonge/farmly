@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { Trophy, Users, Heart, Gift, MessageSquare } from 'lucide-react';
 
 export const CommunityView: React.FC = () => {

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   BarChart3, Users, Package, TrendingUp, ShieldAlert, 
   Store, MapPin, MessageCircle, Plus, Info, 

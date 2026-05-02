@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { showAlert } from '../lib/alertEmitter';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { Share2, Info, Calendar, MapPin, Star, Apple, Droplets, TrendingUp, Sparkles, X, Users } from 'lucide-react';
 import { TreeState, AppleVariety } from '../types';
 import { cn } from '../lib/utils';

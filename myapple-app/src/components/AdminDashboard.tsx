@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { BarChart3, Users, Package, TrendingUp, ShieldAlert } from 'lucide-react';
 import { UserRole } from '../types';
 import { FarmAdminDashboard } from './FarmAdminDashboard';

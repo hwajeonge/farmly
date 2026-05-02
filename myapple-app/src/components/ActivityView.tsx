@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { MissionsView } from './Missions';
 import { CommunityView } from './Community';
 import { ChatbotView } from './ChatbotView';
 import { TravelCourse } from './TravelCourse';
 import { cn } from '../lib/utils';
-import { Course, MissionStatus, VisitedPlace } from '../types';
+import { Course, MissionStatus, VisitedPlace, ChatConversation } from '../types';
 
 interface ActivityViewProps {
   onAddPoints: (points: number) => void;
@@ -16,8 +16,8 @@ interface ActivityViewProps {
   onUpdateProgress: (missionId: string, status: MissionStatus) => void;
   points: number;
   weather: string;
-  chatHistory: { role: 'user' | 'model'; text: string }[];
-  onUpdateChatHistory: (history: { role: 'user' | 'model'; text: string }[]) => void;
+  conversations: ChatConversation[];
+  onUpdateConversations: (conversations: ChatConversation[]) => void;
   userName: string;
   visitHistory?: VisitedPlace[];
   activeCourse: Course | null;
@@ -151,8 +151,8 @@ export const ActivityView: React.FC<ActivityViewProps> = (props) => {
                     points={props.points}
                     completedMissions={Object.keys(props.missionProgress).filter(k => props.missionProgress[k] === 'completed')}
                     weather={props.weather}
-                    chatHistory={props.chatHistory}
-                    onUpdateHistory={props.onUpdateChatHistory}
+                    conversations={props.conversations}
+                    onUpdateConversations={props.onUpdateConversations}
                     userName={props.userName}
                     visitHistory={props.visitHistory}
                     hideHeader={true}
@@ -179,8 +179,8 @@ export const ActivityView: React.FC<ActivityViewProps> = (props) => {
                 points={props.points}
                 completedMissions={Object.keys(props.missionProgress).filter(k => props.missionProgress[k] === 'completed')}
                 weather={props.weather}
-                chatHistory={props.chatHistory}
-                onUpdateHistory={props.onUpdateChatHistory}
+                conversations={props.conversations}
+                onUpdateConversations={props.onUpdateConversations}
                 userName={props.userName}
                 visitHistory={props.visitHistory}
                 hideHeader={true}

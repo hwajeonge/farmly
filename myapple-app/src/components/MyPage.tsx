@@ -1,14 +1,10 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import {
-  Award, ShoppingBag, ChevronRight,
-  MapPin, Heart, LogOut, Camera,
-  Trash2, Edit3, Share2, Apple, Gift, LayoutGrid, List
-} from 'lucide-react';
-import { UserProfile, VisitedPlace, UserBadge, TreeState } from '../types';
-import { authService } from '../services/authService';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Apple, Award, Camera, Gift, LayoutGrid, List, LogOut, MapPin, ShoppingBag, Sprout } from 'lucide-react';
+import { TreeState, UserProfile, VisitedPlace } from '../types';
 import { cn } from '../lib/utils';
 import { TreeOwnershipCard } from './TreeOwnershipCard';
+import { SERVICE_NAME } from '../brand';
 
 interface MyPageProps {
   user: UserProfile;
@@ -18,88 +14,91 @@ interface MyPageProps {
   onGoToStore: () => void;
 }
 
-type MenuTab = 'profile' | 'travel' | 'reviews' | 'cards';
+type MenuTab = 'profile' | 'travel' | 'cards';
 
 const MENU_TABS = [
-  { id: 'profile', emoji: '🏅', label: '활동정보' },
-  { id: 'travel',  emoji: '🗺️', label: '여행기록' },
-  { id: 'reviews', emoji: '💬', label: '후기관리' },
-  { id: 'cards',   emoji: '🃏', label: '소유권카드' },
+  { id: 'profile', icon: Apple, label: '내 농장' },
+  { id: 'travel', icon: MapPin, label: '여행 기록' },
+  { id: 'cards', icon: Sprout, label: '나무 카드' },
 ] as const;
+
+const REWARD_MILESTONES = [
+  { apples: 10, label: '1kg 배송' },
+  { apples: 30, label: '영양제' },
+  { apples: 60, label: '보호 세트' },
+  { apples: 100, label: '교환권' },
+];
 
 export const MyPage: React.FC<MyPageProps> = ({ user, handleLogout, onOpenHarvestModal, onGoToStore }) => {
   const [activeTab, setActiveTab] = useState<MenuTab>('profile');
   const [selectedTree, setSelectedTree] = useState<TreeState | null>(null);
 
   return (
-    <div className="py-2 pb-24">
-
-      {/* 상단 액션 버튼 */}
-      <div className="flex justify-between px-1 mb-5">
+    <div className="pb-24 pt-2">
+      <div className="mb-5 flex justify-between px-1">
         <button
           onClick={onGoToStore}
-          className="w-10 h-10 bg-yellow-50 border-2 border-yellow-100 rounded-2xl flex items-center justify-center text-yeoju-gold active:scale-90 transition-all"
+          className="flex h-10 w-10 items-center justify-center rounded-2xl border-2 border-yellow-100 bg-yellow-50 text-yeoju-gold transition-all active:scale-90"
+          aria-label="상점으로 이동"
         >
           <ShoppingBag size={18} strokeWidth={2.5} />
         </button>
         <button
           onClick={handleLogout}
-          className="w-10 h-10 bg-stone-50 border-2 border-stone-100 rounded-2xl flex items-center justify-center text-stone-400 active:scale-90 transition-all"
+          className="flex h-10 w-10 items-center justify-center rounded-2xl border-2 border-stone-100 bg-stone-50 text-stone-400 transition-all active:scale-90"
+          aria-label="로그아웃"
         >
           <LogOut size={18} />
         </button>
       </div>
 
-      {/* 프로필 헤더 */}
-      <div className="flex flex-col items-center mb-7">
+      <section className="mb-7 flex flex-col items-center">
         <div className="relative mb-4">
-          <div className="w-24 h-24 bg-stone-100 rounded-[2rem] border-4 border-white shadow-xl overflow-hidden flex items-center justify-center">
+          <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-[2rem] border-4 border-white bg-stone-100 shadow-xl">
             {user.profileImage ? (
-              <img src={user.profileImage} alt={user.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+              <img src={user.profileImage} alt={user.name} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
             ) : (
               <span className="text-4xl font-black text-apple-red">{user.name[0]}</span>
             )}
           </div>
-          <button className="absolute -bottom-1 -right-1 p-2 bg-stone-800 text-white rounded-xl border-4 border-white shadow-lg active:scale-90 transition-transform">
+          <button className="absolute -bottom-1 -right-1 rounded-xl border-4 border-white bg-stone-800 p-2 text-white shadow-lg transition-transform active:scale-90">
             <Camera size={14} />
           </button>
         </div>
 
-        <h2 className="text-2xl font-black text-stone-800 mb-1">{user.nickname || user.name}</h2>
-        <div className="flex flex-col items-center gap-1.5">
-          <span className="px-3 py-1 bg-apple-red/10 text-apple-red text-[10px] font-black rounded-full">
-            🌱 Digital Farmer
+        <h2 className="mb-1 text-2xl font-black text-stone-800">{user.nickname || user.name}</h2>
+        <span className="rounded-full bg-apple-red/10 px-3 py-1 text-[10px] font-black text-apple-red">
+          {SERVICE_NAME} Farmer
+        </span>
+        <div className="mt-2 flex items-center gap-1.5 rounded-full border border-red-100 bg-red-50 px-3 py-1.5">
+          <Apple size={12} className="text-apple-red" />
+          <span className="text-xs font-black text-stone-700">
+            누적 수확 <span className="text-apple-red">{user.accumulatedApples ?? 0}개</span>
           </span>
-          <div className="flex items-center gap-1.5 bg-red-50 border border-red-100 px-3 py-1.5 rounded-full">
-            <Apple size={12} className="text-apple-red" />
-            <span className="text-xs font-black text-stone-700">
-              누적 수확량: <span className="text-apple-red">{user.accumulatedApples}개</span>
-            </span>
-          </div>
         </div>
+      </section>
+
+      <div className="mb-7 flex gap-1 rounded-2xl bg-stone-100 p-1.5">
+        {MENU_TABS.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as MenuTab)}
+              className={cn(
+                'relative flex flex-1 flex-col items-center gap-1 overflow-hidden rounded-xl py-2.5 transition-all',
+                isActive ? 'bg-white text-stone-800 shadow-sm' : 'text-stone-400',
+              )}
+            >
+              <Icon size={16} />
+              <span className="text-[9px] font-black leading-tight">{tab.label}</span>
+              {isActive && <motion.div layoutId="mypage-tab-line" className="absolute bottom-0 left-0 right-0 h-0.5 bg-apple-red" />}
+            </button>
+          );
+        })}
       </div>
 
-      {/* 서브 탭 */}
-      <div className="flex gap-1 mb-7 bg-stone-100 p-1.5 rounded-2xl">
-        {MENU_TABS.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id as MenuTab)}
-            className={cn(
-              'flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl transition-all relative overflow-hidden',
-              activeTab === tab.id ? 'bg-white text-stone-800 shadow-sm' : 'text-stone-400',
-            )}
-          >
-            <span className={cn('text-base transition-all', activeTab === tab.id ? 'scale-110' : 'opacity-60')}>{tab.emoji}</span>
-            <span className="text-[9px] font-black leading-tight">{tab.label}</span>
-            {activeTab === tab.id && (
-              <motion.div layoutId="mypage-tab-line" className="absolute bottom-0 left-0 right-0 h-0.5 bg-apple-red" />
-            )}
-          </button>
-        ))}
-      </div>
-
-      {/* 탭 컨텐츠 */}
       <AnimatePresence mode="wait">
         <motion.div
           key={activeTab}
@@ -108,18 +107,16 @@ export const MyPage: React.FC<MyPageProps> = ({ user, handleLogout, onOpenHarves
           exit={{ opacity: 0, y: -8 }}
           transition={{ duration: 0.18 }}
         >
-          {activeTab === 'profile'  && <ProfileView user={user} handleLogout={handleLogout} onOpenHarvestModal={onOpenHarvestModal} />}
-          {activeTab === 'travel'   && <TravelView history={user.visitedHistory} />}
-          {activeTab === 'reviews'  && <ReviewsView />}
-          {activeTab === 'cards'    && <CardsView trees={user.trees} user={user} onSelect={setSelectedTree} />}
+          {activeTab === 'profile' && <ProfileView user={user} onOpenHarvestModal={onOpenHarvestModal} />}
+          {activeTab === 'travel' && <TravelView history={user.visitedHistory} />}
+          {activeTab === 'cards' && <CardsView trees={user.trees} user={user} onSelect={setSelectedTree} />}
         </motion.div>
       </AnimatePresence>
 
-      {/* 소유권 카드 모달 */}
       <AnimatePresence>
         {selectedTree && (
           <div
-            className="fixed inset-0 bg-stone-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-6"
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-900/60 p-6 backdrop-blur-md"
             onClick={() => setSelectedTree(null)}
           >
             <motion.div
@@ -138,222 +135,98 @@ export const MyPage: React.FC<MyPageProps> = ({ user, handleLogout, onOpenHarves
   );
 };
 
-/* ══════════════════════════════════════════
-   프로필 뷰
-══════════════════════════════════════════ */
-const ProfileView = ({ user, handleLogout, onOpenHarvestModal }: {
-  user: UserProfile; handleLogout: () => void; onOpenHarvestModal: () => void;
-}) => (
-  <div className="space-y-5">
-
-    {/* 영주시 디지털 주민 카드 */}
-    <div className="apple-gradient p-6 rounded-[2rem] text-white shadow-[0_8px_32px_rgba(82,196,138,0.3)] relative overflow-hidden border-4 border-white/20">
-      <div className="relative z-10">
-        <div className="flex justify-between items-start mb-7">
-          <div className="w-11 h-11 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/30">
-            <Award size={22} strokeWidth={2.5} />
-          </div>
-          <p className="text-[10px] font-black uppercase tracking-widest opacity-80 text-right leading-relaxed">
-            Republic of Korea<br />Yeongju City Card
-          </p>
-        </div>
-        <p className="text-[10px] font-black opacity-70 mb-1 uppercase tracking-widest">Digital Resident</p>
-        <h3 className="text-2xl font-black mb-5 tracking-tight">{user.name}</h3>
-        <div className="flex justify-between items-end">
-          <p className="text-[11px] font-bold opacity-80">제휴 카페 할인 · 선비촌 무료 입장</p>
-          <div className="bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-xl text-[10px] font-black border border-white/30">
-            Active ✓
-          </div>
-        </div>
-      </div>
-      <div className="absolute -top-8 -right-8 w-40 h-40 bg-white/15 rounded-full blur-3xl" />
-      <div className="absolute -bottom-8 -left-8 w-40 h-40 bg-black/10 rounded-full blur-3xl" />
-    </div>
-
-    {/* 수확 마일스톤 */}
-    <section className="cute-card p-5">
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-sm font-black text-stone-700">🎯 수확 보상 마일스톤</h3>
-        <span className="text-[10px] font-black text-apple-red">{user.accumulatedApples ?? 0} / 220개</span>
-      </div>
-      <div className="progress-track h-3 mb-5">
-        <motion.div
-          initial={{ width: 0 }}
-          animate={{ width: `${Math.min(100, ((user.accumulatedApples ?? 0) / 220) * 100)}%` }}
-          transition={{ duration: 0.8, ease: 'easeOut' }}
-          className="progress-gold h-full"
-        />
-      </div>
-      <div className="grid grid-cols-4 gap-2">
-        {[
-          { m: 30,  label: '영양제' },
-          { m: 60,  label: '약/방풍' },
-          { m: 100, label: '1kg권' },
-          { m: 220, label: 'VIP권' },
-        ].map((item) => (
-          <div key={item.m} className="text-center">
-            <div className={cn(
-              'w-10 h-10 rounded-2xl flex items-center justify-center text-xs font-black mb-1 mx-auto border-2',
-              (user.accumulatedApples ?? 0) >= item.m
-                ? 'bg-yeoju-gold text-white border-yellow-300 shadow-[0_3px_0_0_#b07a00]'
-                : 'bg-stone-50 text-stone-300 border-stone-100',
-            )}>
-              {(user.accumulatedApples ?? 0) >= item.m ? '✓' : item.m}
-            </div>
-            <p className="text-[9px] font-black text-stone-500">{item.label}</p>
-          </div>
-        ))}
-      </div>
-    </section>
-
-    {/* 뱃지 컬렉션 */}
-    <section className="cute-card p-5">
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-sm font-black text-stone-700">🏅 사과나무 뱃지</h3>
-        <button className="text-[10px] font-black text-apple-red">전체보기</button>
-      </div>
-      <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
-        {[
-          { id: '1', title: '4월의 농부', icon: '🌱' },
-          { id: '2', title: '첫 수확',    icon: '🍎' },
-          { id: '3', title: '성실한 탐험가',icon: '🎒' },
-          { id: '4', title: '선비의 길',  icon: '🕯️' },
-        ].concat((user.badges || []).map(b => ({ id: b.id, title: b.title, icon: b.icon }))).slice(0, 5).map((badge, i) => (
-          <div key={`${badge.id}-${i}`} className="flex flex-col items-center shrink-0 w-14">
-            <div className="w-12 h-12 bg-red-50 rounded-2xl border-2 border-red-100 flex items-center justify-center text-2xl relative mb-1.5">
-              {badge.icon}
-              <div className="absolute -bottom-1 -right-1 bg-apple-green text-white w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-black border-2 border-white">
-                ✓
-              </div>
-            </div>
-            <span className="text-[9px] font-black text-stone-700 text-center leading-tight">{badge.title}</span>
-          </div>
-        ))}
-      </div>
-    </section>
-
-    {/* 실물 사과 수확 */}
-    <section className="bg-stone-800 p-5 rounded-[2rem] text-white relative overflow-hidden">
-      <div className="relative z-10">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-10 h-10 bg-yeoju-gold rounded-2xl flex items-center justify-center shadow-lg">
-            <Gift size={18} strokeWidth={2.5} />
-          </div>
-          <div>
-            <h3 className="font-black text-base">실물 사과 수확 🍎</h3>
-            <p className="text-[10px] font-bold opacity-50">100개 이상 모으면 신청 가능</p>
-          </div>
-        </div>
-        <button
-          onClick={onOpenHarvestModal}
-          disabled={(user.accumulatedApples ?? 0) < 10 && !(user.claimedMilestones || []).includes(10)}
-          className="w-full py-3.5 bg-white text-stone-800 rounded-2xl font-black text-sm active:scale-95 transition-all shadow-xl shadow-black/20 disabled:bg-stone-700 disabled:text-stone-500"
-        >
-          {(user.accumulatedApples ?? 0) >= 10 ? '수확 및 배송 신청하기 →' : `사과 10개 수확 시 오픈 (${user.accumulatedApples ?? 0}/10)`}
-        </button>
-      </div>
-      <Apple className="absolute -right-5 -bottom-5 w-28 h-28 opacity-[0.07] -rotate-12" />
-    </section>
-
-    {/* 대농장주 혜택 */}
-    <button className="w-full cute-card p-5 flex justify-between items-center bg-stone-800 text-white border-0 shadow-lg">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 bg-white/10 rounded-2xl flex items-center justify-center text-lg">🏆</div>
-        <div className="text-left">
-          <p className="text-sm font-black">대농장주 전용 혜택</p>
-          <p className="text-[10px] font-bold opacity-50">사과축제 부스 운영권 신청</p>
-        </div>
-      </div>
-      <ChevronRight size={16} className="opacity-40" />
-    </button>
-  </div>
-);
-
-/* ══════════════════════════════════════════
-   여행 기록 뷰
-══════════════════════════════════════════ */
-const TravelView = ({ history }: { history?: VisitedPlace[] }) => {
-  const mockHistory: VisitedPlace[] = [
-    { placeId: '1', name: '부석사',          category: '관광지', date: '2024.04.18' },
-    { placeId: '2', name: '소수서원',         category: '관광지', date: '2024.04.15' },
-    { placeId: '3', name: '풍기 인삼 시장',  category: '맛집',   date: '2024.04.12' },
-  ];
-  const records = history && history.length > 0 ? history : mockHistory;
+const ProfileView = ({ user, onOpenHarvestModal }: { user: UserProfile; onOpenHarvestModal: () => void }) => {
+  const accumulatedApples = user.accumulatedApples ?? 0;
+  const canRequestDelivery = accumulatedApples >= 10 || (user.claimedMilestones || []).includes(10);
 
   return (
     <div className="space-y-5">
-      <div className="bg-stone-800 p-6 rounded-[2rem] text-white overflow-hidden relative">
-        <h3 className="text-[10px] font-black uppercase tracking-widest opacity-50 mb-5">나의 여행 타임라인</h3>
-        <div className="space-y-6 relative before:absolute before:left-3 before:top-2 before:bottom-2 before:w-0.5 before:bg-white/10">
-          {records.map((item, i) => (
-            <div key={i} className="flex gap-5 relative">
-              <div className="w-6 h-6 bg-apple-red rounded-full flex items-center justify-center z-10 shrink-0 border-4 border-stone-800">
-                <div className="w-1.5 h-1.5 bg-white rounded-full" />
+      <section className="apple-gradient relative overflow-hidden rounded-[2rem] border-4 border-white/20 p-6 text-white shadow-[0_8px_32px_rgba(82,196,138,0.3)]">
+        <div className="relative z-10">
+          <div className="mb-7 flex items-start justify-between">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/30 bg-white/20 backdrop-blur-md">
+              <Award size={22} strokeWidth={2.5} />
+            </div>
+            <p className="text-right text-[10px] font-black uppercase leading-relaxed tracking-widest opacity-80">
+              {SERVICE_NAME}<br />Digital Farmer
+            </p>
+          </div>
+          <p className="mb-1 text-[10px] font-black uppercase tracking-widest opacity-70">수확 여정</p>
+          <h3 className="mb-4 text-2xl font-black tracking-tight">{user.name}</h3>
+          <p className="text-[11px] font-bold opacity-85">
+            영주 농가의 사과나무를 키우고 관광 미션으로 보상을 모으는 중이에요.
+          </p>
+        </div>
+        <div className="absolute -right-8 -top-8 h-40 w-40 rounded-full bg-white/15 blur-3xl" />
+      </section>
+
+      <section className="cute-card p-5">
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-sm font-black text-stone-700">수확 보상 마일스톤</h3>
+          <span className="text-[10px] font-black text-apple-red">{accumulatedApples} / 100개</span>
+        </div>
+        <div className="progress-track mb-5 h-3">
+          <motion.div
+            initial={{ width: 0 }}
+            animate={{ width: `${Math.min(100, (accumulatedApples / 100) * 100)}%` }}
+            transition={{ duration: 0.8, ease: 'easeOut' }}
+            className="progress-gold h-full"
+          />
+        </div>
+        <div className="grid grid-cols-4 gap-2">
+          {REWARD_MILESTONES.map((item) => (
+            <div key={item.apples} className="text-center">
+              <div
+                className={cn(
+                  'mx-auto mb-1 flex h-10 w-10 items-center justify-center rounded-2xl border-2 text-xs font-black',
+                  accumulatedApples >= item.apples
+                    ? 'border-yellow-300 bg-yeoju-gold text-white shadow-[0_3px_0_0_#b07a00]'
+                    : 'border-stone-100 bg-stone-50 text-stone-300',
+                )}
+              >
+                {accumulatedApples >= item.apples ? '✓' : item.apples}
               </div>
-              <div>
-                <p className="text-[10px] font-black text-stone-400 mb-0.5">{item.date}</p>
-                <p className="text-sm font-black">{item.name}</p>
-                <span className="text-[9px] font-bold bg-white/5 border border-white/10 px-2 py-0.5 rounded-lg mt-1 inline-block">{item.category}</span>
-              </div>
+              <p className="text-[9px] font-black text-stone-500">{item.label}</p>
             </div>
           ))}
         </div>
-        <div className="absolute -top-8 -right-8 w-32 h-32 bg-apple-red/20 rounded-full blur-3xl animate-pulse" />
-      </div>
+      </section>
 
-      <button className="w-full py-3.5 bg-white border-2 border-stone-100 rounded-2xl text-xs font-black flex items-center justify-center gap-2 text-stone-600 active:bg-stone-50 transition-all">
-        <Share2 size={13} /> 전체 여행 기록 공유하기
-      </button>
+      <section className="relative overflow-hidden rounded-[2rem] bg-stone-800 p-5 text-white">
+        <div className="relative z-10">
+          <div className="mb-3 flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-yeoju-gold shadow-lg">
+              <Gift size={18} strokeWidth={2.5} />
+            </div>
+            <div>
+              <h3 className="text-base font-black">실물 사과 배송 신청</h3>
+              <p className="text-[10px] font-bold opacity-60">누적 수확 10개 이상부터 신청 가능</p>
+            </div>
+          </div>
+          <button
+            onClick={onOpenHarvestModal}
+            disabled={!canRequestDelivery}
+            className="w-full rounded-2xl bg-white py-3.5 text-sm font-black text-stone-800 shadow-xl shadow-black/20 transition-all active:scale-95 disabled:bg-stone-700 disabled:text-stone-500"
+          >
+            {canRequestDelivery ? '수확 보상 배송 신청하기' : `사과 10개 수확 후 오픈 (${accumulatedApples}/10)`}
+          </button>
+        </div>
+        <Apple className="absolute -bottom-5 -right-5 h-28 w-28 -rotate-12 opacity-[0.07]" />
+      </section>
     </div>
   );
 };
 
-/* ══════════════════════════════════════════
-   후기 관리 뷰
-══════════════════════════════════════════ */
-const ReviewsView = () => (
-  <div className="space-y-3">
-    <div className="flex justify-between items-center mb-1 px-1">
-      <h3 className="text-xs font-black text-warm-gray">내가 작성한 후기</h3>
-      <span className="text-[10px] font-bold text-stone-400">총 12건</span>
-    </div>
-    {[
-      { farm: '소백산 아래 사과농장', rating: 5, date: '2024.04.10', content: '사과가 정말 달고 신선해요! 체험 프로그램도 아이들이 너무 좋아했습니다.' },
-      { farm: '희방사 입구 농원',     rating: 4, date: '2024.03.28', content: '분양받은 나무 소식이 사진이랑 같이 와서 좋아요. 수확이 기다려지네요!' },
-    ].map((review, i) => (
-      <div key={i} className="cute-card p-5">
-        <div className="flex justify-between items-start mb-3">
-          <div>
-            <p className="text-sm font-black text-stone-800 mb-1">{review.farm}</p>
-            <div className="flex gap-0.5">
-              {[...Array(5)].map((_, idx) => (
-                <span key={idx} className="text-xs">{idx < review.rating ? '⭐' : '☆'}</span>
-              ))}
-            </div>
-          </div>
-          <div className="flex gap-1.5">
-            <button className="p-2 bg-stone-50 text-stone-400 rounded-xl active:bg-stone-100 transition-all"><Edit3 size={13} /></button>
-            <button className="p-2 bg-red-50 text-red-400 rounded-xl active:bg-red-100 transition-all"><Trash2 size={13} /></button>
-          </div>
-        </div>
-        <p className="text-[11px] font-bold text-stone-500 leading-relaxed mb-2">"{review.content}"</p>
-        <p className="text-[9px] font-black text-stone-300 uppercase tracking-widest">{review.date}</p>
-      </div>
-    ))}
-  </div>
-);
+const TravelView = ({ history }: { history?: VisitedPlace[] }) => {
+  const records = history && history.length > 0 ? history : [];
 
-/* ══════════════════════════════════════════
-   소유권 카드 뷰
-══════════════════════════════════════════ */
-const CardsView = ({ trees, user, onSelect }: { trees: TreeState[]; user: UserProfile; onSelect: (t: TreeState) => void }) => {
-  if (trees.length === 0) {
+  if (records.length === 0) {
     return (
-      <div className="py-14 flex flex-col items-center justify-center text-center px-8 border-2 border-dashed border-stone-200 rounded-[2rem]">
-        <div className="text-5xl mb-4">🌱</div>
-        <p className="text-sm font-black text-stone-700 mb-2">소유권 카드가 없어요</p>
-        <p className="text-[11px] font-bold text-warm-gray leading-relaxed">
-          사과나무를 분양받으면<br />나만의 디지털 소유권 카드가 생겨요!
+      <div className="rounded-[2rem] border-2 border-dashed border-stone-200 px-8 py-14 text-center">
+        <div className="mb-3 text-4xl">🗺️</div>
+        <p className="mb-1 text-sm font-black text-stone-700">아직 여행 기록이 없어요</p>
+        <p className="text-[11px] font-bold leading-relaxed text-warm-gray">
+          영주 관광 미션을 완료하면 이곳에 방문 기록이 쌓입니다.
         </p>
       </div>
     );
@@ -361,11 +234,47 @@ const CardsView = ({ trees, user, onSelect }: { trees: TreeState[]; user: UserPr
 
   return (
     <div className="space-y-5">
-      <div className="flex justify-between items-center px-1">
+      <section className="relative overflow-hidden rounded-[2rem] bg-stone-800 p-6 text-white">
+        <h3 className="mb-5 text-[10px] font-black uppercase tracking-widest opacity-50">나의 영주 여행 타임라인</h3>
+        <div className="relative space-y-6 before:absolute before:bottom-2 before:left-3 before:top-2 before:w-0.5 before:bg-white/10">
+          {records.map((item, index) => (
+            <div key={`${item.placeId}-${index}`} className="relative flex gap-5">
+              <div className="z-10 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-4 border-stone-800 bg-apple-red">
+                <div className="h-1.5 w-1.5 rounded-full bg-white" />
+              </div>
+              <div>
+                <p className="mb-0.5 text-[10px] font-black text-stone-400">{item.date}</p>
+                <p className="text-sm font-black">{item.name}</p>
+                <span className="mt-1 inline-block rounded-lg border border-white/10 bg-white/5 px-2 py-0.5 text-[9px] font-bold">{item.category}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+};
+
+const CardsView = ({ trees, user, onSelect }: { trees: TreeState[]; user: UserProfile; onSelect: (tree: TreeState) => void }) => {
+  if (trees.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center rounded-[2rem] border-2 border-dashed border-stone-200 px-8 py-14 text-center">
+        <div className="mb-4 text-5xl">🌱</div>
+        <p className="mb-2 text-sm font-black text-stone-700">소유권 카드가 없어요</p>
+        <p className="text-[11px] font-bold leading-relaxed text-warm-gray">
+          사과나무를 분양받으면 나만의 나무 카드가 생성됩니다.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between px-1">
         <h3 className="text-xs font-black text-warm-gray">나무 소유권 카드</h3>
         <div className="flex gap-1.5">
-          <button className="p-1.5 bg-stone-800 text-white rounded-xl"><LayoutGrid size={13} /></button>
-          <button className="p-1.5 bg-white border border-stone-200 text-stone-400 rounded-xl"><List size={13} /></button>
+          <button className="rounded-xl bg-stone-800 p-1.5 text-white"><LayoutGrid size={13} /></button>
+          <button className="rounded-xl border border-stone-200 bg-white p-1.5 text-stone-400"><List size={13} /></button>
         </div>
       </div>
 
@@ -378,18 +287,18 @@ const CardsView = ({ trees, user, onSelect }: { trees: TreeState[]; user: UserPr
             onClick={() => onSelect(tree)}
             className="group cursor-pointer"
           >
-            <div className="relative aspect-[2/3] bg-stone-100 rounded-[1.5rem] border-2 border-stone-200 overflow-hidden shadow-sm group-hover:shadow-lg transition-all">
+            <div className="relative aspect-[2/3] overflow-hidden rounded-[1.5rem] border-2 border-stone-200 bg-stone-100 shadow-sm transition-all group-hover:shadow-lg">
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-4xl mb-2">{tree.growthStage === '시즌종료' ? '🍎' : '🌳'}</span>
+                <span className="mb-2 text-4xl">{tree.growthStage === '시즌종료' ? '🍎' : '🌳'}</span>
                 <p className="text-[10px] font-black text-stone-800">{tree.nickname}</p>
                 <span className="text-[8px] font-bold text-stone-400">#{tree.id.slice(-4).toUpperCase()}</span>
               </div>
-              <div className="absolute top-2 right-2 w-8 h-8 bg-white/80 backdrop-blur rounded-full flex items-center justify-center text-[10px] font-black text-stone-700">
+              <div className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-white/80 text-[10px] font-black text-stone-700 backdrop-blur">
                 {tree.currentDay}d
               </div>
-              <div className="absolute bottom-0 left-0 right-0 h-2/5 bg-linear-to-t from-stone-900/60 to-transparent pointer-events-none" />
+              <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-2/5 bg-linear-to-t from-stone-900/60 to-transparent" />
               <div className="absolute bottom-3 left-3 right-3 text-white">
-                <div className="w-full bg-white/20 h-1 rounded-full overflow-hidden mb-1">
+                <div className="mb-1 h-1 w-full overflow-hidden rounded-full bg-white/20">
                   <div className="h-full bg-apple-green" style={{ width: `${tree.growthRate}%` }} />
                 </div>
                 <p className="text-[7px] font-black uppercase opacity-60">Growth: {tree.growthRate}%</p>
@@ -400,11 +309,9 @@ const CardsView = ({ trees, user, onSelect }: { trees: TreeState[]; user: UserPr
       </div>
 
       <div className="gold-card p-4 text-center">
-        <p className="text-[11px] font-bold text-stone-600 mb-2 leading-relaxed">
-          카드를 수집하면 영주 사과 축제에서<br />
-          <span className="text-yeoju-gold font-black">실물 굿즈로 교환</span>할 수 있어요!
+        <p className="mb-2 text-[11px] font-bold leading-relaxed text-stone-600">
+          {user.name}님의 나무 카드는 수확 이력과 함께 보관됩니다.
         </p>
-        <button className="text-[10px] font-black text-yeoju-gold underline underline-offset-4">참여 방법 보기</button>
       </div>
     </div>
   );

@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { Droplets, Sun, Shield, Pill, Calendar, ShoppingBag, Send, Trash2 } from 'lucide-react';
-import { TreeState, WeatherEvent, PestType } from '../types';
-import { GROWTH_STAGES_NEW } from '../constants';
+import React, { useEffect, useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
+import { Calendar, Droplets, Leaf, Pill, Send, Shield, ShoppingBag, Trash2 } from 'lucide-react';
+import { PestType, TreeState } from '../types';
 import { getTreeMessage } from '../services/geminiService';
 import { cn } from '../lib/utils';
-import { calculateDailyGrowth, calculateHarvestAmount, getPestEvent, getWeatherEvent, getDailyStatusMessage } from '../services/growthService';
+import { getDailyStatusMessage, getWeatherEvent } from '../services/growthService';
 
 interface TreeManagementProps {
   tree: TreeState;
@@ -16,28 +15,75 @@ interface TreeManagementProps {
   onGoToStore: () => void;
 }
 
+const STAGE_VISUALS = [
+  { maxDay: 1, icon: '🌰', label: '씨앗' },
+  { maxDay: 4, icon: '🌱', label: '새싹' },
+  { maxDay: 7, icon: '🌿', label: '발아기' },
+  { maxDay: 10, icon: '🌸', label: '개화기' },
+  { maxDay: 14, icon: '🍏', label: '착과기' },
+  { maxDay: 23, icon: '🍎', label: '착색기' },
+  { maxDay: 30, icon: '🧺', label: '수확기' },
+];
+
+const getPestInfo = (type: PestType) => {
+  switch (type) {
+    case 'aphids':
+      return { label: '진딧물 발생', icon: '⚠️', color: 'text-orange-600', bg: 'bg-orange-50 border-orange-200' };
+    case 'leaf_blight':
+      return { label: '잎마름병 주의', icon: '🍂', color: 'text-yellow-700', bg: 'bg-yellow-50 border-yellow-200' };
+    case 'bug_invasion':
+      return { label: '벌레 침입', icon: '🪲', color: 'text-red-600', bg: 'bg-red-50 border-red-200' };
+    default:
+      return null;
+  }
+};
+
+const clampPercent = (value: number) => Math.max(0, Math.min(100, Math.round(value)));
+
 export const TreeManagement: React.FC<TreeManagementProps> = ({
-  tree, onAction, onAdvanceDay, onDeleteTree, inventory, onGoToStore,
+  tree,
+  onAction,
+  onAdvanceDay,
+  onDeleteTree,
+  inventory,
+  onGoToStore,
 }) => {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
-  const [weather] = useState({ message: '영주는 오늘 맑음!', type: 'sunny' });
 
+  const weatherEvent = getWeatherEvent(tree.currentDay);
   const dailyStatus = getDailyStatusMessage(tree.currentDay);
+  const stageVisual = STAGE_VISUALS.find((stage) => tree.currentDay <= stage.maxDay) ?? STAGE_VISUALS[STAGE_VISUALS.length - 1];
+  const pestInfo = getPestInfo(tree.pestStatus);
+  const dayProgress = clampPercent((tree.currentDay / 30) * 100);
+  const growthProgress = clampPercent(tree.growthRate);
+
+  const nextGoal = useMemo(() => {
+    if (tree.currentDay < 7) return 'Day 7까지 새싹을 안정적으로 키우기';
+    if (tree.currentDay < 14) return '꽃과 어린 열매가 떨어지지 않게 관리하기';
+    if (tree.currentDay < 23) return '영주 관광 미션으로 성장 보너스 모으기';
+    if (tree.currentDay < 30) return '수확 전 병충해와 수분 상태 점검하기';
+    return '수확 결과를 확인하고 실물 보상으로 연결하기';
+  }, [tree.currentDay]);
 
   const fetchMessage = async (userInput?: string) => {
     if (userInput) setChatLoading(true);
     else setLoading(true);
-    const msg = await getTreeMessage(tree.nickname, tree.personality, tree.growthStage, weather.message, userInput);
-    setMessage(msg);
+
+    const weatherMessage = weatherEvent?.message ?? '오늘 영주는 안정적인 날씨예요.';
+    const msg = await getTreeMessage(tree.nickname, tree.personality, tree.growthStage, weatherMessage, userInput);
+
+    setMessage(msg || `${tree.nickname}이(가) 오늘도 자라고 있어요. 물주기와 관광 미션 보상으로 성장을 도와주세요.`);
     setLoading(false);
     setChatLoading(false);
     if (userInput) setChatInput('');
   };
 
-  useEffect(() => { fetchMessage(); }, [tree.growthStage, tree.currentDay]);
+  useEffect(() => {
+    fetchMessage();
+  }, [tree.growthStage, tree.currentDay]);
 
   const handleChatSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,95 +91,71 @@ export const TreeManagement: React.FC<TreeManagementProps> = ({
     fetchMessage(chatInput);
   };
 
-  const getStageIcon = () => {
-    if (tree.isGolden) return '🌟';
-    const allStages = [
-      ...GROWTH_STAGES_NEW.SPRING.stages,
-      ...GROWTH_STAGES_NEW.SUMMER.stages,
-      ...GROWTH_STAGES_NEW.AUTUMN.stages,
-      ...GROWTH_STAGES_NEW.WINTER.stages,
-    ].sort((a, b) => b.day - a.day);
-    return allStages.find(s => tree.currentDay >= s.day)?.icon || '🌰';
-  };
-
-  const getPestInfo = (type: PestType) => {
-    switch (type) {
-      case 'aphids':      return { label: '진딧물 발생!', icon: '🐛', color: 'text-orange-600', bg: 'bg-orange-50 border-orange-200' };
-      case 'leaf_blight': return { label: '잎마름병 발생!', icon: '🍂', color: 'text-yellow-700', bg: 'bg-yellow-50 border-yellow-200' };
-      case 'bug_invasion':return { label: '벌레 침입!',   icon: '🐞', color: 'text-red-600',    bg: 'bg-red-50 border-red-200'       };
-      default: return null;
-    }
-  };
-
-  const pestInfo = getPestInfo(tree.pestStatus);
   const getItemCount = (id: string) => inventory.find(i => i.id === id)?.count ?? 0;
-  const progress = Math.round((tree.currentDay / 30) * 100);
 
   return (
-    <div className="py-2 space-y-5">
-
-      {/* ── 상단 DAY 카운터 ── */}
-      <div className="flex items-center justify-between px-1">
-        <div>
-          <p className="text-[10px] font-black text-warm-gray uppercase tracking-widest mb-0.5">성장 타임라인</p>
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-3xl font-black text-stone-800">DAY {tree.currentDay}</span>
-            <span className="text-xs font-black text-stone-300">/ 30</span>
+    <div className="space-y-5 py-3">
+      <section className="overflow-hidden rounded-[2rem] border-4 border-white bg-gradient-to-br from-apple-light via-white to-yeoju-light p-4 shadow-[0_10px_30px_rgba(255,107,107,0.10)]">
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-apple-red">Apple Tree Quest</p>
+            <div className="mt-1 flex items-baseline gap-2">
+              <h2 className="text-3xl font-black text-stone-900">Day {tree.currentDay}</h2>
+              <span className="text-xs font-black text-stone-400">/ 30</span>
+            </div>
+            <p className="mt-1 text-xs font-bold text-apple-green">{dailyStatus}</p>
           </div>
-          <p className="text-[11px] font-bold text-apple-green mt-0.5">✨ {dailyStatus}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={onDeleteTree}
-            className="w-10 h-10 bg-red-50 rounded-2xl flex items-center justify-center text-red-400 active:scale-90 transition-all border-2 border-red-100"
-            title="나무 제거"
-          >
-            <Trash2 size={17} />
-          </button>
-          <button
-            onClick={onGoToStore}
-            className="w-10 h-10 bg-yellow-50 rounded-2xl flex items-center justify-center text-yeoju-gold active:scale-90 transition-all border-2 border-yellow-100"
-          >
-            <ShoppingBag size={17} strokeWidth={2.5} />
-          </button>
-          <div className="px-3 py-1.5 bg-apple-red/10 rounded-2xl border border-apple-red/20">
-            <p className="text-[9px] font-black text-warm-gray uppercase tracking-wide mb-0.5 text-right">계절</p>
-            <p className="text-xs font-black text-apple-red">{tree.growthStage}</p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onGoToStore}
+              className="flex h-10 w-10 items-center justify-center rounded-2xl border-2 border-yellow-100 bg-yellow-50 text-yeoju-gold transition-all active:scale-90"
+              aria-label="상점으로 이동"
+            >
+              <ShoppingBag size={18} strokeWidth={2.5} />
+            </button>
+            <button
+              onClick={onDeleteTree}
+              className="flex h-10 w-10 items-center justify-center rounded-2xl border-2 border-red-100 bg-red-50 text-red-400 transition-all active:scale-90"
+              aria-label="나무 제거"
+            >
+              <Trash2 size={17} />
+            </button>
           </div>
         </div>
-      </div>
 
-      {/* ── 프로그레스 바 ── */}
-      <div className="px-1">
-        <div className="progress-track h-3">
-          <motion.div
-            initial={{ width: 0 }}
-            animate={{ width: `${progress}%` }}
-            transition={{ duration: 0.6, ease: 'easeOut' }}
-            className="progress-red h-full"
-          />
+        <div className="rounded-[1.75rem] border-2 border-white bg-white/70 p-3">
+          <div className="mb-2 flex justify-between text-[10px] font-black text-stone-400">
+            <span>시즌 진행</span>
+            <span>{dayProgress}%</span>
+          </div>
+          <div className="progress-track h-3">
+            <motion.div className="progress-red h-full" animate={{ width: `${dayProgress}%` }} />
+          </div>
+          <div className="mt-2 flex justify-between text-[9px] font-bold text-stone-400">
+            <span>씨앗</span>
+            <span>꽃</span>
+            <span>열매</span>
+            <span>수확</span>
+          </div>
         </div>
-        <div className="flex justify-between mt-1 px-0.5">
-          <span className="text-[9px] font-bold text-stone-300">발아기</span>
-          <span className="text-[9px] font-black text-apple-red">{progress}%</span>
-          <span className="text-[9px] font-bold text-stone-300">수확기</span>
+      </section>
+
+      <section className="relative overflow-hidden rounded-[2.25rem] border-4 border-white bg-white p-5 shadow-[0_8px_28px_rgba(90,62,43,0.08)]">
+        <div className="absolute right-4 top-4 rounded-2xl border border-red-100 bg-red-50 px-3 py-1.5 text-right">
+          <p className="text-[9px] font-black uppercase tracking-wide text-stone-400">단계</p>
+          <p className="text-xs font-black text-apple-red">{stageVisual.label}</p>
         </div>
-      </div>
 
-      {/* ── 나무 메인 영역 ── */}
-      <div className="relative flex flex-col items-center py-10 bg-white/60 rounded-[2.5rem] border-2 border-white shadow-[0_4px_24px_rgba(255,107,107,0.06)]">
-
-        {/* 나무 성격 + 병해충 알림 */}
-        <div className="absolute top-4 left-4 flex flex-col gap-2">
-          <div className="bg-white px-3 py-1.5 rounded-2xl shadow-sm border-2 border-stone-50">
-            <p className="text-[9px] font-black text-stone-300 uppercase tracking-wider mb-0.5">성격</p>
+        <div className="absolute left-4 top-4 space-y-2">
+          <div className="rounded-2xl border-2 border-stone-50 bg-white px-3 py-1.5 shadow-sm">
+            <p className="text-[9px] font-black uppercase tracking-wide text-stone-300">성격</p>
             <p className="text-xs font-black text-apple-green">{tree.personality}</p>
           </div>
           {pestInfo && (
             <motion.div
-              animate={{ scale: [1, 1.06, 1] }}
+              animate={{ scale: [1, 1.05, 1] }}
               transition={{ repeat: Infinity, duration: 1.5 }}
-              className={cn('px-3 py-1.5 rounded-2xl border-2 flex items-center gap-1.5', pestInfo.bg)}
+              className={cn('flex items-center gap-1.5 rounded-2xl border-2 px-3 py-1.5', pestInfo.bg)}
             >
               <span className="text-sm">{pestInfo.icon}</span>
               <p className={cn('text-[11px] font-black', pestInfo.color)}>{pestInfo.label}</p>
@@ -141,161 +163,153 @@ export const TreeManagement: React.FC<TreeManagementProps> = ({
           )}
         </div>
 
-        {/* 말풍선 */}
         <motion.div
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="speech-bubble mb-10 max-w-[84%] text-center"
+          className="speech-bubble mx-auto mb-8 max-w-[86%] text-center"
         >
           {loading ? (
-            <div className="flex gap-1.5 py-3 px-6 justify-center">
-              {[0, 0.2, 0.4].map((d) => (
-                <div key={d} className="w-2 h-2 bg-stone-200 rounded-full animate-bounce" style={{ animationDelay: `${d}s` }} />
+            <div className="flex justify-center gap-1.5 px-6 py-3">
+              {[0, 0.2, 0.4].map((delay) => (
+                <div key={delay} className="h-2 w-2 animate-bounce rounded-full bg-stone-200" style={{ animationDelay: `${delay}s` }} />
               ))}
             </div>
           ) : (
             <div className="space-y-3">
-              <p className="leading-relaxed text-sm font-medium text-stone-600">{message}</p>
+              <p className="text-sm font-medium leading-relaxed text-stone-600">{message}</p>
               <form onSubmit={handleChatSubmit} className="relative flex items-center">
                 <input
                   type="text"
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
-                  placeholder={`${tree.nickname}에게 말 걸기...`}
-                  className="w-full bg-stone-50 border-2 border-stone-100 rounded-full px-4 py-2 text-xs font-bold focus:ring-2 focus:ring-apple-green/40 focus:border-apple-green outline-none transition-all pr-10 placeholder:text-stone-300"
+                  placeholder={`${tree.nickname}에게 말 걸기`}
+                  className="w-full rounded-full border-2 border-stone-100 bg-stone-50 px-4 py-2 pr-10 text-xs font-bold outline-none transition-all placeholder:text-stone-300 focus:border-apple-green focus:bg-white focus:ring-2 focus:ring-apple-green/20"
                 />
                 <button
                   type="submit"
                   disabled={chatLoading || !chatInput.trim()}
-                  className="absolute right-1 w-7 h-7 bg-apple-green text-white rounded-full flex items-center justify-center disabled:opacity-40 transition-all active:scale-90"
+                  className="absolute right-1 flex h-7 w-7 items-center justify-center rounded-full bg-apple-green text-white transition-all active:scale-90 disabled:opacity-40"
+                  aria-label="나무에게 메시지 보내기"
                 >
-                  {chatLoading
-                    ? <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    : <Send size={13} />
-                  }
+                  {chatLoading ? <div className="h-3 w-3 animate-spin rounded-full border-2 border-white/30 border-t-white" /> : <Send size={13} />}
                 </button>
               </form>
             </div>
           )}
         </motion.div>
 
-        {/* 나무 이모지 */}
-        <div className="relative w-56 h-56 sm:w-64 sm:h-64 flex items-center justify-center">
-          <div className="absolute bottom-0 w-36 h-8 bg-stone-900/5 rounded-[100%] blur-xl" />
-          <motion.div
+        <div className="relative flex h-56 items-center justify-center">
+          <div className="absolute bottom-4 h-9 w-40 rounded-[100%] bg-stone-900/5 blur-xl" />
+          <motion.button
+            type="button"
             animate={{ scale: [1, 1.04, 1], rotate: [-1, 1, -1] }}
             transition={{ duration: 5, repeat: Infinity }}
-            className="text-[9rem] sm:text-[10rem] relative z-10 select-none cursor-pointer drop-shadow-2xl"
+            className="relative z-10 text-[8.5rem] drop-shadow-2xl"
             onClick={() => fetchMessage()}
+            aria-label="나무와 대화하기"
           >
-            {getStageIcon()}
-          </motion.div>
+            {stageVisual.icon}
+          </motion.button>
+          {tree.isGolden && (
+            <div className="absolute right-3 top-2 z-20 rounded-full bg-yellow-400 px-2 py-1 text-[10px] font-black text-white shadow-lg">
+              황금나무
+            </div>
+          )}
         </div>
 
-        {/* 수분도 / 성장률 카드 */}
-        <div className="w-full px-5 grid grid-cols-2 gap-3 mt-8">
-          <StatusCard
-            icon="💧"
-            label="수분도"
-            value={tree.water}
-            fillClass="progress-blue"
-          />
-          <StatusCard
-            icon="☀️"
-            label="성장률"
-            value={tree.growthRate}
-            fillClass="progress-gold"
-          />
+        <div className="mt-5 grid grid-cols-2 gap-3">
+          <StatusCard icon={<Droplets size={17} />} label="수분" value={clampPercent(tree.water)} fillClass="progress-blue" />
+          <StatusCard icon={<Leaf size={17} />} label="성장률" value={growthProgress} fillClass="progress-gold" />
         </div>
-      </div>
+      </section>
 
-      {/* ── 케어 버튼 2×2 그리드 ── */}
-      <div>
-        <p className="text-xs font-black text-warm-gray mb-3 px-1">오늘의 나무 케어 🌿</p>
+      <section className="grid grid-cols-2 gap-3">
+        <InfoCard title="다음 목표" value={nextGoal} tone="green" />
+        <InfoCard title="영주 날씨" value={weatherEvent?.message ?? '오늘은 안정적인 날씨예요.'} tone="blue" />
+      </section>
+
+      <section>
+        <div className="mb-3 flex items-center justify-between px-1">
+          <p className="text-xs font-black text-warm-gray">오늘의 돌봄 액션</p>
+          <button onClick={onGoToStore} className="text-[11px] font-black text-apple-red">
+            아이템 사기
+          </button>
+        </div>
         <div className="grid grid-cols-2 gap-3">
-          <ActionCard
-            onClick={() => onAction('water')}
-            emoji="💧"
-            label="물주기"
-            sublabel="1일 1회"
-            color="sky"
-          />
-          <ActionCard
-            onClick={() => onAction('nutrient')}
-            emoji="🌿"
-            label="영양제"
-            sublabel={`시즌 2회 • ${getItemCount('nutrient')}개 보유`}
-            color="green"
-            count={getItemCount('nutrient')}
-          />
-          <ActionCard
-            onClick={() => onAction('medicine')}
-            emoji="💊"
-            label="치료약"
-            sublabel={`${getItemCount('medicine')}개 보유`}
-            color="red"
-            count={getItemCount('medicine')}
-          />
-          <ActionCard
-            onClick={() => onAction('shield')}
-            emoji="🛡️"
-            label="방풍막"
-            sublabel={`${getItemCount('shield')}개 보유`}
-            color="stone"
-            count={getItemCount('shield')}
-          />
+          <ActionCard onClick={() => onAction('water')} icon={<Droplets size={24} />} label="물주기" sublabel="하루 1회 성장 +5%" color="sky" />
+          <ActionCard onClick={() => onAction('nutrient')} icon={<Leaf size={24} />} label="영양제" sublabel={`시즌 2회 · ${getItemCount('nutrient')}개 보유`} color="green" count={getItemCount('nutrient')} />
+          <ActionCard onClick={() => onAction('medicine')} icon={<Pill size={24} />} label="치료약" sublabel={`병충해 치료 · ${getItemCount('medicine')}개`} color="red" count={getItemCount('medicine')} />
+          <ActionCard onClick={() => onAction('shield')} icon={<Shield size={24} />} label="방풍막" sublabel={`폭염 방어 · ${getItemCount('shield')}개`} color="stone" count={getItemCount('shield')} />
         </div>
-      </div>
+      </section>
 
-      {/* ── 시뮬레이션 버튼 ── */}
       {onAdvanceDay && (
         <button
           onClick={onAdvanceDay}
-          className="w-full py-3.5 bg-stone-800 text-white rounded-2xl font-black text-sm flex items-center justify-center gap-2 shadow-[0_4px_0_0_#1c1c1c] active:shadow-none active:translate-y-1 transition-all"
+          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-stone-800 py-3.5 text-sm font-black text-white shadow-[0_4px_0_0_#1c1c1c] transition-all active:translate-y-1 active:shadow-none"
         >
           <Calendar size={16} />
-          내일로 가기 (시뮬레이션)
+          다음 날로 진행
         </button>
       )}
     </div>
   );
 };
 
-/* ── 상태 카드 ── */
 const StatusCard = ({
-  icon, label, value, fillClass,
-}: { icon: string; label: string; value: number; fillClass: string }) => (
+  icon,
+  label,
+  value,
+  fillClass,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: number;
+  fillClass: string;
+}) => (
   <div className="cute-card p-4">
-    <div className="flex items-center justify-between mb-2.5">
-      <div className="flex items-center gap-1.5">
-        <span className="text-base">{icon}</span>
-        <span className="text-xs font-black text-stone-700">{label}</span>
+    <div className="mb-2.5 flex items-center justify-between">
+      <div className="flex items-center gap-1.5 text-stone-700">
+        {icon}
+        <span className="text-xs font-black">{label}</span>
       </div>
       <span className="text-xs font-black text-stone-400">{value}%</span>
     </div>
     <div className="progress-track h-3">
-      <motion.div
-        animate={{ width: `${value}%` }}
-        transition={{ duration: 0.5, ease: 'easeOut' }}
-        className={cn(fillClass, 'h-full')}
-      />
+      <motion.div animate={{ width: `${value}%` }} transition={{ duration: 0.5, ease: 'easeOut' }} className={cn(fillClass, 'h-full')} />
     </div>
   </div>
 );
 
-/* ── 액션 카드 ── */
+const InfoCard = ({ title, value, tone }: { title: string; value: string; tone: 'green' | 'blue' }) => (
+  <div className={cn(
+    'rounded-2xl border-2 p-3',
+    tone === 'green' ? 'border-emerald-100 bg-emerald-50' : 'border-sky-100 bg-sky-50',
+  )}>
+    <p className={cn('mb-1 text-[10px] font-black uppercase tracking-wide', tone === 'green' ? 'text-emerald-600' : 'text-sky-600')}>
+      {title}
+    </p>
+    <p className="text-[11px] font-bold leading-relaxed text-stone-600">{value}</p>
+  </div>
+);
+
 const COLOR_MAP: Record<string, string> = {
-  sky:   'bg-sky-50 border-sky-100 hover:border-sky-300',
-  green: 'bg-emerald-50 border-emerald-100 hover:border-emerald-300',
-  red:   'bg-red-50 border-red-100 hover:border-red-300',
-  stone: 'bg-stone-50 border-stone-100 hover:border-stone-300',
+  sky: 'bg-sky-50 border-sky-100 text-sky-600',
+  green: 'bg-emerald-50 border-emerald-100 text-emerald-600',
+  red: 'bg-red-50 border-red-100 text-red-500',
+  stone: 'bg-stone-50 border-stone-100 text-stone-500',
 };
 
 const ActionCard = ({
-  onClick, emoji, label, sublabel, color, count,
+  onClick,
+  icon,
+  label,
+  sublabel,
+  color,
+  count,
 }: {
   onClick: () => void;
-  emoji: string;
+  icon: React.ReactNode;
   label: string;
   sublabel: string;
   color: string;
@@ -304,20 +318,17 @@ const ActionCard = ({
   <motion.button
     whileTap={{ scale: 0.96 }}
     onClick={onClick}
-    className={cn(
-      'relative flex flex-col items-center gap-2 p-4 rounded-[1.5rem] border-2 transition-all active:opacity-80',
-      COLOR_MAP[color] ?? COLOR_MAP.stone,
-    )}
+    className={cn('relative flex flex-col items-center gap-2 rounded-[1.5rem] border-2 p-4 transition-all active:opacity-80', COLOR_MAP[color] ?? COLOR_MAP.stone)}
   >
     {count !== undefined && count > 0 && (
-      <span className="absolute top-2.5 right-2.5 w-5 h-5 bg-apple-red text-white text-[9px] font-black rounded-full flex items-center justify-center border-2 border-white leading-none">
+      <span className="absolute right-2.5 top-2.5 flex h-5 w-5 items-center justify-center rounded-full border-2 border-white bg-apple-red text-[9px] font-black leading-none text-white">
         {count}
       </span>
     )}
-    <span className="text-3xl">{emoji}</span>
+    {icon}
     <div className="text-center">
       <p className="text-xs font-black text-stone-800">{label}</p>
-      <p className="text-[9px] font-bold text-stone-400 mt-0.5">{sublabel}</p>
+      <p className="mt-0.5 text-[9px] font-bold text-stone-400">{sublabel}</p>
     </div>
   </motion.button>
 );

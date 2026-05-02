@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquare, X, Bot } from 'lucide-react';
 import { ChatbotView } from './ChatbotView';
 
-import { VisitedPlace } from '../types';
+import { VisitedPlace, ChatConversation } from '../types';
 
 interface FloatingChatbotProps {
   points: number;
   completedMissions: string[];
   weather: string;
-  chatHistory: { role: 'user' | 'model'; text: string; action?: string }[];
-  onUpdateHistory: (history: { role: 'user' | 'model'; text: string; action?: string }[]) => void;
+  conversations: ChatConversation[];
+  onUpdateConversations: (conversations: ChatConversation[]) => void;
   userName: string;
   visitHistory?: VisitedPlace[];
   onAction?: (name: string, args: any) => void;
@@ -85,9 +85,15 @@ export const FloatingChatbot: React.FC<FloatingChatbotProps> = (props) => {
                 </div>
 
                 <div className="flex-1 overflow-hidden px-3">
-                  <ChatbotView 
-                    {...props} 
-                    hideHeader={true} 
+                  <ChatbotView
+                    points={props.points}
+                    completedMissions={props.completedMissions}
+                    weather={props.weather}
+                    conversations={props.conversations}
+                    onUpdateConversations={props.onUpdateConversations}
+                    userName={props.userName}
+                    visitHistory={props.visitHistory}
+                    hideHeader={true}
                     onAction={props.onAction}
                     onNavigate={(tab, subTab) => {
                       if (props.onNavigate) props.onNavigate(tab, subTab);

@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Header } from './components/Header';
 import { Navbar } from './components/Navbar';
 import { FarmSelection } from './components/FarmSelection';
@@ -15,9 +15,9 @@ import { HarvestDeliveryModal } from './components/HarvestDeliveryModal';
 import { ActivityView } from './components/ActivityView';
 import { MyPage } from './components/MyPage';
 import { AdminDashboard } from './components/AdminDashboard';
-import { UserProfile, Farm, AppleVariety, TreeState, Decoration, Course, AppNotification, ItemId } from './types';
+import { UserProfile, Farm, AppleVariety, TreeState, Decoration, Course, AppNotification, ItemId, ChatConversation, DeliveryInfo } from './types';
 import { VISIT_MISSIONS, FARMS } from './constants';
-import { calculateDailyGrowth, calculateHarvestAmount, getPestEvent, getWeatherEvent, canTransitionToNextSeason, getGrowthStageLabel, getDailyStatusMessage } from './services/growthService';
+import { calculateDailyGrowth, calculateHarvestAmount, getPestEvent, getWeatherEvent, canTransitionToNextSeason, getGrowthStageLabel, getDailyStatusMessage, daysSince } from './services/growthService';
 import { FloatingChatbot } from './components/FloatingChatbot';
 import { RoleSelectionView } from './components/RoleSelectionView';
 import { UserRole } from './types';
@@ -27,6 +27,7 @@ import { authService } from './services/authService';
 import { User } from 'firebase/auth';
 import { alertEmitter, showAlert, AlertType } from './lib/alertEmitter';
 import { AlertModal } from './components/AlertModal';
+import { GameIntroModal } from './components/GameIntroModal';
 
 export default function App() {
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
@@ -83,6 +84,17 @@ export default function App() {
           if (migProfile.accumulatedApples == null) migProfile.accumulatedApples = 0;
           if (migProfile.apples == null) migProfile.apples = 0;
           if (migProfile.lives == null) migProfile.lives = 5;
+          if (migProfile.onboardingSeen == null) migProfile.onboardingSeen = true;
+          if (!migProfile.chatConversations) {
+            const legacy = migProfile.chatHistory;
+            migProfile.chatConversations = (legacy && legacy.length > 0) ? [{
+              id: 'legacy_' + Date.now(),
+              title: '이전 대화',
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              messages: legacy,
+            }] : [];
+          }
 
           fromFirebase.current = true;
           setUser(migProfile);
@@ -428,7 +440,7 @@ export default function App() {
         const weatherEvent = getWeatherEvent(tree.currentDay);
         
         // Progress growth rate
-        const growth = calculateDailyGrowth(tree, isWatered, weatherEvent ? { type: weatherEvent.type, effectModifier: weatherEvent.effectModifier } : undefined);
+        const growth = calculateDailyGrowth(tree, isWatered, weatherEvent ?? undefined);
         let newTree = { ...tree, ...growth };
 
         // Season Transition Logic (GROW01_COND)
@@ -436,11 +448,9 @@ export default function App() {
         const currentDay = newTree.currentDay;
         
         let canTransition = true;
-        // Requirements specify transition checks at day 7, 14, 15, 21 etc.
-        if (currentDay === 7 && currentStage === '발아기') canTransition = canTransitionToNextSeason(newTree);
-        if (currentDay === 14 && currentStage === '개화기') canTransition = canTransitionToNextSeason(newTree);
-        if (currentDay === 15 && currentStage === '착과기') canTransition = canTransitionToNextSeason(newTree);
-        if (currentDay === 21 && currentStage === '착색기') canTransition = canTransitionToNextSeason(newTree);
+        if (currentDay >= 7 && currentStage === '발아기') canTransition = canTransitionToNextSeason(newTree);
+        if (currentDay >= 14 && currentStage === '개화기') canTransition = canTransitionToNextSeason(newTree);
+        if (currentDay >= 23 && (currentStage === '착과기' || currentStage === '착색기')) canTransition = canTransitionToNextSeason(newTree);
 
         if (canTransition) {
           newTree.currentDay += 1;
@@ -452,7 +462,7 @@ export default function App() {
         }
 
         // Pest logic (Pass nutrient use info)
-        const lastWateredDays = Math.floor((Date.now() - new Date(tree.lastWatered).getTime()) / (1000 * 60 * 60 * 24));
+        const lastWateredDays = daysSince(tree.lastWatered);
         const pest = getPestEvent(newTree.currentDay, lastWateredDays, newTree.nutrientsUsed > 0);
         if (pest !== 'none' && !newTree.shieldActive && newTree.pestStatus === 'none') {
           newTree.pestStatus = pest;
@@ -462,7 +472,7 @@ export default function App() {
         // Notification for weather
         if (weatherEvent) {
           addNotification("☀️ 기상 이벤트", weatherEvent.message, 'info');
-          addNotification(`🌳 ${newTree.nickname}의 한마디`, `주인님, 어제 영주엔 ${weatherEvent.type === 'rainy' ? '비가 와서 목을 축였어요!' : '햇살이 좋아서 기분이 좋아요!'}`, 'info', undefined, 'tree');
+          addNotification(`🌳 ${newTree.nickname}의 한마디`, weatherEvent.userMessage, 'info', undefined, 'tree');
         }
 
         // Harvest logic
@@ -522,7 +532,11 @@ export default function App() {
       }
 
       if (newHarvests > 0) {
-        addNotification("🍎 수확 성공", `${newHarvests}개의 사과가 누적되었습니다!`, 'reward');
+        addNotification("🍎 수확 성공", `${newHarvests}개의 사과가 누적되었습니다!`, 'reward', undefined, 'profile');
+        if (harvestedApplesTotal >= 10) {
+          addNotification("📦 배송 신청 가능", "실물 사과 배송을 신청할 수 있어요. 받을 주소를 입력해 신청을 완료해주세요.", 'reward', undefined, 'profile');
+          window.setTimeout(() => setIsHarvestModalOpen(true), 0);
+        }
       }
 
       return {
@@ -537,39 +551,33 @@ export default function App() {
   };
 
   const handleBuyItem = (itemId: string, price: number) => {
-    if (user.points < price) return;
+    if (!user || !firebaseUser || user.points < price) return;
+    const updatedItems = user.items.map(i => i.id === itemId ? { ...i, count: i.count + 1 } : i);
+    if (!user.items.find(i => i.id === itemId)) updatedItems.push({ id: itemId, count: 1 });
+    const newUser = { ...user, points: user.points - price, items: updatedItems };
+    setUser(newUser);
+    // 구매는 즉시 저장 — debounce 중 Firebase 스냅샷이 덮어쓰는 걸 방지
+    authService.saveProfile(firebaseUser.uid, newUser).catch(console.error);
     addNotification("🛍️ 구매 완료!", "아이템이 가방에 추가되었습니다.", 'info');
-    setUser(prev => ({
-      ...prev,
-      points: prev.points - price,
-      items: prev.items.map(i => i.id === itemId ? { ...i, count: i.count + 1 } : i).concat(
-        prev.items.find(i => i.id === itemId) ? [] : [{ id: itemId, count: 1 }]
-      )
-    }));
   };
 
   const handleBuyWithApples = (itemId: string, applePrice: number) => {
-    if (!user || user.apples < applePrice) {
+    if (!user || !firebaseUser || user.apples < applePrice) {
       showAlert('보유한 사과가 부족해요!\n나무를 키워 사과를 수확해보세요.', '🍎', 'warning');
       return;
     }
+    const updatedItems = [...user.items];
+    const idx = updatedItems.findIndex(i => i.id === itemId);
+    if (idx !== -1) updatedItems[idx] = { ...updatedItems[idx], count: updatedItems[idx].count + 1 };
+    else updatedItems.push({ id: itemId, count: 1 });
+    const newUser = { ...user, apples: user.apples - applePrice, items: updatedItems };
+    setUser(newUser);
+    // 구매는 즉시 저장
+    authService.saveProfile(firebaseUser.uid, newUser).catch(console.error);
     addNotification("🛍️ 구매 완료!", "사과로 아이템을 교환했습니다.", 'info');
-    setUser(prev => {
-      if (!prev) return prev;
-      const updatedItems = [...prev.items];
-      const idx = updatedItems.findIndex(i => i.id === itemId);
-      if (idx !== -1) updatedItems[idx].count += 1;
-      else updatedItems.push({ id: itemId, count: 1 });
-      
-      return {
-        ...prev,
-        apples: prev.apples - applePrice,
-        items: updatedItems
-      };
-    });
   };
 
-  const handleDeliverySubmit = (data: any) => {
+  const handleDeliverySubmit = (data: DeliveryInfo) => {
     setUser(prev => {
       if (!prev) return prev;
       return {
@@ -687,9 +695,9 @@ export default function App() {
     setDecorations(prev => [...prev, deco]);
   };
 
-  const handleUpdateChatHistory = (history: { role: 'user' | 'model'; text: string }[]) => {
+  const handleUpdateConversations = (conversations: ChatConversation[]) => {
     if (!user) return;
-    setUser(prev => ({ ...prev ? { ...prev, chatHistory: history } : null }));
+    setUser(prev => prev ? { ...prev, chatConversations: conversations } : null);
   };
 
   const handleAIAction = (name: string, args: any) => {
@@ -761,6 +769,10 @@ export default function App() {
     }
   };
 
+  const handleCloseGameIntro = () => {
+    setUser(prev => prev ? { ...prev, onboardingSeen: true } : prev);
+  };
+
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-stone-50">
@@ -812,13 +824,13 @@ export default function App() {
                   <div className="w-32 h-32 bg-white rounded-[2.5rem] flex items-center justify-center mb-8 shadow-xl border-4 border-stone-100 text-6xl animate-bounce-gentle">
                     🌱
                   </div>
-                  <h2 className="text-2xl font-black mb-2">아직 나무가 없어요!</h2>
-                  <p className="text-stone-500 text-sm font-medium mb-10">영주 지도로 가서 첫 번째<br />사과나무를 분양받아보세요.</p>
+                  <h2 className="text-2xl font-black mb-2">아직 사과나무가 없어요</h2>
+                  <p className="text-stone-500 text-sm font-medium mb-10">영주 농가 지도에서 첫 씨앗을 분양받고<br />30일 성장 퀘스트를 시작해보세요.</p>
                   <button 
                     onClick={() => setActiveTab('map')}
                     className="px-10 py-4 bg-apple-red text-white rounded-2xl font-black shadow-[0_6px_0_0_#d32f2f] active:shadow-none active:translate-y-1 transition-all"
                   >
-                    농장 보러가기
+                    농가 지도에서 시작하기
                   </button>
                 </div>
               )}
@@ -854,8 +866,8 @@ export default function App() {
                 onUpdateProgress={handleUpdateMissionProgress}
                 points={user.points}
                 weather={weather}
-                chatHistory={user.chatHistory}
-                onUpdateChatHistory={handleUpdateChatHistory}
+                conversations={user.chatConversations || []}
+                onUpdateConversations={handleUpdateConversations}
                 userName={user.name}
                 visitHistory={user.visitedHistory || []}
                 activeCourse={user.courses?.find(c => c.id === activeCourseId) || null}
@@ -870,12 +882,15 @@ export default function App() {
 
           {activeTab === 'store' && (
             <motion.div key="store" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              <StoreView 
-                points={user.points} 
+              <StoreView
+                points={user.points}
                 apples={user.apples}
                 onBuyItem={handleBuyItem}
                 onBuyWithApples={handleBuyWithApples}
                 onBack={() => setActiveTab(previousTab)}
+                onNavigateToMissions={() => { setActiveTab('activity'); setActivitySubTab('missions'); }}
+                ownedItems={user.items}
+                onPlantSeed={() => setActiveTab('map')}
               />
             </motion.div>
           )}
@@ -914,8 +929,8 @@ export default function App() {
         points={user.points}
         completedMissions={Object.keys(user.visitMissionProgress).filter(k => user.visitMissionProgress[k] === 'completed')}
         weather={weather}
-        chatHistory={user.chatHistory}
-        onUpdateHistory={handleUpdateChatHistory}
+        conversations={user.chatConversations || []}
+        onUpdateConversations={handleUpdateConversations}
         userName={user.name}
         visitHistory={user.visitedHistory || []}
         onAction={handleAIAction}
@@ -944,6 +959,12 @@ export default function App() {
         type={alertState?.type ?? 'info'}
         onClose={() => setAlertState(null)}
       />
+
+      <AnimatePresence>
+        {!user.onboardingSeen && (
+          <GameIntroModal onClose={handleCloseGameIntro} />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

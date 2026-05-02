@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { User, Store, ShieldCheck, ArrowRight, LogOut } from 'lucide-react';
 import { UserRole } from '../types';
 import { authService } from '../services/authService';

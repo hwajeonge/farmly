@@ -179,6 +179,20 @@ export interface HarvestMilestone {
   isClaimed: boolean;
 }
 
+export interface ChatMessage {
+  role: 'user' | 'model';
+  text: string;
+  action?: string;
+}
+
+export interface ChatConversation {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  messages: ChatMessage[];
+}
+
 export interface UserProfile {
   role: UserRole;
   name: string;
@@ -197,7 +211,9 @@ export interface UserProfile {
   adoptedFarmIds: string[];
   storedFarmIds: string[];
   visitMissionProgress: { [missionId: string]: MissionStatus };
-  chatHistory: { role: 'user' | 'model'; text: string }[];
+  chatHistory?: { role: 'user' | 'model'; text: string }[]; // legacy
+  chatConversations?: ChatConversation[];
+  onboardingSeen?: boolean;
   neighborIds: string[];
   pendingNeighborRequests: string[];
   rankingScore: number;

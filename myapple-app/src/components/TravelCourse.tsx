@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion, Reorder } from 'motion/react';
+import { motion, Reorder } from 'framer-motion';
 import { MapPin, ArrowRight, Clock, Navigation, CheckCircle2, MoreVertical, Plus, Trash2, X, GripVertical } from 'lucide-react';
 import { Course, Place } from '../types';
 import { PLACES } from '../constants';

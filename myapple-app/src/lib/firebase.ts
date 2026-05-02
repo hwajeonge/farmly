@@ -1,11 +1,14 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { getAuth, browserSessionPersistence, setPersistence } from 'firebase/auth';
 import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
+
+// 브라우저/탭을 닫으면 로그인 상태 초기화 (다시 열면 로그인 화면)
+setPersistence(auth, browserSessionPersistence).catch(console.error);
 
 // CRITICAL CONSTRAINT: Test Firestore connection on boot
 async function testConnection() {

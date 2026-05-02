@@ -1,124 +1,158 @@
 import React, { useState } from 'react';
 import { showAlert } from '../lib/alertEmitter';
-import { motion, AnimatePresence } from 'motion/react';
-import { X, Gift, Check, Mail, Truck, Info, Apple } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Check, Gift, Info, Mail, Truck, X } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { DeliveryInfo } from '../types';
 
 interface HarvestDeliveryModalProps {
   onClose: () => void;
-  onSubmit: (data: any) => void;
+  onSubmit: (data: DeliveryInfo) => void;
   accumulatedApples: number;
 }
 
+const DELIVERY_OPTIONS = [
+  {
+    id: 'free_1kg',
+    title: '실물 사과 1kg 배송',
+    extra: '기본 보상',
+    price: '무료',
+    desc: '누적 수확 사과 10개 이상 달성 시 신청할 수 있어요.',
+    icon: '🍎',
+  },
+  {
+    id: 'extra_2kg',
+    title: '실물 사과 2kg 배송',
+    extra: '추가 구매',
+    price: '3,500원',
+    desc: '기본 보상에 1kg을 추가해 받아요.',
+    icon: '🍎🍎',
+  },
+  {
+    id: 'extra_3kg',
+    title: '실물 사과 3kg 배송',
+    extra: '추가 구매',
+    price: '5,500원',
+    desc: '가족과 함께 나눌 수 있는 넉넉한 구성입니다.',
+    icon: '🍎🍎🍎',
+  },
+];
+
 export const HarvestDeliveryModal: React.FC<HarvestDeliveryModalProps> = ({ onClose, onSubmit, accumulatedApples }) => {
   const [step, setStep] = useState<'options' | 'address' | 'thanks'>('options');
-  const [selectedOption, setSelectedOption] = useState<string>('free');
+  const [selectedOption, setSelectedOption] = useState<string>('free_1kg');
   const [formData, setFormData] = useState({
-    name: '',
-    phone: '',
+    recipientName: '',
+    phoneNumber: '',
     address: '',
-    memo: ''
+    memo: '',
   });
 
-  const options = [
-    { id: 'free', title: '무료 수확 1kg', price: '0원', desc: '기본 수확 (배송비 포함)', icon: '🍎' },
-    { id: 'extra1', title: '무료 수확 1kg + 추가 1kg', extra: '(총 2kg)', price: '3,500원', desc: '이벤트 혜택가', icon: '🍎🍎' },
-    { id: 'extra2', title: '무료 수확 1kg + 추가 2kg', extra: '(총 3kg)', price: '5,500원', desc: '이벤트 혜택가', icon: '🍎🍎🍎' },
-  ];
+  const selectedOptionLabel = DELIVERY_OPTIONS.find(option => option.id === selectedOption)?.title ?? '실물 사과 배송';
 
   const handleNext = () => {
-    if (step === 'options') setStep('address');
-    else if (step === 'address') {
-      if (!formData.name || !formData.phone || !formData.address) {
-        showAlert('이름, 연락처, 주소를\n모두 입력해주세요!', '📦', 'warning');
+    if (step === 'options') {
+      setStep('address');
+      return;
+    }
+
+    if (step === 'address') {
+      if (!formData.recipientName.trim() || !formData.phoneNumber.trim() || !formData.address.trim()) {
+        showAlert('받는 분, 연락처, 주소를 모두 입력해주세요.', '📦', 'warning');
         return;
       }
       setStep('thanks');
-    } else {
-      onSubmit({ ...formData, selectedOptionId: selectedOption });
+      return;
     }
+
+    onSubmit({
+      ...formData,
+      selectedOptionId: selectedOption,
+      requestDate: new Date().toISOString(),
+    });
   };
 
   return (
     <div className="fixed inset-0 z-60 flex items-center justify-center px-4">
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={onClose}
         className="absolute inset-0 bg-stone-900/60 backdrop-blur-sm"
       />
-      
-      <motion.div 
+
+      <motion.div
         initial={{ scale: 0.9, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         exit={{ scale: 0.9, opacity: 0, y: 20 }}
-        className="relative w-full max-w-sm bg-white rounded-[3rem] overflow-hidden shadow-2xl"
+        className="relative max-h-[88vh] w-full max-w-sm overflow-hidden rounded-[2.5rem] bg-white shadow-2xl"
       >
-        <button 
+        <button
           onClick={onClose}
-          className="absolute top-6 right-6 w-10 h-10 bg-stone-100 rounded-full flex items-center justify-center text-stone-400 active:scale-90 transition-all z-10"
+          className="absolute right-5 top-5 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-stone-100 text-stone-400 transition-all active:scale-90"
+          aria-label="배송 신청 닫기"
         >
           <X size={20} />
         </button>
 
-        <div className="p-8 pt-10">
+        <div className="max-h-[88vh] overflow-y-auto p-7 pt-9">
           <AnimatePresence mode="wait">
             {step === 'options' && (
-              <motion.div 
+              <motion.div
                 key="options"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
-                className="space-y-6"
+                className="space-y-5"
               >
-                <div className="text-center mb-6">
-                  <div className="w-16 h-16 bg-apple-red/10 text-apple-red rounded-full flex items-center justify-center mx-auto mb-4">
+                <div className="mb-6 text-center">
+                  <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-apple-red/10 text-apple-red">
                     <Gift size={32} />
                   </div>
-                  <h3 className="text-xl font-black text-stone-800">수확 옵션 선택</h3>
-                  <p className="text-xs font-bold text-stone-400 mt-1">열심히 키운 사과를 집에서 맛보세요!</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-apple-red">Harvest Reward</p>
+                  <h3 className="mt-1 text-xl font-black text-stone-900">수확 보상 배송 신청</h3>
+                  <p className="mt-1 text-xs font-bold text-stone-400">
+                    누적 수확 {accumulatedApples}개를 달성했어요.
+                  </p>
                 </div>
 
                 <div className="space-y-3">
-                  {options.map((opt) => (
+                  {DELIVERY_OPTIONS.map((option) => (
                     <button
-                      key={opt.id}
-                      onClick={() => setSelectedOption(opt.id)}
+                      key={option.id}
+                      onClick={() => setSelectedOption(option.id)}
                       className={cn(
-                        "w-full p-4 rounded-2xl border-2 text-left transition-all relative overflow-hidden",
-                        selectedOption === opt.id 
-                          ? "border-apple-red bg-apple-red/5 ring-4 ring-apple-red/10" 
-                          : "border-stone-100 bg-white"
+                        'relative w-full overflow-hidden rounded-2xl border-2 p-4 text-left transition-all',
+                        selectedOption === option.id
+                          ? 'border-apple-red bg-apple-red/5 ring-4 ring-apple-red/10'
+                          : 'border-stone-100 bg-white',
                       )}
                     >
-                      <div className="flex justify-between items-start">
+                      <div className="flex items-start justify-between gap-3">
                         <div>
-                          <p className="text-[10px] font-black text-stone-300 uppercase tracking-widest mb-1">옵션</p>
-                          <h4 className="font-black text-stone-800 text-sm">
-                            {opt.title} <span className="text-apple-red">{opt.extra}</span>
-                          </h4>
-                          <p className="text-[10px] font-bold text-stone-500 mt-0.5">{opt.desc}</p>
+                          <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-stone-300">
+                            {option.extra}
+                          </p>
+                          <h4 className="text-sm font-black text-stone-800">{option.title}</h4>
+                          <p className="mt-0.5 text-[10px] font-bold leading-relaxed text-stone-500">{option.desc}</p>
                         </div>
-                        <div className="text-right">
-                          <p className="text-sm font-black text-apple-red">{opt.price}</p>
-                        </div>
+                        <p className="shrink-0 text-sm font-black text-apple-red">{option.price}</p>
                       </div>
-                      {selectedOption === opt.id && (
-                        <div className="absolute -right-2 -bottom-2 text-4xl opacity-10 grayscale-0">
-                          {opt.icon}
+                      {selectedOption === option.id && (
+                        <div className="absolute -bottom-2 -right-2 text-4xl opacity-10">
+                          {option.icon}
                         </div>
                       )}
                     </button>
                   ))}
                 </div>
 
-                <div className="bg-stone-50 p-4 rounded-2xl border border-stone-100">
+                <div className="rounded-2xl border border-stone-100 bg-stone-50 p-4">
                   <div className="flex gap-2 text-stone-500">
-                    <Info size={14} className="shrink-0 mt-0.5" />
-                    <p className="text-[10px] font-medium leading-relaxed italic">
-                      * 교환권 사용 시 배송비는 0원입니다. <br />
-                      * 추가 구매 옵션 결제 시 1~2일 내 발송됩니다.
+                    <Info size={14} className="mt-0.5 shrink-0" />
+                    <p className="text-[10px] font-medium leading-relaxed">
+                      배송 정보는 신청 내역에 저장됩니다. 추가 구매 옵션은 실제 결제 연동 전까지 신청 데이터로만 기록돼요.
                     </p>
                   </div>
                 </div>
@@ -126,58 +160,54 @@ export const HarvestDeliveryModal: React.FC<HarvestDeliveryModalProps> = ({ onCl
             )}
 
             {step === 'address' && (
-              <motion.div 
+              <motion.div
                 key="address"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
                 className="space-y-4"
               >
-                <div className="text-center mb-6">
-                  <div className="w-16 h-16 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <div className="mb-6 text-center">
+                  <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-50 text-blue-500">
                     <Truck size={32} />
                   </div>
-                  <h3 className="text-xl font-black text-stone-800">배송 정보 입력</h3>
-                  <p className="text-xs font-bold text-stone-400 mt-1">영주 농부님이 정성껏 보내드립니다.</p>
+                  <h3 className="text-xl font-black text-stone-900">배송 정보 입력</h3>
+                  <p className="mt-1 text-xs font-bold text-stone-400">{selectedOptionLabel}을 받을 정보를 입력해주세요.</p>
                 </div>
 
                 <div className="space-y-3">
-                  <Input label="받는 분 성함" placeholder="홍길동" value={formData.name} onChange={v => setFormData(prev => ({ ...prev, name: v }))} />
-                  <Input label="연락처" placeholder="010-0000-0000" value={formData.phone} onChange={v => setFormData(prev => ({ ...prev, phone: v }))} />
+                  <Input label="받는 분" placeholder="이름을 입력해주세요" value={formData.recipientName} onChange={v => setFormData(prev => ({ ...prev, recipientName: v }))} />
+                  <Input label="연락처" placeholder="010-0000-0000" value={formData.phoneNumber} onChange={v => setFormData(prev => ({ ...prev, phoneNumber: v }))} />
                   <Input label="주소" placeholder="배송지를 입력해주세요" value={formData.address} onChange={v => setFormData(prev => ({ ...prev, address: v }))} isTextArea />
-                  <Input label="배송 메모 (선택)" placeholder="경비실에 맡겨주세요" value={formData.memo} onChange={v => setFormData(prev => ({ ...prev, memo: v }))} />
+                  <Input label="배송 메모" placeholder="경비실에 맡겨주세요" value={formData.memo} onChange={v => setFormData(prev => ({ ...prev, memo: v }))} />
                 </div>
               </motion.div>
             )}
 
             {step === 'thanks' && (
-              <motion.div 
+              <motion.div
                 key="thanks"
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 className="space-y-6 text-center"
               >
-                <div className="w-32 h-32 bg-stone-50 rounded-[2.5rem] border-4 border-white shadow-xl mx-auto flex items-center justify-center text-6xl transform -rotate-3 overflow-hidden relative group">
+                <div className="mx-auto flex h-28 w-28 -rotate-3 items-center justify-center rounded-[2rem] border-4 border-white bg-stone-50 text-6xl shadow-xl">
                   🍎
-                  <div className="absolute inset-0 bg-yeoju-gold/10 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
 
                 <div>
-                  <h3 className="text-2xl font-black text-stone-800 mb-2">수확을 축하합니다!</h3>
-                  <div className="bg-stone-50 p-6 rounded-4xl border-2 border-stone-100 relative text-left">
-                    <Mail size={24} className="absolute -top-3 -right-3 text-yeoju-gold transform rotate-12" />
-                    <p className="text-xs font-bold text-stone-600 leading-relaxed italic">
-                      "저의 사과나무 소수( nickname )가 영주의 맑은 바람과 높은 햇살 아래 무럭무럭 자라 드디어 저희 집 식탁까지 오게 되었네요. 
-                      30일 동안 정성스레 보살펴준 덕분에 이렇게 맛있는 사과를 수확할 수 있었습니다. 
-                      영주의 자연과 저의 정성이 담긴 이 사과를 가족들과 맛있게 나누어 먹겠습니다!"
+                  <h3 className="mb-2 text-2xl font-black text-stone-900">배송 신청 준비 완료</h3>
+                  <div className="relative rounded-[2rem] border-2 border-stone-100 bg-stone-50 p-5 text-left">
+                    <Mail size={24} className="absolute -right-3 -top-3 rotate-12 text-yeoju-gold" />
+                    <p className="text-xs font-bold leading-relaxed text-stone-600">
+                      30일 동안 키운 사과나무의 수확 보상이 배송 신청 내역으로 저장됩니다. 신청을 완료하면 마이페이지에서 배송 기록을 확인할 수 있어요.
                     </p>
-                    <p className="text-right text-[10px] font-black text-stone-400 mt-4">— 영주 대농장주 홍길동 올림</p>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-center gap-2 text-apple-green font-black text-sm">
-                   <CheckCircle2 size={18} />
-                   감사 편지가 사과 상자에 동봉됩니다.
+                <div className="flex items-center justify-center gap-2 text-sm font-black text-apple-green">
+                  <Check size={18} />
+                  신청 내용을 저장할 준비가 되었어요
                 </div>
               </motion.div>
             )}
@@ -185,9 +215,9 @@ export const HarvestDeliveryModal: React.FC<HarvestDeliveryModalProps> = ({ onCl
 
           <button
             onClick={handleNext}
-            className="w-full py-5 bg-stone-800 text-white rounded-3xl font-black text-lg shadow-xl shadow-stone-200 active:scale-95 transition-all mt-10"
+            className="mt-8 w-full rounded-3xl bg-stone-800 py-4 text-base font-black text-white shadow-xl shadow-stone-200 transition-all active:scale-95"
           >
-            {step === 'options' ? '다음 단계로' : step === 'address' ? '신청 완료하기' : '닫기'}
+            {step === 'options' ? '다음 단계로' : step === 'address' ? '신청 내용 확인' : '신청 완료'}
           </button>
         </div>
       </motion.div>
@@ -195,15 +225,27 @@ export const HarvestDeliveryModal: React.FC<HarvestDeliveryModalProps> = ({ onCl
   );
 };
 
-const Input = ({ label, placeholder, value, onChange, isTextArea }: { label: string, placeholder: string, value: string, onChange: (v: string) => void, isTextArea?: boolean }) => (
+const Input = ({
+  label,
+  placeholder,
+  value,
+  onChange,
+  isTextArea,
+}: {
+  label: string;
+  placeholder: string;
+  value: string;
+  onChange: (v: string) => void;
+  isTextArea?: boolean;
+}) => (
   <div className="space-y-1">
-    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest pl-2">{label}</label>
+    <label className="pl-2 text-[10px] font-black uppercase tracking-widest text-stone-400">{label}</label>
     {isTextArea ? (
       <textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full bg-stone-50 border-2 border-stone-100 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-apple-green focus:border-transparent outline-none transition-all min-h-20"
+        className="min-h-20 w-full rounded-2xl border-2 border-stone-100 bg-stone-50 px-4 py-3 text-sm outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-apple-green"
       />
     ) : (
       <input
@@ -211,14 +253,8 @@ const Input = ({ label, placeholder, value, onChange, isTextArea }: { label: str
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full bg-stone-50 border-2 border-stone-100 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-apple-green focus:border-transparent outline-none transition-all"
+        className="w-full rounded-2xl border-2 border-stone-100 bg-stone-50 px-4 py-3 text-sm outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-apple-green"
       />
     )}
   </div>
-);
-
-const CheckCircle2 = ({ size }: { size: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M20 6L9 17l-5-5" />
-  </svg>
 );
