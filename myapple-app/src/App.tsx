@@ -58,6 +58,7 @@ export default function App() {
 
   const [profilePending, setProfilePending] = useState(false);
   const fromFirebase = useRef(false);
+  const deletionPendingRef = useRef(false);
   const [alertState, setAlertState] = useState<{ message: string; emoji: string; type: AlertType } | null>(null);
 
   useEffect(() => {
@@ -75,9 +76,11 @@ export default function App() {
         setAuthLoading(false);
         setUser(null);
         setProfilePending(false);
-        // alertState intentionally preserved so it shows on the login screen
+        if (deletionPendingRef.current) {
+          deletionPendingRef.current = false;
+          showAlert('회원 탈퇴가 완료되었습니다.', '👋', 'success');
+        }
       } else {
-        // New login/re-registration: clear any alerts from the previous session
         setAlertState(null);
       }
     });
@@ -781,13 +784,12 @@ export default function App() {
       return;
     }
 
+    deletionPendingRef.current = true;
     try {
       await authService.deleteAccount(firebaseUser);
-      setUser(null);
-      setFirebaseUser(null);
-      setActiveTab('tree');
-      showAlert('회원 탈퇴가 완료되었습니다.', '👋', 'success');
+      // Alert shown via onAuthStateChange when Firebase fires the sign-out event
     } catch (error: any) {
+      deletionPendingRef.current = false;
       const code = error?.code || '';
       if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
         return;
