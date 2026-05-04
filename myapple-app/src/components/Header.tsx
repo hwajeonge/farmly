@@ -1,6 +1,6 @@
 import React from 'react';
 import { Bell, Heart, Sparkles } from 'lucide-react';
-import { FARMLY_LOGO_ALT, FARMLY_LOGO_SRC, SERVICE_NAME } from '../brand';
+import { APP_LOGO_ALT, APP_LOGO_SRC, SERVICE_NAME } from '../brand';
 
 interface HeaderProps {
   userName: string;
@@ -21,7 +21,7 @@ export const Header: React.FC<HeaderProps> = ({
     <header className="sticky top-0 z-40 mx-auto flex w-full max-w-md items-center justify-between border-b-2 border-red-50 bg-white/92 px-4 py-3 shadow-[0_2px_16px_rgba(255,107,107,0.07)] backdrop-blur-lg">
       <div className="flex min-w-0 flex-1 items-center gap-2.5">
         <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border-2 border-white bg-[#fff7e8] p-1 shadow-[0_4px_10px_rgba(255,107,107,0.20)]">
-          <img src={FARMLY_LOGO_SRC} alt={FARMLY_LOGO_ALT} className="h-full w-full object-contain object-center" />
+          <img src={APP_LOGO_SRC} alt={APP_LOGO_ALT} className="h-full w-full object-contain object-center" />
         </div>
         <div className="min-w-0">
           <h1 className="truncate text-[17px] font-black leading-tight tracking-tight text-stone-800">

@@ -4,7 +4,7 @@ import { CloudSun, Gift, Map, Sparkles, Sprout } from 'lucide-react';
 import { authService } from '../services/authService';
 import { AlertModal } from './AlertModal';
 import { AlertType } from '../lib/alertEmitter';
-import { FARMLY_LOGO_ALT, FARMLY_LOGO_SRC, SERVICE_NAME, SERVICE_TAGLINE } from '../brand';
+import { APP_LOGO_ALT, APP_LOGO_SRC, SERVICE_NAME, SERVICE_TAGLINE } from '../brand';
 
 interface LoginViewProps {
   onLoginSuccess: () => void;
@@ -58,7 +58,7 @@ export const LoginView: React.FC<LoginViewProps> = () => {
               transition={{ duration: 3.6, repeat: Infinity, ease: 'easeInOut' }}
               className="absolute inset-0 rounded-[2.5rem] border-4 border-white bg-white/72 p-1.5 shadow-[0_18px_40px_rgba(255,107,107,0.24)] backdrop-blur-sm"
             >
-              <img src={FARMLY_LOGO_SRC} alt={FARMLY_LOGO_ALT} className="h-full w-full object-contain object-center drop-shadow-sm" />
+              <img src={APP_LOGO_SRC} alt={APP_LOGO_ALT} className="h-full w-full object-contain object-center drop-shadow-sm" />
             </motion.div>
             <div className="absolute -right-4 top-3 rounded-2xl border-4 border-white bg-yeoju-gold px-3 py-1 text-xs font-black text-white shadow-lg">
               영주가 간다

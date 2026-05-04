@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { CheckCircle2, CloudSun, Gift, MapPinned, Sprout, X } from 'lucide-react';
-import { FARMLY_LOGO_ALT, FARMLY_LOGO_SRC, SERVICE_NAME } from '../brand';
+import { APP_LOGO_ALT, APP_LOGO_SRC, SERVICE_NAME } from '../brand';
 
 interface GameIntroModalProps {
   onClose: () => void;
@@ -64,7 +64,7 @@ export const GameIntroModal: React.FC<GameIntroModalProps> = ({ onClose }) => {
         <div className="relative p-6 pt-8">
           <div className="mb-5 text-center">
             <div className="mx-auto mb-3 flex h-28 w-28 items-center justify-center rounded-[2rem] border-4 border-white bg-white/75 p-1 shadow-lg">
-              <img src={FARMLY_LOGO_SRC} alt={FARMLY_LOGO_ALT} className="h-full w-full object-contain object-center" />
+              <img src={APP_LOGO_SRC} alt={APP_LOGO_ALT} className="h-full w-full object-contain object-center" />
             </div>
             <p className="mb-1 text-[11px] font-black uppercase tracking-[0.18em] text-apple-green">Welcome Quest</p>
             <h2 className="text-2xl font-black tracking-tight text-stone-800">{SERVICE_NAME} 시작하기</h2>
