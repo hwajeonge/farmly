@@ -14,7 +14,7 @@ import { HarvestDeliveryModal } from './components/HarvestDeliveryModal';
 import { ActivityView } from './components/ActivityView';
 import { MyPage } from './components/MyPage';
 import { AdminDashboard } from './components/AdminDashboard';
-import { UserProfile, Farm, AppleVariety, TreeState, Decoration, Course, AppNotification, ItemId, ChatConversation, DeliveryInfo } from './types';
+import { UserProfile, Farm, AppleVariety, TreeState, Course, AppNotification, ItemId, ChatConversation, DeliveryInfo } from './types';
 import { VISIT_MISSIONS, FARMS, PLACES } from './constants';
 import { calculateDailyGrowth, calculateHarvestAmount, getPestEvent, getWeatherEvent, canTransitionToNextSeason, getGrowthStageLabel, getDailyStatusMessage, daysSince } from './services/growthService';
 import { FloatingChatbot } from './components/FloatingChatbot';
@@ -25,8 +25,21 @@ import { LoginView } from './components/LoginView';
 import { authService } from './services/authService';
 import { User } from 'firebase/auth';
 import { alertEmitter, showAlert, AlertType } from './lib/alertEmitter';
+import { showConfirm } from './lib/confirmEmitter';
 import { AlertModal } from './components/AlertModal';
+import { ConfirmModal } from './components/ConfirmModal';
 import { GameIntroModal } from './components/GameIntroModal';
+
+const MISSION_STATUS_RANK = {
+  none: 0,
+  prepare: 1,
+  arrival: 2,
+  action: 3,
+  completed: 4,
+} as const;
+
+const MINI_GAME_MAX_LIVES = 10;
+const HEART_RECHARGE_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
 export default function App() {
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
@@ -38,9 +51,9 @@ export default function App() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [activeCourseId, setActiveCourseId] = useState<string | null>(null);
   const [profileRequestedTab, setProfileRequestedTab] = useState<'profile' | 'travel' | 'cards' | null>(null);
+  const [requestedSeedFarmId, setRequestedSeedFarmId] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
-  const [decorations, setDecorations] = useState<Decoration[]>([]);
   const [weather, setWeather] = useState('맑음');
 
   const [profilePending, setProfilePending] = useState(false);
@@ -86,7 +99,7 @@ export default function App() {
           if (!migProfile.favoritePlaceIds) migProfile.favoritePlaceIds = [];
           if (migProfile.accumulatedApples == null) migProfile.accumulatedApples = 0;
           if (migProfile.apples == null) migProfile.apples = 0;
-          if (migProfile.lives == null) migProfile.lives = 5;
+          if (migProfile.lives == null) migProfile.lives = MINI_GAME_MAX_LIVES;
           if (migProfile.onboardingSeen == null) migProfile.onboardingSeen = true;
           if (!migProfile.chatConversations) {
             const legacy = migProfile.chatHistory;
@@ -143,6 +156,9 @@ export default function App() {
 
     setUser(prev => {
       if (!prev) return prev;
+      const previousStatus = prev.visitMissionProgress?.[missionId] || 'none';
+      if (MISSION_STATUS_RANK[previousStatus] >= MISSION_STATUS_RANK[status]) return prev;
+
       const newStatus = status;
       const updatedProgress = {
         ...prev.visitMissionProgress,
@@ -242,6 +258,8 @@ export default function App() {
   };
 
   const handleActionNotification = (notif: AppNotification) => {
+    setPreviousTab(activeTab);
+
     if (notif.missionId) {
       setActiveTab('activity');
       setActivitySubTab('missions');
@@ -249,13 +267,28 @@ export default function App() {
       setActiveTab(notif.targetTab);
       if (notif.targetSubTab) {
         setActivitySubTab(notif.targetSubTab);
+      } else if (notif.targetTab === 'activity') {
+        setActivitySubTab(null);
       }
+    } else if (notif.type === 'mission' || notif.type === 'location') {
+      setActiveTab('activity');
+      setActivitySubTab('missions');
+    } else if (notif.type === 'reward') {
+      setActiveTab('profile');
+    } else {
+      setActiveTab('tree');
     }
     setIsNotificationOpen(false);
   };
 
   const handleAdoptTree = (farm: Farm, variety: AppleVariety, nickname: string, personality: string) => {
     if (!user || !firebaseUser) return;
+    const treeNickname = nickname.trim();
+
+    if (!treeNickname) {
+      showAlert('나무 이름을 먼저 입력해주세요.\n이름을 지어야 씨앗 심기를 완료할 수 있어요.', '🌱', 'warning');
+      return;
+    }
     
     // Check for cooldown (3 days)
     const treesInCurrentFarm = user.trees.filter(t => t.farmId === farm.id);
@@ -266,7 +299,7 @@ export default function App() {
       const lockedUntil = new Date(user.slotCooldowns[cooldownKey].lockedUntil);
       if (lockedUntil > new Date()) {
         const daysLeft = Math.ceil((lockedUntil.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-        showAlert(`해당 슬롯은 현재 비활성화 상태입니다.\n${daysLeft}일 후에 다시 심을 수 있어요.`, '⏳', 'warning');
+        showAlert(`이 자리는 나무 제거 후 3일 휴지기입니다.\n${daysLeft}일 후에 다시 씨앗을 심을 수 있어요.`, '⏳', 'warning');
         return;
       }
     }
@@ -283,7 +316,7 @@ export default function App() {
       id: Math.random().toString(36).substr(2, 9),
       farmId: farm.id,
       variety,
-      nickname,
+      nickname: treeNickname,
       currentDay: 1,
       growthRate: 0,
       health: 100,
@@ -337,9 +370,16 @@ export default function App() {
     setActiveTab('tree');
   };
 
-  const handleDeleteTree = (treeId: string) => {
+  const handleDeleteTree = async (treeId: string) => {
     if (!user) return;
-    if (!window.confirm('정말로 이 사과나무를 제거하시겠습니까? 수확 전에 제거하면 3일간 해당 자리에 사과를 심을 수 없습니다.')) return;
+    const confirmed = await showConfirm({
+      message: '정말로 이 사과나무를 제거하시겠습니까?\n수확 전에 제거하면 3일간 해당 자리에 심을 수 없습니다.',
+      emoji: '🪓',
+      type: 'warning',
+      confirmText: '제거하기',
+      cancelText: '취소',
+    });
+    if (!confirmed) return;
 
     setUser(prev => {
       if (!prev) return prev;
@@ -593,6 +633,31 @@ export default function App() {
     return true;
   };
 
+  const handlePlantSeedFromStore = (seedId?: string) => {
+    if (!user) return;
+
+    const targetSeedId = seedId?.startsWith('seed_')
+      ? seedId
+      : user.items.find(item => item.id.startsWith('seed_') && item.count > 0)?.id;
+
+    if (!targetSeedId) {
+      showAlert('심을 수 있는 씨앗이 없어요.\n상점에서 농가 씨앗을 먼저 구매해주세요.', '🌱', 'warning');
+      return;
+    }
+
+    const farmId = targetSeedId.replace(/^seed_/, '');
+    const targetFarm = FARMS.find(farm => farm.id === farmId);
+
+    if (!targetFarm) {
+      showAlert('씨앗과 연결된 농가를 찾지 못했어요.\n다른 씨앗을 선택해주세요.', '🌱', 'warning');
+      return;
+    }
+
+    setRequestedSeedFarmId(farmId);
+    setPreviousTab('store');
+    setActiveTab('map');
+  };
+
   const handleDeliverySubmit = (data: DeliveryInfo) => {
     setUser(prev => {
       if (!prev) return prev;
@@ -645,71 +710,61 @@ export default function App() {
   };
 
   const handleRestoreLife = (amount: number = 1) => {
-    setUser(prev => prev ? { ...prev, lives: Math.min(10, prev.lives + amount) } : prev);
+    setUser(prev => prev ? { ...prev, lives: Math.min(MINI_GAME_MAX_LIVES, prev.lives + amount) } : prev);
   };
 
-  // Daily Heart Recharge & Demo Notifs
+  // Daily Heart Recharge & Inactivity Reminder
   useEffect(() => {
-    const lastRecharge = localStorage.getItem('last_heart_recharge');
-    const today = new Date().toDateString();
+    if (!user || !firebaseUser) return;
 
-    if (lastRecharge !== today) {
-      setUser(prev => prev ? { ...prev, lives: 5 } : prev);
-      localStorage.setItem('last_heart_recharge', today);
+    const rechargeKey = `last_heart_recharge_${firebaseUser.uid}`;
+    const legacyRecharge = localStorage.getItem('last_heart_recharge');
+    const savedRecharge = localStorage.getItem(rechargeKey);
+    const savedAt = Number(savedRecharge);
+    const legacyAt = legacyRecharge
+      ? Number.isFinite(Number(legacyRecharge))
+        ? Number(legacyRecharge)
+        : new Date(legacyRecharge).getTime()
+      : 0;
+    let lastRechargeAt = Number.isFinite(savedAt) && savedAt > 0 ? savedAt : legacyAt;
+    const now = Date.now();
+    let rechargeTimer: number | undefined;
+
+    if (!lastRechargeAt || !Number.isFinite(lastRechargeAt)) {
+      lastRechargeAt = now;
+      localStorage.setItem(rechargeKey, String(now));
     }
-    
-    // Proximity demo notification
-    const proximityTimer = setTimeout(() => {
-      addNotification(
-        "📍 근처에 미션이 있습니다!",
-        "영주역 근처에 도착하셨네요! '영주역 도착 인증' 미션을 지금 바로 시작해보세요.",
-        'location',
-        'm1'
-      );
-    }, 3000);
 
-    // Inactivity & Popular Place Notifications
-    const checkEngagementNotifs = () => {
-      // 1. Inactivity check
-      const lastVisit = localStorage.getItem('last_visit_timestamp');
-      const now = Date.now();
-      if (lastVisit) {
-        const diffHours = (now - parseInt(lastVisit)) / (1000 * 60 * 60);
-        if (diffHours > 24) { // Let's say 24 hours
-          addNotification(
-            "🍎 사과나무가 보고 싶어해요!",
-            "오랜만에 들르셨네요! 주인님을 기다리는 사과나무에게 물을 주러 가볼까요?",
-            'info'
-          );
-        }
-      }
-      localStorage.setItem('last_visit_timestamp', now.toString());
+    const elapsedSinceRecharge = now - lastRechargeAt;
+    if (elapsedSinceRecharge >= HEART_RECHARGE_INTERVAL_MS) {
+      setUser(prev => prev ? { ...prev, lives: MINI_GAME_MAX_LIVES } : prev);
+      localStorage.setItem(rechargeKey, String(now));
+    } else {
+      rechargeTimer = window.setTimeout(() => {
+        setUser(prev => prev ? { ...prev, lives: MINI_GAME_MAX_LIVES } : prev);
+        localStorage.setItem(rechargeKey, String(Date.now()));
+      }, HEART_RECHARGE_INTERVAL_MS - elapsedSinceRecharge);
+    }
 
-      // 2. Popular place notification (Random pick)
-      const popularTimer = setTimeout(() => {
-        const places = ['부석사', '무섬마을', '소백산', '선비촌'];
-        const randomPlace = places[Math.floor(Math.random() * places.length)];
+    const lastVisit = localStorage.getItem('last_visit_timestamp');
+    if (lastVisit) {
+      const diffHours = (now - parseInt(lastVisit)) / (1000 * 60 * 60);
+      if (diffHours > 24) {
         addNotification(
-          "🔥 지금 영주에서 핫한 곳!",
-          `현재 많은 분들이 [${randomPlace}]를 방문 중이에요! 대기 시간이 짧을 때 어서 가보세요.`,
-          'location'
+          "🍎 사과나무가 보고 싶어해요!",
+          "오랜만에 들르셨네요! 주인님을 기다리는 사과나무에게 물을 주러 가볼까요?",
+          'info',
+          undefined,
+          'tree',
         );
-      }, 8000);
-
-      return popularTimer;
-    };
-
-    const popularTimer = checkEngagementNotifs();
+      }
+    }
+    localStorage.setItem('last_visit_timestamp', now.toString());
 
     return () => {
-      clearTimeout(proximityTimer);
-      clearTimeout(popularTimer);
+      if (rechargeTimer !== undefined) window.clearTimeout(rechargeTimer);
     };
-  }, []);
-
-  const handleAddDecoration = (deco: Decoration) => {
-    setDecorations(prev => [...prev, deco]);
-  };
+  }, [firebaseUser?.uid, Boolean(user)]);
 
   const handleUpdateConversations = (conversations: ChatConversation[]) => {
     if (!user) return;
@@ -730,18 +785,25 @@ export default function App() {
       showAlert('회원 탈퇴가 완료되었습니다.', '👋', 'success');
     } catch (error: any) {
       const code = error?.code || '';
+      if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+        return;
+      }
+      if (code === 'auth/popup-blocked') {
+        showAlert('팝업이 차단되었어요.\n브라우저 팝업 차단을 해제한 후 다시 시도해주세요.', '🔒', 'warning');
+        return;
+      }
       if (code === 'auth/requires-recent-login') {
-        showAlert('보안을 위해 최근 로그인 확인이 필요해요.\n로그아웃 후 다시 로그인한 다음 회원 탈퇴를 진행해주세요.', '🔐', 'warning');
+        showAlert('보안을 위해 재로그인이 필요해요.\n로그아웃 후 다시 로그인한 다음 시도해주세요.', '🔐', 'warning');
         return;
       }
       showAlert('회원 탈퇴 중 문제가 발생했어요.\n잠시 후 다시 시도해주세요.', '⚠️', 'warning');
-      console.error(error);
+      console.error('[deleteAccount]', error);
     }
   };
 
   const handleAIAction = (name: string, args: any) => {
     if (name === 'manage_travel_course') {
-      const { action, courseName, items } = args;
+      const { action, courseName, items, sourceChatId } = args;
       setUser(prev => {
         if (!prev) return prev;
         let updatedCourses = [...(prev.courses || [])];
@@ -753,7 +815,8 @@ export default function App() {
             name: courseName || '영주 AI 추천 코스',
             items: (items || []).map((it: any, idx: number) => ({ ...it, order: idx, status: 'pending' })),
             createdAt: new Date().toISOString(),
-            theme: 'AI 추천'
+            theme: 'AI 추천',
+            sourceChatId,
           };
           updatedCourses.push(newCourse);
           newActiveId = newCourse.id;
@@ -984,10 +1047,10 @@ export default function App() {
                 onStoreFarm={handleStoreFarm}
                 onUnstoreFarm={handleUnstoreFarm}
                 trees={user.trees}
-                decorations={decorations}
-                onAddDecoration={handleAddDecoration}
                 ownedItems={user.items}
                 onGoToStore={() => { setPreviousTab(activeTab); setActiveTab('store'); }}
+                requestedFarmId={requestedSeedFarmId}
+                onRequestedFarmHandled={() => setRequestedSeedFarmId(null)}
               />
             </motion.div>
           )}
@@ -1030,7 +1093,7 @@ export default function App() {
                 onBack={() => setActiveTab(previousTab)}
                 onNavigateToMissions={() => { setActiveTab('activity'); setActivitySubTab('missions'); }}
                 ownedItems={user.items}
-                onPlantSeed={() => { setPreviousTab('store'); setActiveTab('map'); }}
+                onPlantSeed={handlePlantSeedFromStore}
               />
             </motion.div>
           )}
@@ -1052,7 +1115,7 @@ export default function App() {
 
           {activeTab === 'admin' && (
             <motion.div key="admin" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              <AdminDashboard role={user.role} />
+              <AdminDashboard role={user.role} user={user} />
             </motion.div>
           )}
         </AnimatePresence>
@@ -1103,6 +1166,8 @@ export default function App() {
         type={alertState?.type ?? 'info'}
         onClose={() => setAlertState(null)}
       />
+
+      <ConfirmModal />
 
       <AnimatePresence>
         {!user.onboardingSeen && (

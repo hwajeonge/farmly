@@ -1,9 +1,10 @@
 import React from 'react';
 import { motion, Reorder } from 'framer-motion';
 import { Clock, Navigation, CheckCircle2, MoreVertical, Plus, Trash2, X, GripVertical, Heart } from 'lucide-react';
-import { Course } from '../types';
+import { Course, CourseItem, Place } from '../types';
 import { PLACES } from '../constants';
 import { cn } from '../lib/utils';
+import { showAlert } from '../lib/alertEmitter';
 
 interface TravelCourseProps {
   course: Course | null;
@@ -14,6 +15,26 @@ interface TravelCourseProps {
   favoritePlaceIds?: string[];
   onToggleFavorite?: (placeId: string) => void;
 }
+
+const FALLBACK_VISIT_TIMES = ['10:00', '11:30', '13:30', '15:00', '16:30', '18:00'];
+
+const getRecommendedVisitTime = (item: CourseItem, index: number, place: Place) => {
+  if (item.estimatedArrival) return item.estimatedArrival;
+
+  const category = String(place.category);
+  if (category.includes('맛집')) return index <= 1 ? '12:00' : '18:00';
+  if (category.includes('카페')) return '15:00';
+  if (place.isIndoor) return FALLBACK_VISIT_TIMES[Math.min(index, FALLBACK_VISIT_TIMES.length - 1)];
+  return FALLBACK_VISIT_TIMES[Math.min(index, FALLBACK_VISIT_TIMES.length - 1)];
+};
+
+const getVisitTimeNote = (place: Place) => {
+  const category = String(place.category);
+  if (category.includes('맛집')) return '식사 시간대에 맞춘 추천 시간이에요.';
+  if (category.includes('카페')) return '코스 중간 휴식 시간으로 좋아요.';
+  if (!place.isIndoor) return '야외 장소라 너무 늦기 전 방문을 추천해요.';
+  return '운영 시간을 고려한 추천 시간이에요.';
+};
 
 export const TravelCourse: React.FC<TravelCourseProps> = ({ 
   course, 
@@ -64,10 +85,29 @@ export const TravelCourse: React.FC<TravelCourseProps> = ({
     const newItem = {
       placeId,
       order: course.items.length,
+      estimatedArrival: FALLBACK_VISIT_TIMES[Math.min(course.items.length, FALLBACK_VISIT_TIMES.length - 1)],
       status: 'none' as const
     };
     onUpdateCourseItems([...course.items, newItem]);
     setIsAdding(false);
+  };
+
+  const handleOpenDirections = (item: CourseItem, index: number, place: Place) => {
+    const recommendedTime = getRecommendedVisitTime(item, index, place);
+    const address = place.address || place.location;
+    showAlert(
+      `${place.name} 이동 안내\n주소: ${address}\n추천 방문: ${recommendedTime}\n예상 체류: ${place.estimatedStayTime}분\n\n지도 앱에서는 장소명이나 주소로 검색해 이동 경로를 확인해주세요.`,
+      '🧭',
+      'info',
+    );
+  };
+
+  const handleVisitComplete = (place: Place) => {
+    showAlert(
+      `${place.name} 방문 완료는 실제 장소 근처에 도착한 뒤 진행할 수 있어요.\n현재 단계에서는 해당 장소로 이동한 다음 GPS 체크인 또는 미션 인증으로 완료해주세요.`,
+      '📍',
+      'warning',
+    );
   };
 
   return (
@@ -98,6 +138,7 @@ export const TravelCourse: React.FC<TravelCourseProps> = ({
             const place = PLACES.find(p => p.id === item.placeId);
             if (!place) return null;
             const isFavorite = favoriteSet.has(place.id);
+            const recommendedTime = getRecommendedVisitTime(item, idx, place);
 
             return (
               <Reorder.Item 
@@ -141,9 +182,14 @@ export const TravelCourse: React.FC<TravelCourseProps> = ({
                           </span>
                         </div>
                       </div>
-                      <p className="text-[10px] text-stone-400 font-bold flex items-center gap-1">
-                        <Clock size={10} /> {place.estimatedStayTime}분 체류 예정
-                      </p>
+                      <div className="space-y-1">
+                        <p className="text-[10px] text-stone-500 font-black flex items-center gap-1">
+                          <Clock size={10} /> 추천 방문 {recommendedTime} · {place.estimatedStayTime}분 체류
+                        </p>
+                        <p className="text-[9px] font-bold text-stone-400 leading-relaxed">
+                          {getVisitTimeNote(place)} 운영 {place.operatingHours}
+                        </p>
+                      </div>
                     </div>
                   </div>
                   
@@ -167,10 +213,18 @@ export const TravelCourse: React.FC<TravelCourseProps> = ({
                     </div>
                   ) : (
                     <div className="flex items-center gap-2 pt-3 border-t border-stone-50">
-                      <button className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-stone-100 text-stone-600 text-[10px] font-black hover:bg-stone-200">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenDirections(item, idx, place)}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-stone-100 text-stone-600 text-[10px] font-black hover:bg-stone-200"
+                      >
                         <Navigation size={12} /> 이동방법
                       </button>
-                      <button className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-apple-green text-white text-[10px] font-black shadow-[0_3px_0_0_#2f855a] active:shadow-none active:translate-y-0.5 transition-all">
+                      <button
+                        type="button"
+                        onClick={() => handleVisitComplete(place)}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-apple-green text-white text-[10px] font-black shadow-[0_3px_0_0_#2f855a] active:shadow-none active:translate-y-0.5 transition-all"
+                      >
                         <CheckCircle2 size={12} /> 방문완료
                       </button>
                     </div>

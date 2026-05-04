@@ -1,13 +1,14 @@
 import React from 'react';
-import { UserRole } from '../types';
+import { UserProfile, UserRole } from '../types';
 import { FarmAdminDashboard } from './FarmAdminDashboard';
 import { GovAdminDashboard } from './GovAdminDashboard';
 
 interface AdminDashboardProps {
   role: UserRole;
+  user: UserProfile;
 }
 
-export const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
+export const AdminDashboard: React.FC<AdminDashboardProps> = ({ role, user }) => {
   if (role === 'farm_owner') {
     return (
       <div className="py-4">
@@ -17,7 +18,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
             사과나무 상품, 농가 정보, 주문, 리뷰, AI 분석을 관리합니다.
           </p>
         </div>
-        <FarmAdminDashboard role={role} />
+        <FarmAdminDashboard user={user} />
       </div>
     );
   }

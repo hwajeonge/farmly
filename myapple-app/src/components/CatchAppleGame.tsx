@@ -5,19 +5,22 @@ import { X, Trophy, Play, RotateCcw, Pause, LogOut } from 'lucide-react';
 interface CatchAppleGameProps {
   onClose: () => void;
   onFinish: (points: number, isGameOver: boolean) => void;
+  onRestart?: () => boolean;
 }
 
-export const CatchAppleGame: React.FC<CatchAppleGameProps> = ({ onClose, onFinish }) => {
+export const CatchAppleGame: React.FC<CatchAppleGameProps> = ({ onClose, onFinish, onRestart }) => {
   const [gameState, setGameState] = useState<'playing' | 'result' | 'paused'>('playing');
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(30);
   const [basketPos, setBasketPos] = useState(50); // 0 to 100
   const [apples, setApples] = useState<{ id: number; x: number; y: number; type: 'red' | 'golden' | 'worm' }[]>([]);
+  const [isRewardClaimed, setIsRewardClaimed] = useState(false);
   
   const gameRef = useRef<HTMLDivElement>(null);
   const requestRef = useRef<number>(null);
   const lastAppleTime = useRef<number>(0);
   const appleIdCounter = useRef(0);
+  const rewardClaimedRef = useRef(false);
 
   const basketPosRef = useRef(50);
   const gameStateRef = useRef<'ready' | 'playing' | 'result' | 'paused'>('ready');
@@ -34,13 +37,23 @@ export const CatchAppleGame: React.FC<CatchAppleGameProps> = ({ onClose, onFinis
   const lastFrameTime = useRef<number>(0);
 
   const startGame = () => {
+    if (onRestart && !onRestart()) return;
     setGameState('playing');
     setScore(0);
     setTimeLeft(30);
     setApples([]);
+    setIsRewardClaimed(false);
+    rewardClaimedRef.current = false;
     const now = performance.now();
     lastAppleTime.current = now;
     lastFrameTime.current = now;
+  };
+
+  const handleClaimReward = () => {
+    if (rewardClaimedRef.current) return;
+    rewardClaimedRef.current = true;
+    setIsRewardClaimed(true);
+    onFinish(Math.floor(score / 2), score === 0);
   };
 
   const updateGame = (time: number) => {
@@ -227,10 +240,11 @@ export const CatchAppleGame: React.FC<CatchAppleGameProps> = ({ onClose, onFinis
               
               <div className="w-full space-y-4">
                 <button 
-                  onClick={() => onFinish(Math.floor(score / 2), score === 0)}
-                  className="w-full py-5 bg-apple-green text-white rounded-3xl font-black text-xl shadow-[0_8px_0_0_#2e7d32] active:shadow-none active:translate-y-2 transition-all"
+                  onClick={handleClaimReward}
+                  disabled={isRewardClaimed}
+                  className="w-full py-5 bg-apple-green text-white rounded-3xl font-black text-xl shadow-[0_8px_0_0_#2e7d32] active:shadow-none active:translate-y-2 transition-all disabled:bg-stone-200 disabled:text-stone-400 disabled:shadow-none disabled:translate-y-0"
                 >
-                  {Math.floor(score / 2)}P 받기
+                  {isRewardClaimed ? '보상 수령 완료' : `${Math.floor(score / 2)}P 받기`}
                 </button>
                 <button 
                   onClick={startGame}

@@ -1,16 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Trophy, Play, RotateCcw, Search, Pause, LogOut } from 'lucide-react';
 
 interface FindGinsengGameProps {
   onClose: () => void;
   onFinish: (points: number, isGameOver: boolean) => void;
+  onRestart?: () => boolean;
 }
 
-export const FindGinsengGame: React.FC<FindGinsengGameProps> = ({ onClose, onFinish }) => {
+export const FindGinsengGame: React.FC<FindGinsengGameProps> = ({ onClose, onFinish, onRestart }) => {
   const [gameState, setGameState] = useState<'playing' | 'result' | 'gameover' | 'paused'>('playing');
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(60);
+  const [isRewardClaimed, setIsRewardClaimed] = useState(false);
   const [grid, setGrid] = useState<{ 
     id: number; 
     isStone: boolean; 
@@ -22,6 +24,7 @@ export const FindGinsengGame: React.FC<FindGinsengGameProps> = ({ onClose, onFin
 
   const GRID_SIZE = 6;
   const STONE_COUNT = 6;
+  const rewardClaimedRef = useRef(false);
 
   const generateGrid = () => {
     const totalCells = GRID_SIZE * GRID_SIZE;
@@ -68,10 +71,20 @@ export const FindGinsengGame: React.FC<FindGinsengGameProps> = ({ onClose, onFin
   };
 
   const startGame = () => {
+    if (onRestart && !onRestart()) return;
     setGameState('playing');
     setScore(0);
     setTimeLeft(60);
+    setIsRewardClaimed(false);
+    rewardClaimedRef.current = false;
     generateGrid();
+  };
+
+  const handleClaimReward = () => {
+    if (rewardClaimedRef.current) return;
+    rewardClaimedRef.current = true;
+    setIsRewardClaimed(true);
+    onFinish(score, gameState === 'gameover' || score === 0);
   };
 
   useEffect(() => {
@@ -267,10 +280,11 @@ export const FindGinsengGame: React.FC<FindGinsengGameProps> = ({ onClose, onFin
               
               <div className="w-full space-y-4">
                 <button 
-                  onClick={() => onFinish(Math.floor(score / 5), gameState === 'gameover' || score === 0)}
-                  className="w-full py-5 bg-apple-green text-white rounded-3xl font-black text-xl shadow-[0_8px_0_0_#2e7d32] active:shadow-none active:translate-y-2 transition-all"
+                  onClick={handleClaimReward}
+                  disabled={isRewardClaimed}
+                  className="w-full py-5 bg-apple-green text-white rounded-3xl font-black text-xl shadow-[0_8px_0_0_#2e7d32] active:shadow-none active:translate-y-2 transition-all disabled:bg-stone-200 disabled:text-stone-400 disabled:shadow-none disabled:translate-y-0"
                 >
-                  {Math.floor(score / 5)}P 받기
+                  {isRewardClaimed ? '보상 수령 완료' : `${score}P 받기`}
                 </button>
                 <button 
                   onClick={startGame}

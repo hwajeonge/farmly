@@ -12,7 +12,7 @@ interface StoreProps {
   onBack?: () => void;
   onNavigateToMissions?: () => void;
   ownedItems?: { id: string; count: number }[];
-  onPlantSeed?: () => void;
+  onPlantSeed?: (seedId?: string) => void;
 }
 
 const ITEM_COPY: Record<string, { name: string; desc: string; icon: string; tag: string; bg: string }> = {
@@ -146,8 +146,8 @@ export const StoreView: React.FC<StoreProps> = ({
           </p>
         </div>
 
-        <div className="rounded-2xl border-2 border-red-100 bg-red-50 px-4 py-3 text-right">
-          <p className="text-[9px] font-black uppercase tracking-widest text-apple-red">보유 사과</p>
+        <div className="min-w-[78px] shrink-0 rounded-2xl border-2 border-red-100 bg-red-50 px-3 py-3 text-right">
+          <p className="whitespace-nowrap text-[9px] font-black uppercase tracking-widest text-apple-red">보유 사과</p>
           <p className="text-base font-black text-stone-900">{apples}개</p>
         </div>
       </header>
@@ -185,7 +185,7 @@ export const StoreView: React.FC<StoreProps> = ({
               <h3 className="mt-0.5 text-base font-black text-stone-900">{recentSeedCopy.name}을 바로 심어볼까요?</h3>
             </div>
             <button
-              onClick={onPlantSeed}
+              onClick={() => onPlantSeed(recentSeedId ?? undefined)}
               className="shrink-0 rounded-2xl bg-apple-green px-4 py-3 text-xs font-black text-white shadow-[0_4px_0_0_#2d7a2d] transition-all active:translate-y-0.5 active:shadow-none"
             >
               씨앗 심으러 가기
@@ -270,7 +270,7 @@ export const StoreView: React.FC<StoreProps> = ({
 
                 {isSeed && (ownedCount > 0 || isRecentSeed) && onPlantSeed && (
                   <button
-                    onClick={onPlantSeed}
+                    onClick={() => onPlantSeed(item.id)}
                     className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-apple-green py-2.5 text-xs font-black text-white shadow-[0_3px_0_0_#2d7a2d] transition-all active:translate-y-0.5 active:shadow-none"
                   >
                     <Leaf size={15} /> 지도에서 바로 심기

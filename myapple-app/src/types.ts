@@ -126,6 +126,7 @@ export interface Course {
   items: CourseItem[];
   createdAt: string;
   theme?: string;
+  sourceChatId?: string;
 }
 
 export type UserRole = 'general' | 'farm_owner' | 'gov_admin';

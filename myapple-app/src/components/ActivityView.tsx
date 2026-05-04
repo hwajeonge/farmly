@@ -40,6 +40,15 @@ type SubTab = typeof SUB_TABS[number]['id'];
 export const ActivityView: React.FC<ActivityViewProps> = (props) => {
   const [activeSubTab, setActiveSubTab] = useState<SubTab>('missions');
   const [courseViewMode, setCourseViewMode] = useState<'status' | 'design' | 'manual'>('status');
+  const [requestedCourseChatId, setRequestedCourseChatId] = useState<string | null>(null);
+
+  const openCourseDesignChat = () => {
+    const fallbackChat = [...props.conversations]
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+      .find(conversation => conversation.messages.some(message => message.action === 'manage_travel_course'));
+    setRequestedCourseChatId(props.activeCourse?.sourceChatId ?? fallbackChat?.id ?? null);
+    setCourseViewMode('design');
+  };
 
   useEffect(() => {
     const req = props.requestedSubTab;
@@ -116,7 +125,13 @@ export const ActivityView: React.FC<ActivityViewProps> = (props) => {
                   ] as const).map((m) => (
                     <button
                       key={m.id}
-                      onClick={() => setCourseViewMode(m.id)}
+                      onClick={() => {
+                        if (m.id === 'design') {
+                          openCourseDesignChat();
+                          return;
+                        }
+                        setCourseViewMode(m.id);
+                      }}
                       className={cn(
                         'flex-1 py-2 rounded-xl text-[11px] font-black transition-all',
                         courseViewMode === m.id
@@ -132,7 +147,7 @@ export const ActivityView: React.FC<ActivityViewProps> = (props) => {
                 {courseViewMode === 'status' ? (
                   <TravelCourse
                     course={props.activeCourse}
-                    onEditCourse={() => setCourseViewMode('design')}
+                    onEditCourse={openCourseDesignChat}
                     onCreateSpontaneous={() => {}}
                     favoritePlaceIds={props.favoritePlaceIds}
                     onToggleFavorite={props.onToggleFavorite}
@@ -148,6 +163,9 @@ export const ActivityView: React.FC<ActivityViewProps> = (props) => {
                     visitHistory={props.visitHistory}
                     favoritePlaces={props.favoritePlaces}
                     hideHeader={true}
+                    requestedChatId={requestedCourseChatId}
+                    onRequestedChatHandled={() => setRequestedCourseChatId(null)}
+                    activeCourseName={props.activeCourse.name}
                     onAction={props.onAIAction}
                     onNavigate={(tab, subTab) => {
                       props.onNavigate?.(tab, subTab);

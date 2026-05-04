@@ -16,6 +16,9 @@ interface ChatbotViewProps {
   favoritePlaces?: string[];
   onAction?: (name: string, args: any) => void;
   onNavigate?: (tab: string, subTab?: string) => void;
+  requestedChatId?: string | null;
+  onRequestedChatHandled?: () => void;
+  activeCourseName?: string | null;
 }
 
 export const ChatbotView: React.FC<ChatbotViewProps> = ({
@@ -30,6 +33,9 @@ export const ChatbotView: React.FC<ChatbotViewProps> = ({
   favoritePlaces = [],
   onAction,
   onNavigate,
+  requestedChatId,
+  onRequestedChatHandled,
+  activeCourseName,
 }) => {
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [input, setInput] = useState('');
@@ -39,6 +45,13 @@ export const ChatbotView: React.FC<ChatbotViewProps> = ({
   useEffect(() => { conversationsRef.current = conversations; }, [conversations]);
 
   const activeConversation = conversations.find(c => c.id === activeChatId) ?? null;
+
+  useEffect(() => {
+    if (!requestedChatId) return;
+    const exists = conversations.some(conversation => conversation.id === requestedChatId);
+    setActiveChatId(exists ? requestedChatId : null);
+    onRequestedChatHandled?.();
+  }, [requestedChatId, conversations, onRequestedChatHandled]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -139,7 +152,12 @@ export const ChatbotView: React.FC<ChatbotViewProps> = ({
           },
           onAction: (name, args) => {
             detectedAction = name;
-            if (onAction) onAction(name, args);
+            if (onAction) {
+              const actionArgs = args && typeof args === 'object'
+                ? { ...args, sourceChatId: activeChatId }
+                : { sourceChatId: activeChatId };
+              onAction(name, actionArgs);
+            }
           },
         }
       );
@@ -296,6 +314,14 @@ export const ChatbotView: React.FC<ChatbotViewProps> = ({
         <Plus size={18} />
         새로운 채팅 시작
       </button>
+
+      {activeCourseName && (
+        <div className="mb-3 rounded-2xl border-2 border-blue-100 bg-blue-50 p-3">
+          <p className="text-[11px] font-bold leading-relaxed text-blue-600">
+            지금 코스는 <span className="font-black">{activeCourseName}</span>예요. 새 채팅에서 새 코스를 만들면 활성 코스가 새 코스로 바뀔 수 있고, 이전 코스 상담은 대화 목록에 남아 다시 열 수 있어요.
+          </p>
+        </div>
+      )}
 
       {/* Conversation List */}
       <div className="flex-1 overflow-y-auto space-y-2 scrollbar-hide">

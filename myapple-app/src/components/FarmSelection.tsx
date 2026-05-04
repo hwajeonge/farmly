@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { showAlert } from '../lib/alertEmitter';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronLeft, Hammer, List, Lock, Map as MapIcon, MapPin, ShoppingBag, Star } from 'lucide-react';
-import { AppleVariety, Decoration, Farm, TreeState } from '../types';
+import { ChevronLeft, List, Lock, Map as MapIcon, MapPin, ShoppingBag, Star } from 'lucide-react';
+import { AppleVariety, Farm, TreeState } from '../types';
 import { FARMS } from '../constants';
 import { cn } from '../lib/utils';
 
@@ -14,10 +14,10 @@ interface FarmSelectionProps {
   onStoreFarm: (farmId: string) => void;
   onUnstoreFarm: (farmId: string) => void;
   trees: TreeState[];
-  decorations: Decoration[];
-  onAddDecoration: (decoration: Decoration) => void;
   ownedItems: { id: string; count: number }[];
   onGoToStore: () => void;
+  requestedFarmId?: string | null;
+  onRequestedFarmHandled?: () => void;
 }
 
 const APPLE_VARIETIES: AppleVariety[] = ['썸머킹', '아오리', '홍로', '시나노스위트', '아이카향', '부사'];
@@ -39,13 +39,6 @@ const PERSONALITIES: { value: string; emoji: string; desc: string }[] = [
   { value: '까칠한',      emoji: '😤', desc: '까다롭지만 잘 키우면 최고 수확량을 자랑해요' },
 ];
 
-const decorationIcon = (type: Decoration['type']) => {
-  if (type === 'tree') return '🌳';
-  if (type === 'bench') return '🪑';
-  if (type === 'flower') return '🌷';
-  return '🏆';
-};
-
 export const FarmSelection: React.FC<FarmSelectionProps> = ({
   onAdopt,
   adoptedFarmIds,
@@ -54,10 +47,10 @@ export const FarmSelection: React.FC<FarmSelectionProps> = ({
   onStoreFarm,
   onUnstoreFarm,
   trees,
-  decorations,
-  onAddDecoration,
   ownedItems,
   onGoToStore,
+  requestedFarmId,
+  onRequestedFarmHandled,
 }) => {
   const [viewMode, setViewMode] = useState<'map' | 'list'>('map');
   const [step, setStep] = useState<'view' | 'survey' | 'personality' | 'confirm'>('view');
@@ -65,9 +58,12 @@ export const FarmSelection: React.FC<FarmSelectionProps> = ({
   const [surveyResult, setSurveyResult] = useState<AppleVariety | null>(null);
   const [selectedPersonality, setSelectedPersonality] = useState<string | null>(null);
   const [nickname, setNickname] = useState('');
-  const [isDecorating, setIsDecorating] = useState(false);
 
   const activeFarmCount = (adoptedFarmIds || []).filter(id => !(storedFarmIds || []).includes(id)).length;
+  const nextFarmProgress = FARMS
+    .filter(farm => (adoptedFarmIds || []).includes(farm.id) && !(storedFarmIds || []).includes(farm.id))
+    .map(farm => trees.filter(tree => tree.farmId === farm.id).length)
+    .reduce((max, count) => Math.max(max, Math.min(count, 3)), 0);
 
   const handleFarmSelect = (farm: Farm) => {
     if (!(adoptedFarmIds || []).includes(farm.id)) return;
@@ -86,27 +82,55 @@ export const FarmSelection: React.FC<FarmSelectionProps> = ({
     setStep('confirm');
   };
 
-  const handleMapClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!isDecorating) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    const y = ((e.clientY - rect.top) / rect.height) * 100;
-    const types: Decoration['type'][] = ['tree', 'bench', 'flower', 'statue'];
-    onAddDecoration({
-      id: Math.random().toString(36).slice(2, 11),
-      type: types[Math.floor(Math.random() * types.length)],
-      x,
-      y,
-    });
-  };
-
   const getVarietyInfo = (v: AppleVariety) => VARIETY_COPY[String(v)] ?? { desc: `${String(v)} 품종으로 영주 사과나무를 키워요.`, season: '', emoji: '🍎' };
   const hasSeed = selectedFarm ? ownedItems.some(i => i.id === `seed_${selectedFarm.id}` && i.count > 0) : false;
   const canProceedWithTreeName = nickname.trim().length > 0;
+  const selectedFarmTrees = selectedFarm ? trees.filter(tree => tree.farmId === selectedFarm.id) : [];
+  const nextSlotIndex = selectedFarmTrees.length;
+  const activeSlotCooldown = selectedFarm ? slotCooldowns[`${selectedFarm.id}_${nextSlotIndex}`] : undefined;
+  const activeSlotCooldownUntil = activeSlotCooldown ? new Date(activeSlotCooldown.lockedUntil) : null;
+  const isSlotCooldownActive = Boolean(activeSlotCooldownUntil && activeSlotCooldownUntil > new Date());
+  const slotCooldownDaysLeft = activeSlotCooldownUntil
+    ? Math.max(1, Math.ceil((activeSlotCooldownUntil.getTime() - Date.now()) / 86400000))
+    : 0;
 
   const showNicknameRequired = () => {
     showAlert('나무 이름을 먼저 입력해주세요.\n이름을 지어야 씨앗 심기 단계로 넘어갈 수 있어요.', '🌳', 'warning');
   };
+
+  useEffect(() => {
+    if (!requestedFarmId) return;
+
+    const farm = FARMS.find(item => item.id === requestedFarmId);
+    if (!farm) {
+      onRequestedFarmHandled?.();
+      return;
+    }
+
+    const isUnlocked = (adoptedFarmIds || []).includes(farm.id);
+    const isStored = (storedFarmIds || []).includes(farm.id);
+
+    setViewMode('map');
+    if (isUnlocked && !isStored) {
+      setSelectedFarm(farm);
+      setSurveyResult(null);
+      setSelectedPersonality(null);
+      setNickname('');
+      setStep('survey');
+      showAlert(`${farm.name}에서 씨앗 심기를 이어갈게요.`, '🌱', 'success');
+    } else {
+      setStep('view');
+      showAlert(
+        isStored
+          ? `${farm.name}은 보관 중인 농가예요.\n다시 활성화한 뒤 씨앗을 심을 수 있어요.`
+          : `${farm.name}은 아직 잠긴 농가예요.\n현재 열린 농가의 씨앗을 먼저 심어주세요.`,
+        '🔒',
+        'warning',
+      );
+    }
+
+    onRequestedFarmHandled?.();
+  }, [requestedFarmId, adoptedFarmIds, storedFarmIds, onRequestedFarmHandled]);
 
   return (
     <div className="py-4">
@@ -142,16 +166,15 @@ export const FarmSelection: React.FC<FarmSelectionProps> = ({
             <div className="mb-4 grid grid-cols-3 gap-2">
               <MiniStat label="활성 농가" value={`${activeFarmCount}/3`} />
               <MiniStat label="보유 나무" value={`${trees.length}그루`} />
-              <MiniStat label="마을 꾸미기" value={isDecorating ? '켜짐' : '꺼짐'} />
+              <MiniStat label="다음 농가" value={`${nextFarmProgress}/3그루`} />
             </div>
+
+            <GameGuide />
 
             {viewMode === 'map' ? (
               <div className="relative">
                 <div className="map-container mb-4 overflow-hidden rounded-[2.5rem] border-4 border-white shadow-xl">
-                  <div
-                    className={cn('map-surface relative aspect-square bg-stone-100/50', isDecorating ? 'cursor-crosshair' : 'cursor-default')}
-                    onClick={handleMapClick}
-                  >
+                  <div className="map-surface relative aspect-square bg-stone-100/50">
                     <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full">
                       <defs>
                         <linearGradient id="yeongju-map-fill" x1="15" y1="10" x2="86" y2="94" gradientUnits="userSpaceOnUse">
@@ -197,7 +220,6 @@ export const FarmSelection: React.FC<FarmSelectionProps> = ({
                       <g opacity="0.95">
                         <rect x="50" y="48" width="20" height="11" rx="4" fill="#FFFFFF" opacity="0.86" />
                         <text x="54" y="55" fontSize="4.2" fontWeight="900" fill="#5A3E2B">영주시내</text>
-                        <circle cx="50" cy="53" r="2.3" fill="#FF6B6B" />
                       </g>
                       <g opacity="0.95">
                         <rect x="22" y="25" width="17" height="9" rx="3.5" fill="#FFFFFF" opacity="0.84" />
@@ -219,61 +241,52 @@ export const FarmSelection: React.FC<FarmSelectionProps> = ({
                     {FARMS.map((farm) => {
                       const isUnlocked = (adoptedFarmIds || []).includes(farm.id);
                       const isStored = (storedFarmIds || []).includes(farm.id);
+                      const farmTreeCount = trees.filter(tree => tree.farmId === farm.id).length;
                       return (
                         <motion.button
                           key={farm.id}
-                          whileHover={{ scale: 1.18, y: -4 }}
+                          whileHover={{ scale: 1.06, y: -3 }}
                           onClick={() => handleFarmSelect(farm)}
-                          className={cn('group absolute z-10 -translate-x-1/2 -translate-y-full', (!isUnlocked || isStored) && 'opacity-50 grayscale')}
+                          className={cn('group absolute z-10 -translate-x-1/2 -translate-y-full', (!isUnlocked || isStored) && 'grayscale')}
                           style={{ left: `${farm.coords.x}%`, top: `${farm.coords.y}%` }}
                           aria-label={`${farm.name} 선택`}
                         >
-                          {isUnlocked ? (
-                            isStored ? (
-                              <div className="rounded-full border-2 border-white bg-stone-700 p-1.5 text-white shadow-lg">
-                                <ShoppingBag size={14} />
-                              </div>
-                            ) : (
-                              <MapPin size={30} fill="#ff6b6b" className="text-white drop-shadow-md" />
-                            )
-                          ) : (
-                            <div className="rounded-full border-2 border-white bg-stone-500 p-1.5 text-white">
-                              <Lock size={14} />
+                          <div className="flex flex-col items-center">
+                            <div
+                              className={cn(
+                                'flex h-10 w-10 items-center justify-center rounded-full border-[3px] border-white shadow-[0_6px_16px_rgba(0,0,0,0.22)]',
+                                isUnlocked && !isStored && 'bg-apple-red text-white',
+                                isStored && 'bg-stone-700 text-white',
+                                !isUnlocked && 'bg-stone-500 text-white opacity-75',
+                              )}
+                            >
+                              {isUnlocked ? (
+                                isStored ? <ShoppingBag size={17} /> : <MapPin size={20} fill="currentColor" />
+                              ) : (
+                                <Lock size={17} />
+                              )}
                             </div>
-                          )}
-                          <div className="pointer-events-none absolute -top-9 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-full border-2 border-stone-50 bg-white px-2.5 py-1 opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
-                            <span className="text-[10px] font-black">
-                              {isUnlocked ? (isStored ? `${farm.name} 보관 중` : farm.name) : '잠김'}
-                            </span>
+                            <div
+                              className={cn(
+                                'mt-1 whitespace-nowrap rounded-full border-2 border-white px-2.5 py-1 text-[9px] font-black shadow-lg',
+                                isUnlocked && !isStored && 'bg-apple-red text-white',
+                                isStored && 'bg-stone-700 text-white',
+                                !isUnlocked && 'bg-white/90 text-stone-500',
+                              )}
+                            >
+                              {isUnlocked ? (isStored ? '보관 농가' : '내 농가') : '잠김'} · {farm.name}
+                            </div>
+                            <div className="mt-1 rounded-full bg-white/90 px-2 py-0.5 text-[8px] font-black text-stone-500 shadow-sm">
+                              나무 {farmTreeCount}/5
+                            </div>
                           </div>
                         </motion.button>
                       );
                     })}
-
-                    {decorations.map((deco) => (
-                      <div
-                        key={deco.id}
-                        className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 text-2xl"
-                        style={{ left: `${deco.x}%`, top: `${deco.y}%` }}
-                      >
-                        {decorationIcon(deco.type)}
-                      </div>
-                    ))}
                   </div>
                 </div>
 
-                <button
-                  onClick={() => setIsDecorating(!isDecorating)}
-                  className={cn(
-                    'flex w-full items-center justify-center gap-2 rounded-2xl py-3.5 text-sm font-black text-white transition-all active:translate-y-1 active:shadow-none',
-                    isDecorating
-                      ? 'bg-stone-800 shadow-[0_4px_0_0_#111]'
-                      : 'bg-yeoju-gold shadow-[0_4px_0_0_#b07a00]',
-                  )}
-                >
-                  <Hammer size={18} />
-                  {isDecorating ? '꾸미기 완료' : '마을 꾸미기'}
-                </button>
+                <MapLegend />
               </div>
             ) : (
               <div className="space-y-3">
@@ -439,19 +452,21 @@ export const FarmSelection: React.FC<FarmSelectionProps> = ({
                 </span>
               </div>
 
-              {(() => {
-                const cooldown = slotCooldowns[`${selectedFarm.id}_0`];
-                if (cooldown && new Date(cooldown.lockedUntil) > new Date()) {
-                  const daysLeft = Math.ceil((new Date(cooldown.lockedUntil).getTime() - Date.now()) / 86400000);
-                  return (
-                    <div className="mb-5 flex items-center gap-2.5 rounded-2xl border-2 border-red-100 bg-red-50 p-3.5 text-left text-xs font-bold text-red-500">
-                      <span className="text-lg">⏳</span>
-                      <span>이 슬롯은 {daysLeft}일 뒤에 다시 심을 수 있어요.</span>
+              {isSlotCooldownActive && (
+                <div className="mb-5 rounded-2xl border-2 border-red-100 bg-red-50 p-3.5 text-left">
+                  <div className="flex items-start gap-2.5">
+                    <span className="text-lg">⏳</span>
+                    <div>
+                      <p className="text-xs font-black text-red-500">
+                        이 자리는 {slotCooldownDaysLeft}일 뒤에 다시 심을 수 있어요.
+                      </p>
+                      <p className="mt-1 text-[11px] font-bold leading-relaxed text-red-400">
+                        씨앗 구매 제한이 아니라, 나무를 제거한 슬롯의 3일 휴지기예요. 무한 재시도를 막기 위해 같은 자리는 휴지기 종료 후 다시 사용할 수 있어요.
+                      </p>
                     </div>
-                  );
-                }
-                return null;
-              })()}
+                  </div>
+                </div>
+              )}
 
               <input
                 type="text"
@@ -467,7 +482,14 @@ export const FarmSelection: React.FC<FarmSelectionProps> = ({
                 </p>
               )}
 
-              {hasSeed ? (
+              {isSlotCooldownActive ? (
+                <button
+                  disabled
+                  className="w-full rounded-2xl bg-stone-100 py-4 text-center text-sm font-black text-stone-400"
+                >
+                  휴지기 종료 후 씨앗 심기 가능
+                </button>
+              ) : hasSeed ? (
                 <button
                   onClick={() => {
                     if (!canProceedWithTreeName) {
@@ -477,6 +499,7 @@ export const FarmSelection: React.FC<FarmSelectionProps> = ({
                     onAdopt(selectedFarm, surveyResult, nickname.trim(), selectedPersonality!);
                   }}
                   aria-disabled={!canProceedWithTreeName}
+                  disabled={!canProceedWithTreeName}
                   className={cn('btn-primary w-full justify-center text-center transition-opacity', !canProceedWithTreeName && 'opacity-50')}
                 >
                   씨앗 사용해서 분양받기
@@ -491,6 +514,7 @@ export const FarmSelection: React.FC<FarmSelectionProps> = ({
                     onGoToStore();
                   }}
                   aria-disabled={!canProceedWithTreeName}
+                  disabled={!canProceedWithTreeName}
                   className={cn('btn-gold flex w-full items-center justify-center gap-2 transition-opacity', !canProceedWithTreeName && 'opacity-50')}
                 >
                   <ShoppingBag size={16} /> 상점에서 씨앗 구매하기
@@ -508,5 +532,56 @@ const MiniStat = ({ label, value }: { label: string; value: string }) => (
   <div className="rounded-2xl border-2 border-stone-100 bg-white p-3 text-center shadow-sm">
     <p className="text-[9px] font-black uppercase tracking-wide text-stone-400">{label}</p>
     <p className="mt-0.5 text-sm font-black text-stone-800">{value}</p>
+  </div>
+);
+
+const GameGuide = () => {
+  const steps = [
+    { title: '농가 선택', desc: '처음에는 랜덤으로 열린 내 농가 1곳에서 시작해요.', value: '1곳' },
+    { title: '나무 3그루', desc: '한 농가에 나무 3그루를 심으면 다음 농가가 열려요.', value: '3그루' },
+    { title: '최대 관리', desc: '농가당 나무 5그루, 동시에 활성 농가 3곳까지 관리해요.', value: '5/3' },
+    { title: '수확 배송', desc: '각 나무는 30일 성장 후 수확과 배송 신청으로 이어져요.', value: '30일' },
+  ];
+
+  return (
+    <section className="mb-4 rounded-[1.75rem] border-2 border-apple-green/20 bg-white p-4 shadow-sm">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-apple-green">Game Flow</p>
+          <h3 className="mt-0.5 text-sm font-black text-stone-800">농가와 나무는 이렇게 확장돼요</h3>
+        </div>
+        <span className="rounded-full bg-apple-light-green px-3 py-1 text-[10px] font-black text-apple-green-dark">
+          농가 오픈 규칙
+        </span>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        {steps.map((step) => (
+          <div key={step.title} className="rounded-2xl bg-stone-50 p-3">
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <p className="text-[10px] font-black text-stone-700">{step.title}</p>
+              <span className="rounded-full bg-white px-2 py-0.5 text-[9px] font-black text-apple-red shadow-sm">
+                {step.value}
+              </span>
+            </div>
+            <p className="text-[10px] font-bold leading-relaxed text-warm-gray">{step.desc}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+};
+
+const MapLegend = () => (
+  <div className="grid grid-cols-3 gap-2 rounded-[1.5rem] border-2 border-stone-100 bg-white p-3 shadow-sm">
+    <LegendItem color="bg-apple-red" label="내 농가" />
+    <LegendItem color="bg-stone-500" label="잠긴 농가" />
+    <LegendItem color="bg-stone-700" label="보관 농가" />
+  </div>
+);
+
+const LegendItem = ({ color, label }: { color: string; label: string }) => (
+  <div className="flex items-center justify-center gap-1.5 rounded-2xl bg-stone-50 px-2 py-2">
+    <span className={cn('h-2.5 w-2.5 rounded-full', color)} />
+    <span className="text-[10px] font-black text-stone-600">{label}</span>
   </div>
 );

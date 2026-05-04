@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Apple,
@@ -6,23 +6,29 @@ import {
   Bell,
   CheckCircle2,
   Image as ImageIcon,
+  Loader2,
   MapPin,
   MessageCircle,
   Package,
   PieChart,
   Plus,
   Settings,
+  Sparkles,
   Store,
   Tag,
   Truck,
 } from 'lucide-react';
-import { UserRole } from '../types';
+// @ts-ignore — collection/getDocs exist at runtime; TS can't resolve due to @firebase/firestore package exports config
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '../lib/firebase';
+import { UserProfile } from '../types';
+import { getFarmAdminInsight } from '../services/geminiService';
 import { cn } from '../lib/utils';
 
 type SubTab = 'products' | 'farm' | 'orders' | 'reviews' | 'ai';
 
 interface FarmAdminDashboardProps {
-  role: UserRole;
+  user: UserProfile;
 }
 
 type MetricCardProps = {
@@ -50,7 +56,7 @@ const menuItems: Array<{ id: SubTab; label: string; icon: React.ElementType }> =
   { id: 'ai', label: '데이터/AI', icon: PieChart },
 ];
 
-export const FarmAdminDashboard: React.FC<FarmAdminDashboardProps> = () => {
+export const FarmAdminDashboard: React.FC<FarmAdminDashboardProps> = ({ user }) => {
   const [activeSubTab, setActiveSubTab] = useState<SubTab>('products');
 
   return (
@@ -59,7 +65,6 @@ export const FarmAdminDashboard: React.FC<FarmAdminDashboardProps> = () => {
         {menuItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeSubTab === item.id;
-
           return (
             <button
               key={item.id}
@@ -89,7 +94,7 @@ export const FarmAdminDashboard: React.FC<FarmAdminDashboardProps> = () => {
           {activeSubTab === 'products' && <ProductsSection />}
           {activeSubTab === 'farm' && <FarmInfoSection />}
           {activeSubTab === 'orders' && <OrdersSection />}
-          {activeSubTab === 'reviews' && <ReviewsSection />}
+          {activeSubTab === 'reviews' && <ReviewsSection user={user} />}
           {activeSubTab === 'ai' && <AISection />}
         </motion.div>
       </AnimatePresence>
@@ -124,7 +129,7 @@ const SectionCard = ({
   description: string;
   children: React.ReactNode;
 }) => (
-  <section className="rounded-[2rem] border-4 border-stone-100 bg-white p-5 shadow-sm">
+  <section className="rounded-4xl border-4 border-stone-100 bg-white p-5 shadow-sm">
     <div className="mb-4 flex items-start gap-3">
       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-stone-50 text-stone-500">
         <Icon size={18} />
@@ -145,24 +150,31 @@ const ReadyRow = ({ title, detail }: { title: string; detail: string }) => (
       <p className="mt-0.5 text-[10px] font-bold text-stone-400">{detail}</p>
     </div>
     <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-[9px] font-black text-stone-400">
-      대기
+      준비 중
     </span>
   </div>
 );
 
-const EmptyState = ({ title, description }: { title: string; description: string }) => (
-  <div className="rounded-[2rem] border-4 border-dashed border-stone-100 bg-white/70 p-7 text-center">
-    <p className="text-3xl font-black text-stone-300">0</p>
-    <h3 className="mt-2 text-sm font-black text-stone-700">{title}</h3>
-    <p className="mt-2 text-[11px] font-bold leading-relaxed text-stone-400">{description}</p>
+const DataRow = ({ title, detail, value, accent = false }: { title: string; detail: string; value: string; accent?: boolean }) => (
+  <div className="flex items-center justify-between gap-3 rounded-2xl bg-stone-50 px-4 py-3">
+    <div className="min-w-0">
+      <p className="text-xs font-black text-stone-700">{title}</p>
+      <p className="mt-0.5 text-[10px] font-bold text-stone-400">{detail}</p>
+    </div>
+    <span className={cn(
+      'shrink-0 rounded-full px-2.5 py-1 text-[9px] font-black',
+      accent ? 'bg-apple-red/10 text-apple-red' : 'bg-white text-stone-600 border border-stone-100'
+    )}>
+      {value}
+    </span>
   </div>
 );
 
 const ProductsSection = () => (
   <div className="space-y-5">
     <div className="grid grid-cols-2 gap-4">
-      <MetricCard label="등록 상품" value="0" unit="개" helper="사과나무 상품 없음" icon={Apple} tone="red" />
-      <MetricCard label="분양 상품" value="0" unit="개" helper="내 나무 상품 없음" icon={Package} tone="gold" />
+      <MetricCard label="등록 상품" value="0" unit="개" helper="상품 등록 대기" icon={Apple} tone="red" />
+      <MetricCard label="분양 상품" value="0" unit="개" helper="분양형 상품 없음" icon={Package} tone="gold" />
       <MetricCard label="재고" value="0" unit="개" helper="판매 가능 수량 없음" icon={Store} tone="green" />
       <MetricCard label="배송 설정" value="0" unit="건" helper="배송 정책 미등록" icon={Truck} tone="blue" />
     </div>
@@ -226,13 +238,16 @@ const OrdersSection = () => (
       <MetricCard label="신규 주문" value="0" unit="건" helper="확인 대기 없음" icon={Truck} tone="red" />
       <MetricCard label="배송 대기" value="0" unit="건" helper="배송 요청 없음" icon={Package} tone="blue" />
       <MetricCard label="판매량" value="0" unit="개" helper="수확/판매 내역 없음" icon={Apple} tone="gold" />
-      <MetricCard label="매출" value="0" unit="원" helper="실거래 데이터 없음" icon={BarChart3} tone="green" />
+      <MetricCard label="매출" value="0" unit="원" helper="결제 데이터 연동 예정" icon={BarChart3} tone="green" />
     </div>
 
-    <EmptyState
-      title="주문 데이터가 아직 없습니다"
-      description="실제 결제, 분양, 수확 배송 데이터가 연결되면 주문 확인과 배송 관리 목록이 표시됩니다."
-    />
+    <div className="rounded-4xl border-4 border-dashed border-stone-100 bg-white/70 p-7 text-center">
+      <p className="text-3xl font-black text-stone-300">0</p>
+      <h3 className="mt-2 text-sm font-black text-stone-700">주문 데이터가 아직 없습니다</h3>
+      <p className="mt-2 text-[11px] font-bold leading-relaxed text-stone-400">
+        실제 결제, 분양, 수확 배송 데이터가 연결되면 주문 확인과 배송 관리 목록이 표시됩니다.
+      </p>
+    </div>
 
     <SectionCard icon={Truck} title="판매 및 주문 관리" description="주문 확인, 배송 처리, 판매 통계를 한 곳에서 관리합니다.">
       <ReadyRow title="주문 확인" detail="사과 직거래 및 사과나무 분양 주문" />
@@ -242,13 +257,13 @@ const OrdersSection = () => (
   </div>
 );
 
-const ReviewsSection = () => (
+const ReviewsSection = ({ user }: { user: UserProfile }) => (
   <div className="space-y-5">
     <div className="grid grid-cols-2 gap-4">
+      <MetricCard label="내 나무" value={user.trees?.length.toString() ?? '0'} unit="그루" helper="보유 중인 나무 수" icon={Apple} tone="green" />
+      <MetricCard label="수확 사과" value={user.accumulatedApples?.toLocaleString() ?? '0'} unit="개" helper="누적 수확 사과" icon={CheckCircle2} tone="red" />
       <MetricCard label="리뷰" value="0" unit="건" helper="작성 리뷰 없음" icon={MessageCircle} tone="blue" />
-      <MetricCard label="응답 대기" value="0" unit="건" helper="답변 대기 없음" icon={Bell} tone="red" />
-      <MetricCard label="쿠폰" value="0" unit="개" helper="활성 혜택 없음" icon={Tag} tone="gold" />
-      <MetricCard label="알림" value="0" unit="건" helper="발송 내역 없음" icon={Bell} tone="green" />
+      <MetricCard label="알림" value="0" unit="건" helper="발송 내역 없음" icon={Bell} tone="gold" />
     </div>
 
     <SectionCard icon={MessageCircle} title="리뷰 및 사용자 관리" description="고객 피드백, 혜택, 알림을 관리합니다.">
@@ -262,19 +277,99 @@ const ReviewsSection = () => (
   </div>
 );
 
-const AISection = () => (
-  <div className="space-y-5">
-    <div className="grid grid-cols-2 gap-4">
-      <MetricCard label="품종 분석" value="0" unit="건" helper="판매 데이터 대기" icon={PieChart} tone="red" />
-      <MetricCard label="전환 분석" value="0" unit="%" helper="구매 전환 데이터 없음" icon={BarChart3} tone="blue" />
-      <MetricCard label="예측 데이터" value="0" unit="건" helper="수확량 예측 미연동" icon={Apple} tone="green" />
-      <MetricCard label="AI 리포트" value="0" unit="건" helper="생성된 리포트 없음" icon={CheckCircle2} tone="gold" />
-    </div>
+const AISection = () => {
+  const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [insight, setInsight] = useState('');
+  const [insightLoading, setInsightLoading] = useState(false);
 
-    <SectionCard icon={PieChart} title="데이터 및 AI 활용" description="운영 데이터가 쌓인 뒤 분석과 예측 기능을 활성화합니다.">
-      <ReadyRow title="인기 품종 분석" detail="품종별 조회, 분양, 구매 데이터를 분석" />
-      <ReadyRow title="구매 전환 분석" detail="관광 미션, 코스 방문, 상품 구매 흐름 연결" />
-      <ReadyRow title="수확량 예측 서비스 연결" detail="기상 데이터와 생육 상태 기반 고도화 영역" />
-    </SectionCard>
-  </div>
-);
+  useEffect(() => {
+    getDocs(collection(db, 'users'))
+      .then(snap => setAllUsers(snap.docs.map(d => d.data() as UserProfile)))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
+
+  const treeStats = useMemo(() => {
+    const totalUsers = allUsers.length;
+    const usersWithTrees = allUsers.filter(u => (u.trees?.length ?? 0) > 0).length;
+    const allTrees = allUsers.flatMap(u => u.trees ?? []);
+    const totalTrees = allTrees.length;
+    const totalApples = allUsers.reduce((s, u) => s + (u.accumulatedApples ?? 0), 0);
+    const stageMap: Record<string, number> = {};
+    allTrees.forEach(t => {
+      stageMap[t.growthStage] = (stageMap[t.growthStage] ?? 0) + 1;
+    });
+    const stageBreakdown = Object.entries(stageMap)
+      .map(([stage, count]) => `${stage}(${count})`)
+      .join(', ') || '데이터 없음';
+    const diseasedTrees = allTrees.filter(t => t.pestStatus !== 'none').length;
+    return { totalUsers, usersWithTrees, totalTrees, totalApples, stageBreakdown, diseasedTrees };
+  }, [allUsers]);
+
+  const handleInsight = async () => {
+    setInsightLoading(true);
+    try {
+      const text = await getFarmAdminInsight(treeStats as unknown as Record<string, any>);
+      setInsight(text);
+    } finally {
+      setInsightLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-4 animate-pulse">
+        <div className="grid grid-cols-2 gap-4">
+          {[...Array(4)].map((_, i) => <div key={i} className="h-28 rounded-3xl bg-stone-100" />)}
+        </div>
+        <div className="h-40 rounded-4xl bg-stone-100" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-5">
+      <div className="grid grid-cols-2 gap-4">
+        <MetricCard label="전체 나무" value={treeStats.totalTrees.toLocaleString()} unit="그루" helper="플랫폼 전체 분양 나무" icon={Apple} tone="red" />
+        <MetricCard label="분양 사용자" value={treeStats.usersWithTrees.toLocaleString()} unit="명" helper="나무 보유 사용자" icon={BarChart3} tone="blue" />
+        <MetricCard label="수확 사과" value={treeStats.totalApples.toLocaleString()} unit="개" helper="누적 수확 사과 합계" icon={CheckCircle2} tone="green" />
+        <MetricCard label="병해충 피해" value={treeStats.diseasedTrees.toLocaleString()} unit="그루" helper="현재 피해 나무 수" icon={PieChart} tone="gold" />
+      </div>
+
+      <SectionCard icon={PieChart} title="성장 단계별 현황" description="플랫폼 전체 나무의 성장 단계 분포입니다.">
+        <DataRow title="전체 나무 수"     detail="분양 중인 전체 나무"       value={`${treeStats.totalTrees}그루`}      accent />
+        <DataRow title="분양 사용자"       detail="나무 보유 사용자"           value={`${treeStats.usersWithTrees}명`}    accent />
+        <DataRow title="병해충 피해"       detail="pestStatus ≠ none"         value={`${treeStats.diseasedTrees}그루`}   />
+        <DataRow title="누적 사과 수확"    detail="전체 사용자 합산"           value={`${treeStats.totalApples}개`}       />
+        <DataRow title="성장 단계 분포"    detail="단계별 나무 수"             value={treeStats.stageBreakdown.length > 30 ? treeStats.stageBreakdown.slice(0, 30) + '…' : treeStats.stageBreakdown} />
+      </SectionCard>
+
+      <div className="rounded-4xl border-4 border-stone-100 bg-white p-5 shadow-sm">
+        <div className="mb-4 flex items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-apple-red text-white">
+            <Sparkles size={18} />
+          </div>
+          <div>
+            <h3 className="text-sm font-black text-stone-800">AI 농가 인사이트</h3>
+            <p className="mt-1 text-[11px] font-bold leading-relaxed text-stone-400">
+              실시간 나무 데이터 기반 AI 운영 제안을 받아보세요.
+            </p>
+          </div>
+        </div>
+        {insight ? (
+          <p className="rounded-2xl bg-stone-50 p-4 text-[11px] font-bold leading-relaxed text-stone-700 whitespace-pre-wrap">{insight}</p>
+        ) : (
+          <button
+            onClick={handleInsight}
+            disabled={insightLoading}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-apple-red py-3 text-xs font-black text-white disabled:opacity-60"
+          >
+            {insightLoading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+            {insightLoading ? 'AI 분석 중...' : 'AI 인사이트 생성'}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};

@@ -10,6 +10,8 @@ import {
 import { getRedirectResult } from 'firebase/auth';
 // @ts-ignore — deleteUser exists at runtime; TS can't resolve it due to @firebase/auth package exports config
 import { deleteUser } from 'firebase/auth';
+// @ts-ignore — reauthenticateWithPopup exists at runtime; TS can't resolve it due to @firebase/auth package exports config
+import { reauthenticateWithPopup } from 'firebase/auth';
 import { 
   doc, 
   getDoc, 
@@ -51,7 +53,7 @@ export const authService = {
       profileImage: user.photoURL || undefined,
       points: INITIAL_POINTS,
       apples: 0,
-      lives: 5,
+      lives: 10,
       accumulatedApples: 0,
       deliveryRequests: [],
       claimedMilestones: [],
@@ -83,8 +85,13 @@ export const authService = {
 
   async deleteAccount(user: User) {
     const uid = user.uid;
-    await deleteUser(user);
+    const provider = new GoogleAuthProvider();
+
+    // Re-authenticate and use the fresh user returned from the result.
+    // Using result.user (not the original reference) guarantees a valid token.
+    const { user: freshUser } = await reauthenticateWithPopup(user, provider);
     await deleteDoc(doc(db, 'users', uid));
+    await deleteUser(freshUser);
   },
 
   onAuthStateChange(callback: (user: User | null) => void) {

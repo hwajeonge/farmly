@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { showAlert } from '../lib/alertEmitter';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -35,45 +35,99 @@ export const MissionsView: React.FC<MissionsViewProps> = ({
   const [showBugGame, setShowBugGame] = useState(false);
   const [showInstructionsFor, setShowInstructionsFor] = useState<string | null>(null);
   const [selectedMission, setSelectedMission] = useState<VisitMission | null>(null);
+  const [selectedPrepareMission, setSelectedPrepareMission] = useState<VisitMission | null>(null);
   const [showReviewPopup, setShowReviewPopup] = useState(false);
   const [showPhotoPopup, setShowPhotoPopup] = useState(false);
   const [uploadedPhoto, setUploadedPhoto] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [rating, setRating] = useState(0);
   const [review, setReview] = useState('');
+  const [localProgress, setLocalProgress] = useState<Record<string, MissionStatus>>({});
+  const stageRewardLocks = useRef<Set<string>>(new Set());
+  const livesRef = useRef(lives);
+  const gameStartLockedRef = useRef(false);
+  livesRef.current = lives;
 
-  const handleGameFinish = (points: number, isGameOver: boolean) => {
-    if (points > 0) onAddPoints(points);
-    if (isGameOver) onDeductLife();
+  const getEffectiveStatus = (missionId: string) => localProgress[missionId] || missionProgress[missionId] || 'none';
+
+  const claimStageReward = (
+    mission: VisitMission,
+    stageId: 'prepare' | 'arrival' | 'action' | 'review',
+    nextStatus: MissionStatus,
+    expectedStatus: MissionStatus,
+  ) => {
+    const lockKey = `${mission.id}:${stageId}`;
+    if (stageRewardLocks.current.has(lockKey)) return false;
+    if (getEffectiveStatus(mission.id) !== expectedStatus) return false;
+
+    const stage = mission.stages.find(s => s.id === stageId);
+    stageRewardLocks.current.add(lockKey);
+    setLocalProgress(prev => ({ ...prev, [mission.id]: nextStatus }));
+    onUpdateProgress(mission.id, nextStatus);
+    if (stage?.reward) onAddPoints(stage.reward);
+    return true;
+  };
+
+  const consumeLifeForMiniGame = () => {
+    if (livesRef.current <= 0) {
+      showAlert('하트가 부족해요!\n하트는 24시간마다 자동으로 채워집니다.', '❤️', 'warning');
+      return false;
+    }
+    livesRef.current -= 1;
+    onDeductLife();
+    return true;
+  };
+
+  const handleStartMiniGame = (gameId: string) => {
+    if (gameStartLockedRef.current) return;
+    if (!consumeLifeForMiniGame()) return;
+
+    gameStartLockedRef.current = true;
+    if (gameId === 'catch') setShowCatchGame(true);
+    if (gameId === 'ginseng') setShowGinsengGame(true);
+    if (gameId === 'bug') setShowBugGame(true);
+  };
+
+  const handleCloseMiniGame = () => {
+    gameStartLockedRef.current = false;
     setShowCatchGame(false);
     setShowGinsengGame(false);
     setShowBugGame(false);
   };
 
+  const handleGameFinish = (points: number, _isGameOver: boolean) => {
+    if (points > 0) onAddPoints(points);
+    handleCloseMiniGame();
+  };
+
   const handleMissionAction = (mission: VisitMission) => {
-    const currentStatus = missionProgress[mission.id] || 'none';
+    const currentStatus = getEffectiveStatus(mission.id);
     
     if (currentStatus === 'none') {
-      const stage = mission.stages.find(s => s.id === 'prepare');
-      if (stage) {
-        onUpdateProgress(mission.id, 'prepare');
-        onAddPoints(stage.reward);
-      }
+      setSelectedPrepareMission(mission);
     } else if (currentStatus === 'prepare') {
-      const stage = mission.stages.find(s => s.id === 'arrival');
-      if (stage) {
-        onUpdateProgress(mission.id, 'arrival');
-        onAddPoints(stage.reward);
-      }
+      claimStageReward(mission, 'arrival', 'arrival', 'prepare');
     } else if (currentStatus === 'arrival') {
       setSelectedMission(mission);
       setShowPhotoPopup(true);
+    } else if (currentStatus === 'action') {
+      setSelectedMission(mission);
+      setShowReviewPopup(true);
+    }
+  };
+
+  const handlePrepareConfirm = () => {
+    if (!selectedPrepareMission) return;
+    const didClaim = claimStageReward(selectedPrepareMission, 'prepare', 'prepare', 'none');
+    if (didClaim) {
+      setSelectedPrepareMission(null);
     }
   };
 
   const handlePhotoSubmit = () => {
     if (selectedMission && uploadedPhoto) {
-      onUpdateProgress(selectedMission.id, 'action');
+      const didClaim = claimStageReward(selectedMission, 'action', 'action', 'arrival');
+      if (!didClaim) return;
       setShowPhotoPopup(false);
       setUploadedPhoto(null);
       // Automatically open review popup after photo
@@ -83,9 +137,8 @@ export const MissionsView: React.FC<MissionsViewProps> = ({
 
   const handleReviewSubmit = () => {
     if (selectedMission) {
-      const stage = selectedMission.stages.find(s => s.id === 'review');
-      onUpdateProgress(selectedMission.id, 'completed');
-      if (stage) onAddPoints(stage.reward);
+      const didClaim = claimStageReward(selectedMission, 'review', 'completed', 'action');
+      if (!didClaim) return;
       setShowReviewPopup(false);
       setReview('');
       setRating(0);
@@ -117,15 +170,7 @@ export const MissionsView: React.FC<MissionsViewProps> = ({
           {games.map((game) => (
             <div 
               key={game.id} 
-              onClick={() => {
-                if (lives <= 0) {
-                  showAlert('하트가 부족해요!\n광고를 보거나 내일 다시 도전해보세요.', '❤️', 'warning');
-                  return;
-                }
-                if (game.id === 'catch') setShowCatchGame(true);
-                if (game.id === 'ginseng') setShowGinsengGame(true);
-                if (game.id === 'bug') setShowBugGame(true);
-              }}
+              onClick={() => handleStartMiniGame(game.id)}
               className="farm-card p-4 sm:p-5 flex items-center gap-3 sm:gap-5 group cursor-pointer hover:border-apple-red/30 transition-all active:scale-[0.98]"
             >
               <div className="w-12 h-12 sm:w-16 sm:h-16 bg-stone-50 rounded-2xl sm:rounded-[1.5rem] flex items-center justify-center text-2xl sm:text-4xl group-hover:scale-110 transition-transform shrink-0">
@@ -167,14 +212,20 @@ export const MissionsView: React.FC<MissionsViewProps> = ({
 
       {/* Visit Missions Section */}
       <section>
-        <h3 className="text-xs font-black text-stone-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-          <MapPin size={14} className="text-apple-green" />
-          영주 방문 미션
-        </h3>
+        <div className="mb-4 flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-apple-green/10 text-apple-green">
+            <MapPin size={19} />
+          </div>
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-apple-green">Visit Mission</p>
+            <h3 className="text-2xl font-black leading-tight text-stone-900">영주 방문 미션</h3>
+          </div>
+        </div>
         <div className="space-y-4">
           {VISIT_MISSIONS.map((mission) => {
-            const status = missionProgress[mission.id] || 'none';
+            const status = getEffectiveStatus(mission.id);
             const place = PLACES.find(p => p.id === mission.placeId);
+            const prepareLocked = stageRewardLocks.current.has(`${mission.id}:prepare`);
 
             return (
               <div key={mission.id} className="farm-card overflow-hidden">
@@ -249,6 +300,7 @@ export const MissionsView: React.FC<MissionsViewProps> = ({
                   {status !== 'completed' && (
                     <button 
                       onClick={() => handleMissionAction(mission)}
+                      disabled={prepareLocked && status === 'none'}
                       className={`w-full py-4 rounded-2xl font-black flex items-center justify-center gap-2 transition-all ${
                         status === 'none' ? 'bg-white border-4 border-stone-100 text-stone-600' :
                         status === 'prepare' ? 'bg-blue-500 text-white shadow-[0_4px_0_0_#2b6cb0]' :
@@ -256,7 +308,7 @@ export const MissionsView: React.FC<MissionsViewProps> = ({
                         'bg-apple-red text-white shadow-[0_4px_0_0_#d32f2f]'
                       }`}
                     >
-                      {status === 'none' && <><Info size={18} /> 여행 정보 및 정책 확인</>}
+                      {status === 'none' && <><Info size={18} /> 여행 전 정보 및 정책 확인</>}
                       {status === 'prepare' && <><Navigation size={18} /> 목적지 도착 (체크인)</>}
                       {status === 'arrival' && <><Camera size={18} /> 미션 수행 (행동 인증)</>}
                       {status === 'action' && <><MessageSquare size={18} /> 방문 후기 등록</>}
@@ -320,22 +372,104 @@ export const MissionsView: React.FC<MissionsViewProps> = ({
       <AnimatePresence>
         {showCatchGame && (
           <CatchAppleGame 
-            onClose={() => setShowCatchGame(false)} 
+            onClose={handleCloseMiniGame}
             onFinish={handleGameFinish} 
+            onRestart={consumeLifeForMiniGame}
           />
         )}
         {showGinsengGame && (
           <FindGinsengGame 
-            onClose={() => setShowGinsengGame(false)} 
+            onClose={handleCloseMiniGame}
             onFinish={handleGameFinish} 
+            onRestart={consumeLifeForMiniGame}
           />
         )}
         {showBugGame && (
           <BugDefenseGame 
-            onClose={() => setShowBugGame(false)} 
+            onClose={handleCloseMiniGame}
             onFinish={handleGameFinish} 
+            onRestart={consumeLifeForMiniGame}
           />
         )}
+
+        {/* Pre-visit Info Modal */}
+        {selectedPrepareMission && (() => {
+          const place = PLACES.find(p => p.id === selectedPrepareMission.placeId);
+          const prepareStage = selectedPrepareMission.stages.find(s => s.id === 'prepare');
+          const isLocked = stageRewardLocks.current.has(`${selectedPrepareMission.id}:prepare`);
+
+          return (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[300] flex items-center justify-center bg-black/60 p-5 backdrop-blur-md"
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0, y: 16 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.9, opacity: 0, y: 16 }}
+                className="max-h-[88vh] w-full max-w-sm overflow-hidden rounded-[2.25rem] bg-white shadow-2xl"
+              >
+                <div className="max-h-[88vh] overflow-y-auto p-6">
+                  <div className="mb-5 flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-apple-green">Before Visit</p>
+                      <h3 className="mt-1 text-xl font-black leading-tight text-stone-900">여행 전 정보 및 정책</h3>
+                      <p className="mt-1 text-xs font-bold leading-relaxed text-stone-500">{selectedPrepareMission.title}</p>
+                    </div>
+                    <button
+                      onClick={() => setSelectedPrepareMission(null)}
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-stone-100 text-stone-400 transition-all active:scale-90"
+                      aria-label="여행 전 정보 닫기"
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+
+                  {place && (
+                    <div className="mb-4 overflow-hidden rounded-[1.75rem] border-2 border-stone-100 bg-stone-50">
+                      <img src={place.image} alt={place.name} className="h-28 w-full object-cover" referrerPolicy="no-referrer" />
+                      <div className="p-4">
+                        <div className="mb-2 flex items-center justify-between gap-2">
+                          <h4 className="text-base font-black text-stone-800">{place.name}</h4>
+                          <span className="rounded-full bg-white px-2.5 py-1 text-[9px] font-black text-apple-red shadow-sm">{place.category}</span>
+                        </div>
+                        <p className="text-[11px] font-bold leading-relaxed text-stone-500">{place.description}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-3">
+                    <InfoRow icon={Clock} label="운영 정보" value={place?.operatingHours || '방문 전 운영 여부 확인'} />
+                    <InfoRow icon={MapPin} label="주소" value={place?.address || place?.location || '영주시 일대'} />
+                    <InfoRow icon={Navigation} label="주차/이동" value={place?.parking || '대중교통 및 현장 주차 가능 여부 확인'} />
+                    <InfoRow icon={Gift} label="방문 혜택" value={place?.benefits?.join(', ') || '현장 혜택 확인'} />
+                  </div>
+
+                  <div className="mt-4 rounded-[1.5rem] border-2 border-apple-green/20 bg-apple-light-green/60 p-4">
+                    <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-apple-green-dark">Mission Policy</p>
+                    <ul className="space-y-2 text-[11px] font-bold leading-relaxed text-stone-600">
+                      <li>방문 전 단계는 장소 정보와 정책을 확인하면 1회만 보상됩니다.</li>
+                      <li>도착 체크인은 실제 장소 근처에서 진행하는 단계로 분리됩니다.</li>
+                      <li>사진 인증과 후기는 현장 방문 후 순서대로 완료할 수 있어요.</li>
+                      {prepareStage && <li>이번 준비 미션: {prepareStage.task}</li>}
+                    </ul>
+                  </div>
+
+                  <button
+                    onClick={handlePrepareConfirm}
+                    disabled={isLocked || getEffectiveStatus(selectedPrepareMission.id) !== 'none'}
+                    className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-apple-red py-4 text-sm font-black text-white shadow-[0_5px_0_0_#d32f2f] transition-all active:translate-y-1 active:shadow-none disabled:bg-stone-200 disabled:text-stone-400 disabled:shadow-none"
+                  >
+                    <CheckCircle2 size={18} />
+                    {isLocked ? '이미 확인 완료' : `정보 확인 완료하고 ${prepareStage ? `+${prepareStage.reward}P 받기` : '완료하기'}`}
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          );
+        })()}
 
         {/* Instructions Modal */}
         {showInstructionsFor && (
@@ -538,3 +672,15 @@ export const MissionsView: React.FC<MissionsViewProps> = ({
     </div>
   );
 };
+
+const InfoRow = ({ icon: Icon, label, value }: { icon: any; label: string; value: string }) => (
+  <div className="flex gap-3 rounded-[1.35rem] border border-stone-100 bg-white p-3 shadow-sm">
+    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-stone-50 text-apple-green">
+      <Icon size={16} />
+    </div>
+    <div className="min-w-0">
+      <p className="text-[9px] font-black uppercase tracking-widest text-stone-400">{label}</p>
+      <p className="mt-0.5 text-[11px] font-bold leading-relaxed text-stone-700">{value}</p>
+    </div>
+  </div>
+);

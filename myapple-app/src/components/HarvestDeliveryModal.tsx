@@ -20,22 +20,6 @@ const DELIVERY_OPTIONS = [
     desc: '누적 수확 사과 10개 이상 달성 시 신청할 수 있어요.',
     icon: '🍎',
   },
-  {
-    id: 'extra_2kg',
-    title: '실물 사과 2kg 배송',
-    extra: '추가 구매',
-    price: '3,500원',
-    desc: '기본 보상에 1kg을 추가해 받아요.',
-    icon: '🍎🍎',
-  },
-  {
-    id: 'extra_3kg',
-    title: '실물 사과 3kg 배송',
-    extra: '추가 구매',
-    price: '5,500원',
-    desc: '가족과 함께 나눌 수 있는 넉넉한 구성입니다.',
-    icon: '🍎🍎🍎',
-  },
 ];
 
 export const HarvestDeliveryModal: React.FC<HarvestDeliveryModalProps> = ({ onClose, onSubmit, accumulatedApples }) => {
@@ -152,7 +136,7 @@ export const HarvestDeliveryModal: React.FC<HarvestDeliveryModalProps> = ({ onCl
                   <div className="flex gap-2 text-stone-500">
                     <Info size={14} className="mt-0.5 shrink-0" />
                     <p className="text-[10px] font-medium leading-relaxed">
-                      배송 정보는 신청 내역에 저장됩니다. 추가 구매 옵션은 실제 결제 연동 전까지 신청 데이터로만 기록돼요.
+                      배송 정보는 신청 내역에 저장됩니다. 신청 후 마이페이지에서 배송 기록을 확인할 수 있어요.
                     </p>
                   </div>
                 </div>

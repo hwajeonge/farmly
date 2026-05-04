@@ -245,9 +245,20 @@ export const TreeManagement: React.FC<TreeManagementProps> = ({
         </div>
       </section>
 
-      <section className="grid grid-cols-2 gap-3">
-        <InfoCard title="다음 목표" value={nextGoal} tone="green" />
-        <InfoCard title={isSeasonEnded ? '수확 결과' : '영주 날씨'} value={isSeasonEnded ? `${tree.harvestedApples ?? 0}개의 사과를 수확했어요.` : weatherEvent?.message ?? weatherSummary} tone="blue" />
+      <section className="rounded-[2rem] border-2 border-apple-green/10 bg-white p-4 shadow-[0_8px_24px_rgba(90,62,43,0.06)]">
+        <div className="mb-3 flex items-center gap-2 px-1">
+          <div className="flex h-8 w-8 items-center justify-center rounded-2xl bg-apple-green/10 text-apple-green">
+            <Calendar size={16} />
+          </div>
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-apple-green">Tree Status</p>
+            <h3 className="text-sm font-black text-stone-800">오늘의 나무 상태</h3>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <InfoCard title="다음 목표" value={nextGoal} tone="green" />
+          <InfoCard title={isSeasonEnded ? '수확 결과' : '영주 날씨'} value={isSeasonEnded ? `${tree.harvestedApples ?? 0}개의 사과를 수확했어요.` : weatherEvent?.message ?? weatherSummary} tone="blue" />
+        </div>
       </section>
 
       {isSeasonEnded ? (
@@ -261,11 +272,18 @@ export const TreeManagement: React.FC<TreeManagementProps> = ({
         />
       ) : (
         <>
-          <section>
+          <section className="rounded-[2rem] border-2 border-stone-100 bg-white p-4 shadow-[0_8px_24px_rgba(90,62,43,0.06)]">
             <div className="mb-3 flex items-center justify-between px-1">
-              <p className="text-xs font-black text-warm-gray">오늘의 돌봄 액션</p>
-              <button onClick={onGoToStore} className="text-[11px] font-black text-apple-red">
-                아이템 사기
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-apple-red">Care Action</p>
+                <h3 className="text-sm font-black text-stone-800">오늘의 돌봄 액션</h3>
+              </div>
+              <button
+                onClick={onGoToStore}
+                className="flex items-center gap-1.5 rounded-full bg-apple-red px-3 py-1.5 text-[11px] font-black text-white shadow-[0_3px_0_0_#d32f2f] transition-all active:translate-y-0.5 active:shadow-none"
+                aria-label="상점에서 돌봄 아이템 사러가기"
+              >
+                <ShoppingBag size={13} /> 아이템 사러가기
               </button>
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -388,7 +406,7 @@ const StatusCard = ({
 
 const InfoCard = ({ title, value, tone }: { title: string; value: string; tone: 'green' | 'blue' }) => (
   <div className={cn(
-    'rounded-2xl border-2 p-3',
+    'min-h-[112px] rounded-2xl border-2 p-3 shadow-sm',
     tone === 'green' ? 'border-emerald-100 bg-emerald-50' : 'border-sky-100 bg-sky-50',
   )}>
     <p className={cn('mb-1 text-[10px] font-black uppercase tracking-wide', tone === 'green' ? 'text-emerald-600' : 'text-sky-600')}>

@@ -5,6 +5,7 @@ import { X, Trophy, Play, RotateCcw, Heart, ShieldAlert, Pause, LogOut } from 'l
 interface BugDefenseGameProps {
   onClose: () => void;
   onFinish: (points: number, isGameOver: boolean) => void;
+  onRestart?: () => boolean;
 }
 
 interface Bug {
@@ -17,12 +18,13 @@ interface Bug {
   hp: number;
 }
 
-export const BugDefenseGame: React.FC<BugDefenseGameProps> = ({ onClose, onFinish }) => {
+export const BugDefenseGame: React.FC<BugDefenseGameProps> = ({ onClose, onFinish, onRestart }) => {
   const [gameState, setGameState] = useState<'playing' | 'result' | 'paused'>('playing');
   const [score, setScore] = useState(0);
   const [appleHp, setAppleHp] = useState(5);
   const [timeLeft, setTimeLeft] = useState(30);
   const [bugs, setBugs] = useState<Bug[]>([]);
+  const [isRewardClaimed, setIsRewardClaimed] = useState(false);
   
   const gameRef = useRef<HTMLDivElement>(null);
   const requestRef = useRef<number>(null);
@@ -30,6 +32,9 @@ export const BugDefenseGame: React.FC<BugDefenseGameProps> = ({ onClose, onFinis
   const lastFrameTime = useRef<number>(0);
   const bugIdCounter = useRef(0);
   const gameStateRef = useRef(gameState);
+  const rewardClaimedRef = useRef(false);
+  const healthBonus = appleHp * 10;
+  const rewardPoints = Math.min(250, score + healthBonus);
 
   useEffect(() => {
     gameStateRef.current = gameState;
@@ -41,14 +46,24 @@ export const BugDefenseGame: React.FC<BugDefenseGameProps> = ({ onClose, onFinis
   }, [gameState]);
 
   const startGame = () => {
+    if (onRestart && !onRestart()) return;
     setGameState('playing');
     setScore(0);
     setAppleHp(5);
     setTimeLeft(30);
     setBugs([]);
+    setIsRewardClaimed(false);
+    rewardClaimedRef.current = false;
     const now = performance.now();
     lastBugTime.current = now;
     lastFrameTime.current = now;
+  };
+
+  const handleClaimReward = () => {
+    if (rewardClaimedRef.current) return;
+    rewardClaimedRef.current = true;
+    setIsRewardClaimed(true);
+    onFinish(rewardPoints, appleHp === 0 || rewardPoints === 0);
   };
 
   const updateGame = (time: number) => {
@@ -281,14 +296,18 @@ export const BugDefenseGame: React.FC<BugDefenseGameProps> = ({ onClose, onFinis
               <h2 className="text-3xl font-black mb-2">방어 성공!</h2>
               <p className="text-stone-400 font-bold mb-8">퇴치한 벌레 점수</p>
               <div className="text-6xl font-black text-apple-red mb-4">{score}</div>
-              <p className="text-xs font-bold text-apple-green mb-10">남은 체력 보너스: +{appleHp * 100}</p>
+              <div className="mb-10 space-y-1 rounded-2xl bg-green-50 px-4 py-3">
+                <p className="text-xs font-black text-apple-green">남은 체력 보너스: +{healthBonus}P</p>
+                <p className="text-[10px] font-bold text-stone-400">체력 1칸당 +10P, 총 보상은 최대 250P</p>
+              </div>
               
               <div className="w-full space-y-4">
                 <button 
-                  onClick={() => onFinish(Math.floor((score + appleHp * 100) / 10), appleHp === 0 || score === 0)}
-                  className="w-full py-5 bg-apple-green text-white rounded-3xl font-black text-xl shadow-[0_8px_0_0_#2e7d32] active:shadow-none active:translate-y-2 transition-all"
+                  onClick={handleClaimReward}
+                  disabled={isRewardClaimed}
+                  className="w-full py-5 bg-apple-green text-white rounded-3xl font-black text-xl shadow-[0_8px_0_0_#2e7d32] active:shadow-none active:translate-y-2 transition-all disabled:bg-stone-200 disabled:text-stone-400 disabled:shadow-none disabled:translate-y-0"
                 >
-                  {Math.floor((score + appleHp * 100) / 10)}P 받기
+                  {isRewardClaimed ? '보상 수령 완료' : `${rewardPoints}P 받기`}
                 </button>
                 <button 
                   onClick={startGame}

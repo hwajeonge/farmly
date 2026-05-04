@@ -255,3 +255,53 @@ export async function getChatResponse(
     return "죄송합니다. 영주 관광 정보를 불러오는 중에 문제가 발생했습니다. 잠시 후 다시 시도해주세요.";
   }
 }
+
+export async function getGovAdminInsight(stats: Record<string, any>): Promise<string> {
+  try {
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    if (!apiKey) throw new Error("API Key missing");
+    const ai = new GoogleGenAI({ apiKey });
+    const prompt = `당신은 경상북도 영주시청의 스마트 관광 플랫폼 데이터 분석 AI입니다.
+아래 실시간 플랫폼 운영 데이터를 바탕으로, 지자체 관리자에게 핵심 인사이트와 개선 방향을 한국어로 제안해주세요.
+마크다운 기호는 사용하지 마세요. 3~5문장 이내로 간결하게 답변하세요.
+
+[운영 현황 데이터]
+- 전체 가입자 수: ${stats.totalUsers}명
+- 온보딩 완료(활성) 사용자: ${stats.activeUsers}명
+- 전체 나무 분양 수: ${stats.totalTrees}그루
+- 누적 사과 수확량: ${stats.totalApples}개
+- 완료된 방문 미션 수: ${stats.totalMissions}회
+- 배송 신청 건수: ${stats.deliveryRequests}건
+- 명예시민 수: ${stats.honoraryCitizens}명
+- 농가별 분양 현황(상위): ${(stats.topFarms ?? []).map((f: any) => `${f.name}(${f.count}명)`).join(', ')}`;
+    const response = await ai.models.generateContent({ model: "gemini-3-flash-preview", contents: prompt });
+    return response.text?.replace(/[*#_~`>]/g, '').trim() || "데이터 분석 중 오류가 발생했습니다.";
+  } catch (error) {
+    console.error("Gemini GovAdmin Insight Error:", error);
+    return "AI 분석을 불러올 수 없습니다. 잠시 후 다시 시도해주세요.";
+  }
+}
+
+export async function getFarmAdminInsight(stats: Record<string, any>): Promise<string> {
+  try {
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    if (!apiKey) throw new Error("API Key missing");
+    const ai = new GoogleGenAI({ apiKey });
+    const prompt = `당신은 영주 사과 농가 운영을 돕는 AI 어시스턴트입니다.
+아래 사과나무 분양 및 성장 현황 데이터를 바탕으로 농가 관리자에게 핵심 인사이트와 운영 방향을 한국어로 제안해주세요.
+마크다운 기호는 사용하지 마세요. 3~5문장 이내로 간결하게 답변하세요.
+
+[농가 운영 데이터]
+- 플랫폼 전체 사용자: ${stats.totalUsers}명
+- 나무를 보유한 사용자: ${stats.usersWithTrees}명
+- 전체 나무 수: ${stats.totalTrees}그루
+- 성장 단계별 분포: ${stats.stageBreakdown}
+- 병해충 피해 나무: ${stats.diseasedTrees}그루
+- 누적 사과 수확량: ${stats.totalApples}개`;
+    const response = await ai.models.generateContent({ model: "gemini-3-flash-preview", contents: prompt });
+    return response.text?.replace(/[*#_~`>]/g, '').trim() || "데이터 분석 중 오류가 발생했습니다.";
+  } catch (error) {
+    console.error("Gemini FarmAdmin Insight Error:", error);
+    return "AI 분석을 불러올 수 없습니다. 잠시 후 다시 시도해주세요.";
+  }
+}
