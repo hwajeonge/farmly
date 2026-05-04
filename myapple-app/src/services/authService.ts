@@ -85,17 +85,20 @@ export const authService = {
     const uid = user.uid;
     const provider = new GoogleAuthProvider();
 
-    // Re-authenticate first; use result.user (freshest token reference).
+    // Mark as deleted BEFORE reauthentication to avoid Firestore auth-state flux.
+    // updateDoc (partial merge) passes rule validation because Firestore evaluates
+    // the merged document; setDoc (full replace) would fail if rules require missing fields.
+    // Best-effort: proceed to Auth deletion even if this step fails.
+    try {
+      await updateDoc(doc(db, 'users', uid), {
+        deleted: true,
+        deletedAt: new Date().toISOString(),
+      });
+    } catch {
+      // Continue regardless — the Auth account will still be deleted
+    }
+
     const { user: freshUser } = await reauthenticateWithPopup(user, provider);
-
-    // Firestore rules typically allow write (create/update) but not delete.
-    // Overwrite the document with an empty tombstone so personal data is wiped
-    // before the Auth account is removed.
-    await setDoc(doc(db, 'users', uid), {
-      deleted: true,
-      deletedAt: new Date().toISOString(),
-    });
-
     await deleteUser(freshUser);
   },
 
@@ -104,13 +107,17 @@ export const authService = {
   },
 
   getUserProfile(uid: string, callback: (profile: UserProfile | null) => void) {
-    return onSnapshot(doc(db, 'users', uid), (docSnap) => {
-      if (docSnap.exists()) {
-        callback(docSnap.data() as UserProfile);
-      } else {
-        callback(null);
-      }
-    });
+    return onSnapshot(
+      doc(db, 'users', uid),
+      (docSnap) => {
+        if (docSnap.exists()) {
+          callback(docSnap.data() as UserProfile);
+        } else {
+          callback(null);
+        }
+      },
+      () => callback(null),  // auth deleted or permissions revoked — treat as signed out
+    );
   },
 
   async addPoints(uid: string, amount: number) {
