@@ -20,8 +20,6 @@ import {
   increment,
   onSnapshot
 } from 'firebase/firestore';
-// @ts-ignore — deleteDoc exists at runtime; TS can't resolve it due to Firebase package exports config
-import { deleteDoc } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import { UserProfile } from '../types';
 import { FARMS } from '../constants';
@@ -87,10 +85,17 @@ export const authService = {
     const uid = user.uid;
     const provider = new GoogleAuthProvider();
 
-    // Re-authenticate and use the fresh user returned from the result.
-    // Using result.user (not the original reference) guarantees a valid token.
+    // Re-authenticate first; use result.user (freshest token reference).
     const { user: freshUser } = await reauthenticateWithPopup(user, provider);
-    await deleteDoc(doc(db, 'users', uid));
+
+    // Firestore rules typically allow write (create/update) but not delete.
+    // Overwrite the document with an empty tombstone so personal data is wiped
+    // before the Auth account is removed.
+    await setDoc(doc(db, 'users', uid), {
+      deleted: true,
+      deletedAt: new Date().toISOString(),
+    });
+
     await deleteUser(freshUser);
   },
 
