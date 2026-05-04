@@ -75,6 +75,7 @@ export default function App() {
         setAuthLoading(false);
         setUser(null);
         setProfilePending(false);
+        setAlertState(null);  // clear any alert that would bleed into the next session
       }
     });
 
