@@ -7,7 +7,7 @@ import { FARMS } from '../constants';
 import { cn } from '../lib/utils';
 
 interface FarmSelectionProps {
-  onAdopt: (farm: Farm, variety: AppleVariety, nickname: string) => void;
+  onAdopt: (farm: Farm, variety: AppleVariety, nickname: string, personality: string) => void;
   adoptedFarmIds: string[];
   storedFarmIds: string[];
   slotCooldowns: Record<string, { farmId: string; lockedUntil: string }>;
@@ -20,13 +20,24 @@ interface FarmSelectionProps {
   onGoToStore: () => void;
 }
 
-const VARIETY_COPY: Record<string, string> = {
-  부사: '단단하고 달콤해서 선물용으로 인기 있는 품종',
-  홍로: '산뜻한 향과 붉은 빛이 매력적인 초가을 사과',
-  시나노골드: '노란빛 과피와 상큼한 단맛이 좋은 품종',
-  감홍: '짙은 향과 높은 당도로 유명한 프리미엄 품종',
-  아오리: '여름에 먼저 만나는 풋풋한 향의 사과',
+const APPLE_VARIETIES: AppleVariety[] = ['썸머킹', '아오리', '홍로', '시나노스위트', '아이카향', '부사'];
+
+const VARIETY_COPY: Record<string, { desc: string; season: string; emoji: string }> = {
+  썸머킹: { desc: '새콤달콤한 맛으로 여름을 물들이는 조생종', season: '7월 수확', emoji: '🍏' },
+  아오리:  { desc: '여름에 먼저 만나는 풋풋한 향의 초록 사과', season: '8월 수확', emoji: '🍏' },
+  홍로:    { desc: '산뜻한 향과 붉은 빛이 매력적인 초가을 사과', season: '9월 수확', emoji: '🍎' },
+  시나노스위트: { desc: '달콤함이 진하고 과즙이 풍부한 가을 품종', season: '10월 수확', emoji: '🍎' },
+  아이카향: { desc: '강한 향기와 독특한 풍미를 가진 희귀 품종', season: '10월 수확', emoji: '🍎' },
+  부사:    { desc: '단단하고 달콤해서 선물용으로 인기 있는 품종', season: '11월 수확', emoji: '🍎' },
 };
+
+const PERSONALITIES: { value: string; emoji: string; desc: string }[] = [
+  { value: '수줍은',      emoji: '🌸', desc: '조용히 자라며 정성스러운 돌봄을 좋아해요' },
+  { value: '씩씩한',      emoji: '💪', desc: '어떤 날씨에도 굳건히 자라는 강인한 나무' },
+  { value: '다정한',      emoji: '🥰', desc: '물을 줄 때마다 따뜻한 반응이 돌아와요' },
+  { value: '장난기 많은', emoji: '😜', desc: '예상치 못한 성장 이벤트가 자주 생겨요' },
+  { value: '까칠한',      emoji: '😤', desc: '까다롭지만 잘 키우면 최고 수확량을 자랑해요' },
+];
 
 const decorationIcon = (type: Decoration['type']) => {
   if (type === 'tree') return '🌳';
@@ -49,9 +60,10 @@ export const FarmSelection: React.FC<FarmSelectionProps> = ({
   onGoToStore,
 }) => {
   const [viewMode, setViewMode] = useState<'map' | 'list'>('map');
-  const [step, setStep] = useState<'view' | 'survey' | 'confirm'>('view');
+  const [step, setStep] = useState<'view' | 'survey' | 'personality' | 'confirm'>('view');
   const [selectedFarm, setSelectedFarm] = useState<Farm | null>(null);
   const [surveyResult, setSurveyResult] = useState<AppleVariety | null>(null);
+  const [selectedPersonality, setSelectedPersonality] = useState<string | null>(null);
   const [nickname, setNickname] = useState('');
   const [isDecorating, setIsDecorating] = useState(false);
 
@@ -66,6 +78,11 @@ export const FarmSelection: React.FC<FarmSelectionProps> = ({
 
   const handleSurvey = (variety: AppleVariety) => {
     setSurveyResult(variety);
+    setStep('personality');
+  };
+
+  const handlePersonality = (personality: string) => {
+    setSelectedPersonality(personality);
     setStep('confirm');
   };
 
@@ -83,8 +100,13 @@ export const FarmSelection: React.FC<FarmSelectionProps> = ({
     });
   };
 
-  const getVarietyDesc = (v: AppleVariety) => VARIETY_COPY[String(v)] ?? `${String(v)} 품종으로 영주 사과나무를 키워요.`;
+  const getVarietyInfo = (v: AppleVariety) => VARIETY_COPY[String(v)] ?? { desc: `${String(v)} 품종으로 영주 사과나무를 키워요.`, season: '', emoji: '🍎' };
   const hasSeed = selectedFarm ? ownedItems.some(i => i.id === `seed_${selectedFarm.id}` && i.count > 0) : false;
+  const canProceedWithTreeName = nickname.trim().length > 0;
+
+  const showNicknameRequired = () => {
+    showAlert('나무 이름을 먼저 입력해주세요.\n이름을 지어야 씨앗 심기 단계로 넘어갈 수 있어요.', '🌳', 'warning');
+  };
 
   return (
     <div className="py-4">
@@ -329,37 +351,77 @@ export const FarmSelection: React.FC<FarmSelectionProps> = ({
               <ChevronLeft size={18} /> 돌아가기
             </button>
 
-            <div className="mb-8 text-center">
+            <div className="mb-6 text-center">
               <div className="mb-3 text-4xl">🍎</div>
               <p className="text-[10px] font-black uppercase tracking-[0.18em] text-apple-red">{selectedFarm.name}</p>
               <h2 className="mt-1 text-2xl font-black text-stone-900">어떤 사과로 키울까요?</h2>
-              <p className="mt-1 text-xs font-bold text-warm-gray">품종을 고르면 나무 분양 준비로 넘어가요.</p>
+              <p className="mt-1 text-xs font-bold text-warm-gray">품종을 고르면 나무 성격 선택으로 넘어가요.</p>
             </div>
 
-            <div className="space-y-3">
-              {selectedFarm.varieties.map((v) => (
+            <div className="space-y-2.5">
+              {APPLE_VARIETIES.map((v) => {
+                const info = getVarietyInfo(v);
+                return (
+                  <motion.button
+                    key={String(v)}
+                    whileHover={{ x: 4 }}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => handleSurvey(v)}
+                    className="flex w-full items-center gap-4 rounded-2xl border-2 border-stone-100 bg-white p-4 font-black transition-all hover:border-apple-red hover:shadow-[0_4px_16px_rgba(255,107,107,0.12)]"
+                  >
+                    <span className="text-3xl">{info.emoji}</span>
+                    <div className="flex-1 text-left">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-black text-stone-800">{String(v)}</p>
+                        <span className="rounded-full bg-apple-light px-2 py-0.5 text-[9px] font-black text-apple-red">{info.season}</span>
+                      </div>
+                      <p className="mt-0.5 text-[11px] font-bold text-warm-gray">{info.desc}</p>
+                    </div>
+                    <ChevronLeft size={16} className="shrink-0 rotate-180 text-stone-300" />
+                  </motion.button>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+
+        {step === 'personality' && selectedFarm && surveyResult && (
+          <motion.div key="personality" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+            <button onClick={() => setStep('survey')} className="mb-6 flex items-center gap-1.5 text-sm font-bold text-stone-400 transition-all active:opacity-60">
+              <ChevronLeft size={18} /> 돌아가기
+            </button>
+
+            <div className="mb-6 text-center">
+              <div className="mb-3 text-4xl">{getVarietyInfo(surveyResult).emoji}</div>
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-apple-red">{String(surveyResult)}</p>
+              <h2 className="mt-1 text-2xl font-black text-stone-900">나무의 성격을 골라요</h2>
+              <p className="mt-1 text-xs font-bold text-warm-gray">성격에 따라 나무가 다르게 반응해요.</p>
+            </div>
+
+            <div className="space-y-2.5">
+              {PERSONALITIES.map((p) => (
                 <motion.button
-                  key={String(v)}
+                  key={p.value}
                   whileHover={{ x: 4 }}
                   whileTap={{ scale: 0.97 }}
-                  onClick={() => handleSurvey(v)}
+                  onClick={() => handlePersonality(p.value)}
                   className="flex w-full items-center gap-4 rounded-2xl border-2 border-stone-100 bg-white p-4 font-black transition-all hover:border-apple-red hover:shadow-[0_4px_16px_rgba(255,107,107,0.12)]"
                 >
-                  <span className="text-3xl">🍎</span>
-                  <div className="text-left">
-                    <p className="text-sm font-black text-stone-800">{String(v)}</p>
-                    <p className="text-[11px] font-bold text-warm-gray">{getVarietyDesc(v)}</p>
+                  <span className="text-3xl">{p.emoji}</span>
+                  <div className="flex-1 text-left">
+                    <p className="text-sm font-black text-stone-800">{p.value}</p>
+                    <p className="mt-0.5 text-[11px] font-bold text-warm-gray">{p.desc}</p>
                   </div>
-                  <ChevronLeft size={16} className="ml-auto rotate-180 text-stone-300" />
+                  <ChevronLeft size={16} className="shrink-0 rotate-180 text-stone-300" />
                 </motion.button>
               ))}
             </div>
           </motion.div>
         )}
 
-        {step === 'confirm' && selectedFarm && surveyResult && (
+        {step === 'confirm' && selectedFarm && surveyResult && selectedPersonality && (
           <motion.div key="confirm" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}>
-            <button onClick={() => setStep('survey')} className="mb-6 flex items-center gap-1.5 text-sm font-bold text-stone-400 transition-all active:opacity-60">
+            <button onClick={() => setStep('personality')} className="mb-6 flex items-center gap-1.5 text-sm font-bold text-stone-400 transition-all active:opacity-60">
               <ChevronLeft size={18} /> 돌아가기
             </button>
 
@@ -367,9 +429,15 @@ export const FarmSelection: React.FC<FarmSelectionProps> = ({
               <div className="mb-4 text-5xl">🌱</div>
               <p className="text-[10px] font-black uppercase tracking-[0.18em] text-apple-red">Ready To Plant</p>
               <h2 className="mt-1 text-xl font-black text-stone-900">씨앗 심기 준비 완료!</h2>
-              <p className="mb-6 mt-2 text-xs font-bold leading-relaxed text-warm-gray">
-                {selectedFarm.name}에서 <span className="font-black text-apple-red">{String(surveyResult)}</span> 나무를 키워요.
-              </p>
+              <div className="mb-6 mt-2 flex items-center justify-center gap-2 text-xs font-bold leading-relaxed text-warm-gray flex-wrap">
+                <span>{selectedFarm.name}</span>
+                <span className="text-stone-300">·</span>
+                <span className="font-black text-apple-red">{String(surveyResult)}</span>
+                <span className="text-stone-300">·</span>
+                <span className="font-black text-stone-600">
+                  {PERSONALITIES.find(p => p.value === selectedPersonality)?.emoji} {selectedPersonality}
+                </span>
+              </div>
 
               {(() => {
                 const cooldown = slotCooldowns[`${selectedFarm.id}_0`];
@@ -390,25 +458,41 @@ export const FarmSelection: React.FC<FarmSelectionProps> = ({
                 value={nickname}
                 onChange={(e) => setNickname(e.target.value)}
                 placeholder="나무 별명을 지어주세요"
-                className="cute-input mb-5 text-center"
+                className={cn('cute-input text-center', !canProceedWithTreeName && 'border-red-100 bg-red-50/40')}
                 maxLength={20}
               />
+              {!canProceedWithTreeName && (
+                <p className="mb-5 mt-2 text-[11px] font-bold text-red-400">
+                  나무 이름은 필수예요. 예: 소백이, 홍주, 첫사과
+                </p>
+              )}
 
               {hasSeed ? (
                 <button
                   onClick={() => {
-                    if (!nickname.trim()) {
-                      showAlert('나무 이름을 입력해주세요.\n내 사과나무가 더 특별해져요.', '🌳', 'warning');
+                    if (!canProceedWithTreeName) {
+                      showNicknameRequired();
                       return;
                     }
-                    onAdopt(selectedFarm, surveyResult, nickname.trim());
+                    onAdopt(selectedFarm, surveyResult, nickname.trim(), selectedPersonality!);
                   }}
-                  className={cn('btn-primary w-full justify-center text-center transition-opacity', !nickname.trim() && 'opacity-50')}
+                  aria-disabled={!canProceedWithTreeName}
+                  className={cn('btn-primary w-full justify-center text-center transition-opacity', !canProceedWithTreeName && 'opacity-50')}
                 >
                   씨앗 사용해서 분양받기
                 </button>
               ) : (
-                <button onClick={onGoToStore} className="btn-gold flex w-full items-center justify-center gap-2">
+                <button
+                  onClick={() => {
+                    if (!canProceedWithTreeName) {
+                      showNicknameRequired();
+                      return;
+                    }
+                    onGoToStore();
+                  }}
+                  aria-disabled={!canProceedWithTreeName}
+                  className={cn('btn-gold flex w-full items-center justify-center gap-2 transition-opacity', !canProceedWithTreeName && 'opacity-50')}
+                >
                   <ShoppingBag size={16} /> 상점에서 씨앗 구매하기
                 </button>
               )}

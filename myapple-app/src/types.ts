@@ -132,36 +132,6 @@ export type UserRole = 'general' | 'farm_owner' | 'gov_admin';
 
 export type ItemId = 'nutrient' | 'medicine' | 'shield' | 'fertilizer' | `seed_${string}` | 'harvested_apple';
 
-export interface CooperativeQuest {
-  id: string;
-  title: string;
-  description: string;
-  targetCount: number;
-  currentCount: number;
-  reward: { type: 'points' | 'item'; value: number | string };
-  expiryDate: string;
-  participants: string[];
-}
-
-export interface TradeRequest {
-  id: string;
-  senderId: string;
-  senderName: string;
-  receiverId: string;
-  offeredItems: { id: string; count: number }[];
-  requestedItems: { id: string; count: number }[];
-  status: 'pending' | 'accepted' | 'rejected' | 'cancelled';
-  createdAt: string;
-}
-
-export interface RankingEntry {
-  userId: string;
-  userName: string;
-  profileImage?: string;
-  treeHealthScore: number;
-  rank: number;
-}
-
 export interface DeliveryInfo {
   recipientName: string;
   phoneNumber: string;
@@ -214,12 +184,10 @@ export interface UserProfile {
   chatHistory?: { role: 'user' | 'model'; text: string }[]; // legacy
   chatConversations?: ChatConversation[];
   onboardingSeen?: boolean;
-  neighborIds: string[];
-  pendingNeighborRequests: string[];
-  rankingScore: number;
   slotCooldowns?: Record<string, { farmId: string; lockedUntil: string }>; // farmId + index key
   courses?: Course[];
   visitedHistory?: VisitedPlace[];
+  favoritePlaceIds?: string[];
   preferences?: {
     categories: Record<string, number>;
     avgStayTime: number;

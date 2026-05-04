@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, Droplets, Leaf, Pill, Send, Shield, ShoppingBag, Trash2 } from 'lucide-react';
+import { Calendar, CreditCard, Droplets, Leaf, PackageOpen, Pill, Send, Shield, ShoppingBag, Sprout, Trash2 } from 'lucide-react';
 import { PestType, TreeState } from '../types';
 import { getTreeMessage } from '../services/geminiService';
 import { cn } from '../lib/utils';
-import { getDailyStatusMessage, getWeatherEvent } from '../services/growthService';
+import { getDailyStatusMessage, getGrowthWeatherSummary, getWeatherEvent } from '../services/growthService';
 
 interface TreeManagementProps {
   tree: TreeState;
@@ -13,6 +13,9 @@ interface TreeManagementProps {
   onDeleteTree?: () => void;
   inventory: { id: string; count: number }[];
   onGoToStore: () => void;
+  onOpenHarvestModal: () => void;
+  onPlantNextTree: () => void;
+  onViewTreeCards: () => void;
 }
 
 const STAGE_VISUALS = [
@@ -47,32 +50,48 @@ export const TreeManagement: React.FC<TreeManagementProps> = ({
   onDeleteTree,
   inventory,
   onGoToStore,
+  onOpenHarvestModal,
+  onPlantNextTree,
+  onViewTreeCards,
 }) => {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
 
-  const weatherEvent = getWeatherEvent(tree.currentDay);
-  const dailyStatus = getDailyStatusMessage(tree.currentDay);
-  const stageVisual = STAGE_VISUALS.find((stage) => tree.currentDay <= stage.maxDay) ?? STAGE_VISUALS[STAGE_VISUALS.length - 1];
+  const isSeasonEnded = tree.growthStage === '시즌종료';
+  const weatherEvent = isSeasonEnded ? null : getWeatherEvent(tree.currentDay);
+  const weatherSummary = isSeasonEnded ? '30일 성장 주기를 마친 나무예요.' : getGrowthWeatherSummary(tree.currentDay);
+  const dailyStatus = isSeasonEnded ? '수확 완료! 땅 정리와 다음 시즌 준비 단계예요.' : getDailyStatusMessage(tree.currentDay);
+  const stageVisual = isSeasonEnded
+    ? { icon: '📦', label: '수확완료' }
+    : STAGE_VISUALS.find((stage) => tree.currentDay <= stage.maxDay) ?? STAGE_VISUALS[STAGE_VISUALS.length - 1];
   const pestInfo = getPestInfo(tree.pestStatus);
   const dayProgress = clampPercent((tree.currentDay / 30) * 100);
   const growthProgress = clampPercent(tree.growthRate);
+  const seedCount = inventory
+    .filter((item) => item.id.startsWith('seed_'))
+    .reduce((total, item) => total + item.count, 0);
 
   const nextGoal = useMemo(() => {
-    if (tree.currentDay < 7) return 'Day 7까지 새싹을 안정적으로 키우기';
-    if (tree.currentDay < 14) return '꽃과 어린 열매가 떨어지지 않게 관리하기';
-    if (tree.currentDay < 23) return '영주 관광 미션으로 성장 보너스 모으기';
-    if (tree.currentDay < 30) return '수확 전 병충해와 수분 상태 점검하기';
+    if (isSeasonEnded) return seedCount > 0 ? '나무 카드를 보관하고 새 씨앗을 심어 다음 30일을 시작하기' : '나무 카드를 보관하고 상점에서 다음 씨앗 준비하기';
+    if (tree.currentDay < 7) return 'Day 7까지 성장률 30%와 병충해 없음 달성하기';
+    if (tree.currentDay < 14) return 'Day 14까지 성장률 60%와 병충해 없음 달성하기';
+    if (tree.currentDay < 21) return 'Day 21까지 성장률 90%를 만들어 수확기로 전환하기';
+    if (tree.currentDay < 30) return '수확, 배송, 휴식, 땅 정리 단계를 마무리하기';
     return '수확 결과를 확인하고 실물 보상으로 연결하기';
-  }, [tree.currentDay]);
+  }, [isSeasonEnded, seedCount, tree.currentDay]);
 
   const fetchMessage = async (userInput?: string) => {
+    if (isSeasonEnded && !userInput) {
+      setMessage(`${tree.nickname}의 30일 시즌이 끝났어요. 나무 카드는 보관함에 저장됐고, 이제 수확 보상 신청이나 새 씨앗 심기를 이어갈 수 있어요.`);
+      return;
+    }
+
     if (userInput) setChatLoading(true);
     else setLoading(true);
 
-    const weatherMessage = weatherEvent?.message ?? '오늘 영주는 안정적인 날씨예요.';
+    const weatherMessage = weatherEvent?.message ?? weatherSummary;
     const msg = await getTreeMessage(tree.nickname, tree.personality, tree.growthStage, weatherMessage, userInput);
 
     setMessage(msg || `${tree.nickname}이(가) 오늘도 자라고 있어요. 물주기와 관광 미션 보상으로 성장을 도와주세요.`);
@@ -134,39 +153,40 @@ export const TreeManagement: React.FC<TreeManagementProps> = ({
           <div className="mt-2 flex justify-between text-[9px] font-bold text-stone-400">
             <span>씨앗</span>
             <span>꽃</span>
-            <span>열매</span>
             <span>수확</span>
+            <span>정리</span>
           </div>
         </div>
       </section>
 
-      <section className="relative overflow-hidden rounded-[2.25rem] border-4 border-white bg-white p-5 shadow-[0_8px_28px_rgba(90,62,43,0.08)]">
-        <div className="absolute right-4 top-4 rounded-2xl border border-red-100 bg-red-50 px-3 py-1.5 text-right">
-          <p className="text-[9px] font-black uppercase tracking-wide text-stone-400">단계</p>
-          <p className="text-xs font-black text-apple-red">{stageVisual.label}</p>
-        </div>
-
-        <div className="absolute left-4 top-4 space-y-2">
-          <div className="rounded-2xl border-2 border-stone-50 bg-white px-3 py-1.5 shadow-sm">
-            <p className="text-[9px] font-black uppercase tracking-wide text-stone-300">성격</p>
-            <p className="text-xs font-black text-apple-green">{tree.personality}</p>
+      <section className="overflow-hidden rounded-[2.25rem] border-4 border-white bg-white p-5 shadow-[0_8px_28px_rgba(90,62,43,0.08)]">
+        <div className="mb-3 flex items-start justify-between gap-2">
+          <div className="space-y-1.5">
+            <div className="rounded-2xl border-2 border-stone-50 bg-stone-50 px-3 py-1.5">
+              <p className="text-[9px] font-black uppercase tracking-wide text-stone-300">성격</p>
+              <p className="text-xs font-black text-apple-green">{tree.personality}</p>
+            </div>
+            {pestInfo && !isSeasonEnded && (
+              <motion.div
+                animate={{ scale: [1, 1.05, 1] }}
+                transition={{ repeat: Infinity, duration: 1.5 }}
+                className={cn('flex items-center gap-1.5 rounded-2xl border-2 px-3 py-1.5', pestInfo.bg)}
+              >
+                <span className="text-sm">{pestInfo.icon}</span>
+                <p className={cn('text-[11px] font-black', pestInfo.color)}>{pestInfo.label}</p>
+              </motion.div>
+            )}
           </div>
-          {pestInfo && (
-            <motion.div
-              animate={{ scale: [1, 1.05, 1] }}
-              transition={{ repeat: Infinity, duration: 1.5 }}
-              className={cn('flex items-center gap-1.5 rounded-2xl border-2 px-3 py-1.5', pestInfo.bg)}
-            >
-              <span className="text-sm">{pestInfo.icon}</span>
-              <p className={cn('text-[11px] font-black', pestInfo.color)}>{pestInfo.label}</p>
-            </motion.div>
-          )}
+          <div className="rounded-2xl border border-red-100 bg-red-50 px-3 py-1.5 text-right shrink-0">
+            <p className="text-[9px] font-black uppercase tracking-wide text-stone-400">단계</p>
+            <p className="text-xs font-black text-apple-red">{stageVisual.label}</p>
+          </div>
         </div>
 
         <motion.div
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="speech-bubble mx-auto mb-8 max-w-[86%] text-center"
+          className="speech-bubble mx-auto mb-4 w-full text-center"
         >
           {loading ? (
             <div className="flex justify-center gap-1.5 px-6 py-3">
@@ -177,23 +197,25 @@ export const TreeManagement: React.FC<TreeManagementProps> = ({
           ) : (
             <div className="space-y-3">
               <p className="text-sm font-medium leading-relaxed text-stone-600">{message}</p>
-              <form onSubmit={handleChatSubmit} className="relative flex items-center">
-                <input
-                  type="text"
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  placeholder={`${tree.nickname}에게 말 걸기`}
-                  className="w-full rounded-full border-2 border-stone-100 bg-stone-50 px-4 py-2 pr-10 text-xs font-bold outline-none transition-all placeholder:text-stone-300 focus:border-apple-green focus:bg-white focus:ring-2 focus:ring-apple-green/20"
-                />
-                <button
-                  type="submit"
-                  disabled={chatLoading || !chatInput.trim()}
-                  className="absolute right-1 flex h-7 w-7 items-center justify-center rounded-full bg-apple-green text-white transition-all active:scale-90 disabled:opacity-40"
-                  aria-label="나무에게 메시지 보내기"
-                >
-                  {chatLoading ? <div className="h-3 w-3 animate-spin rounded-full border-2 border-white/30 border-t-white" /> : <Send size={13} />}
-                </button>
-              </form>
+              {!isSeasonEnded && (
+                <form onSubmit={handleChatSubmit} className="relative flex items-center">
+                  <input
+                    type="text"
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    placeholder={`${tree.nickname}에게 말 걸기`}
+                    className="w-full rounded-full border-2 border-stone-100 bg-stone-50 px-4 py-2 pr-10 text-xs font-bold outline-none transition-all placeholder:text-stone-300 focus:border-apple-green focus:bg-white focus:ring-2 focus:ring-apple-green/20"
+                  />
+                  <button
+                    type="submit"
+                    disabled={chatLoading || !chatInput.trim()}
+                    className="absolute right-1 flex h-7 w-7 items-center justify-center rounded-full bg-apple-green text-white transition-all active:scale-90 disabled:opacity-40"
+                    aria-label="나무에게 메시지 보내기"
+                  >
+                    {chatLoading ? <div className="h-3 w-3 animate-spin rounded-full border-2 border-white/30 border-t-white" /> : <Send size={13} />}
+                  </button>
+                </form>
+              )}
             </div>
           )}
         </motion.div>
@@ -225,36 +247,119 @@ export const TreeManagement: React.FC<TreeManagementProps> = ({
 
       <section className="grid grid-cols-2 gap-3">
         <InfoCard title="다음 목표" value={nextGoal} tone="green" />
-        <InfoCard title="영주 날씨" value={weatherEvent?.message ?? '오늘은 안정적인 날씨예요.'} tone="blue" />
+        <InfoCard title={isSeasonEnded ? '수확 결과' : '영주 날씨'} value={isSeasonEnded ? `${tree.harvestedApples ?? 0}개의 사과를 수확했어요.` : weatherEvent?.message ?? weatherSummary} tone="blue" />
       </section>
 
-      <section>
-        <div className="mb-3 flex items-center justify-between px-1">
-          <p className="text-xs font-black text-warm-gray">오늘의 돌봄 액션</p>
-          <button onClick={onGoToStore} className="text-[11px] font-black text-apple-red">
-            아이템 사기
-          </button>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <ActionCard onClick={() => onAction('water')} icon={<Droplets size={24} />} label="물주기" sublabel="하루 1회 성장 +5%" color="sky" />
-          <ActionCard onClick={() => onAction('nutrient')} icon={<Leaf size={24} />} label="영양제" sublabel={`시즌 2회 · ${getItemCount('nutrient')}개 보유`} color="green" count={getItemCount('nutrient')} />
-          <ActionCard onClick={() => onAction('medicine')} icon={<Pill size={24} />} label="치료약" sublabel={`병충해 치료 · ${getItemCount('medicine')}개`} color="red" count={getItemCount('medicine')} />
-          <ActionCard onClick={() => onAction('shield')} icon={<Shield size={24} />} label="방풍막" sublabel={`폭염 방어 · ${getItemCount('shield')}개`} color="stone" count={getItemCount('shield')} />
-        </div>
-      </section>
+      {isSeasonEnded ? (
+        <SeasonEndPanel
+          harvestedApples={tree.harvestedApples ?? 0}
+          seedCount={seedCount}
+          onOpenHarvestModal={onOpenHarvestModal}
+          onGoToStore={onGoToStore}
+          onPlantNextTree={onPlantNextTree}
+          onViewTreeCards={onViewTreeCards}
+        />
+      ) : (
+        <>
+          <section>
+            <div className="mb-3 flex items-center justify-between px-1">
+              <p className="text-xs font-black text-warm-gray">오늘의 돌봄 액션</p>
+              <button onClick={onGoToStore} className="text-[11px] font-black text-apple-red">
+                아이템 사기
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <ActionCard onClick={() => onAction('water')} icon={<Droplets size={24} />} label="물주기" sublabel="하루 1회 성장 +5%" color="sky" />
+              <ActionCard onClick={() => onAction('nutrient')} icon={<Leaf size={24} />} label="영양제" sublabel={`시즌 2회 · ${getItemCount('nutrient')}개 보유`} color="green" count={getItemCount('nutrient')} />
+              <ActionCard onClick={() => onAction('medicine')} icon={<Pill size={24} />} label="치료약" sublabel={`병충해 치료 · ${getItemCount('medicine')}개`} color="red" count={getItemCount('medicine')} />
+              <ActionCard onClick={() => onAction('shield')} icon={<Shield size={24} />} label="방풍막" sublabel={`폭염 방어 · ${getItemCount('shield')}개`} color="stone" count={getItemCount('shield')} />
+            </div>
+          </section>
 
-      {onAdvanceDay && (
-        <button
-          onClick={onAdvanceDay}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-stone-800 py-3.5 text-sm font-black text-white shadow-[0_4px_0_0_#1c1c1c] transition-all active:translate-y-1 active:shadow-none"
-        >
-          <Calendar size={16} />
-          다음 날로 진행
-        </button>
+          {onAdvanceDay && (
+            <button
+              onClick={onAdvanceDay}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-stone-800 py-3.5 text-sm font-black text-white shadow-[0_4px_0_0_#1c1c1c] transition-all active:translate-y-1 active:shadow-none"
+            >
+              <Calendar size={16} />
+              다음 날로 진행
+            </button>
+          )}
+        </>
       )}
     </div>
   );
 };
+
+const SeasonEndPanel = ({
+  harvestedApples,
+  seedCount,
+  onOpenHarvestModal,
+  onGoToStore,
+  onPlantNextTree,
+  onViewTreeCards,
+}: {
+  harvestedApples: number;
+  seedCount: number;
+  onOpenHarvestModal: () => void;
+  onGoToStore: () => void;
+  onPlantNextTree: () => void;
+  onViewTreeCards: () => void;
+}) => (
+  <section className="rounded-[2rem] border-4 border-white bg-stone-800 p-5 text-white shadow-xl">
+    <div className="mb-4 flex items-start gap-3">
+      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-yeoju-gold text-2xl shadow-lg">
+        🍎
+      </div>
+      <div>
+        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-yellow-300">Season Complete</p>
+        <h3 className="text-lg font-black">수확이 완료됐어요</h3>
+        <p className="mt-1 text-[11px] font-bold leading-relaxed text-white/65">
+          30일을 마친 나무는 나무 카드로 보관됩니다. 이제 보상을 신청하거나 새 씨앗으로 다음 성장 루프를 시작해보세요.
+        </p>
+      </div>
+    </div>
+
+    <div className="mb-4 grid grid-cols-3 gap-2">
+      <div className="rounded-2xl bg-white/10 p-3">
+        <p className="text-[10px] font-black text-white/45">이번 수확</p>
+        <p className="text-xl font-black">{harvestedApples}개</p>
+      </div>
+      <div className="rounded-2xl bg-white/10 p-3">
+        <p className="text-[10px] font-black text-white/45">보유 씨앗</p>
+        <p className="text-xl font-black">{seedCount}개</p>
+      </div>
+      <div className="rounded-2xl bg-white/10 p-3">
+        <p className="text-[10px] font-black text-white/45">나무 카드</p>
+        <p className="text-xl font-black">저장</p>
+      </div>
+    </div>
+
+    <div className="space-y-2.5">
+      <button
+        onClick={seedCount > 0 ? onPlantNextTree : onGoToStore}
+        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-apple-green py-3.5 text-sm font-black text-white shadow-[0_4px_0_0_#2d7a2d] transition-all active:translate-y-0.5 active:shadow-none"
+      >
+        {seedCount > 0 ? <Sprout size={16} /> : <ShoppingBag size={16} />}
+        {seedCount > 0 ? '새 씨앗 심으러 가기' : '씨앗 구매하러 가기'}
+      </button>
+      <button
+        onClick={onOpenHarvestModal}
+        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-white py-3.5 text-sm font-black text-stone-900 transition-all active:scale-95"
+      >
+        <PackageOpen size={16} />
+        수확 보상 배송 신청
+      </button>
+      <button
+        onClick={onViewTreeCards}
+        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-white/10 py-3.5 text-sm font-black text-white transition-all active:scale-95"
+      >
+        <CreditCard size={16} />
+        나무 카드 보기
+      </button>
+    </div>
+  </section>
+);
 
 const StatusCard = ({
   icon,

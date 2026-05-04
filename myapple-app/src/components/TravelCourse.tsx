@@ -1,8 +1,9 @@
 import React from 'react';
 import { motion, Reorder } from 'framer-motion';
-import { MapPin, ArrowRight, Clock, Navigation, CheckCircle2, MoreVertical, Plus, Trash2, X, GripVertical } from 'lucide-react';
-import { Course, Place } from '../types';
+import { Clock, Navigation, CheckCircle2, MoreVertical, Plus, Trash2, X, GripVertical, Heart } from 'lucide-react';
+import { Course } from '../types';
 import { PLACES } from '../constants';
+import { cn } from '../lib/utils';
 
 interface TravelCourseProps {
   course: Course | null;
@@ -10,6 +11,8 @@ interface TravelCourseProps {
   onCreateSpontaneous: () => void;
   isEditable?: boolean;
   onUpdateCourseItems?: (items: any[]) => void;
+  favoritePlaceIds?: string[];
+  onToggleFavorite?: (placeId: string) => void;
 }
 
 export const TravelCourse: React.FC<TravelCourseProps> = ({ 
@@ -17,9 +20,12 @@ export const TravelCourse: React.FC<TravelCourseProps> = ({
   onEditCourse, 
   onCreateSpontaneous,
   isEditable = false,
-  onUpdateCourseItems
+  onUpdateCourseItems,
+  favoritePlaceIds = [],
+  onToggleFavorite
 }) => {
   const [isAdding, setIsAdding] = React.useState(false);
+  const favoriteSet = React.useMemo(() => new Set(favoritePlaceIds), [favoritePlaceIds]);
 
   if (!course) {
     return (
@@ -70,6 +76,9 @@ export const TravelCourse: React.FC<TravelCourseProps> = ({
         <div>
           <h2 className="text-xl font-black text-stone-800">{course.name}</h2>
           <p className="text-stone-400 text-[10px] font-black uppercase tracking-widest">{course.theme || '영주 감성 여행'}</p>
+          {favoritePlaceIds.length > 0 && (
+            <p className="mt-1 text-[10px] font-black text-apple-red">찜한 장소 {favoritePlaceIds.length}곳을 추천에 반영 중</p>
+          )}
         </div>
         {!isEditable && (
           <button 
@@ -88,6 +97,7 @@ export const TravelCourse: React.FC<TravelCourseProps> = ({
           {course.items.map((item, idx) => {
             const place = PLACES.find(p => p.id === item.placeId);
             if (!place) return null;
+            const isFavorite = favoriteSet.has(place.id);
 
             return (
               <Reorder.Item 
@@ -109,9 +119,27 @@ export const TravelCourse: React.FC<TravelCourseProps> = ({
                           {isEditable && <GripVertical size={14} className="text-stone-300 shrink-0" />}
                           <h4 className="font-black text-stone-800 truncate">{place.name}</h4>
                         </div>
-                        <span className="text-[10px] font-black text-apple-red bg-apple-red/5 px-2 py-0.5 rounded-lg whitespace-nowrap ml-2">
-                          {place.category}
-                        </span>
+                        <div className="ml-2 flex shrink-0 items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onToggleFavorite?.(place.id);
+                            }}
+                            className={cn(
+                              'flex h-7 w-7 items-center justify-center rounded-xl border-2 transition-all active:scale-90',
+                              isFavorite
+                                ? 'border-red-100 bg-red-50 text-apple-red'
+                                : 'border-stone-100 bg-white text-stone-300 hover:text-apple-red',
+                            )}
+                            aria-label={isFavorite ? `${place.name} 찜 해제` : `${place.name} 찜하기`}
+                          >
+                            <Heart size={13} fill={isFavorite ? 'currentColor' : 'none'} />
+                          </button>
+                          <span className="text-[10px] font-black text-apple-red bg-apple-red/5 px-2 py-0.5 rounded-lg whitespace-nowrap">
+                            {place.category}
+                          </span>
+                        </div>
                       </div>
                       <p className="text-[10px] text-stone-400 font-bold flex items-center gap-1">
                         <Clock size={10} /> {place.estimatedStayTime}분 체류 예정
@@ -164,20 +192,48 @@ export const TravelCourse: React.FC<TravelCourseProps> = ({
                   </button>
                 </div>
                 <div className="grid grid-cols-1 gap-2 max-h-[200px] overflow-y-auto pr-2">
-                  {PLACES.filter(p => !course.items.some(ci => ci.placeId === p.id)).map(place => (
-                    <button 
-                      key={place.id}
-                      onClick={() => handleAddPlace(place.id)}
-                      className="flex items-center gap-3 p-2 bg-white rounded-xl border-2 border-transparent hover:border-blue-200 transition-all text-left"
-                    >
-                      <img src={place.image} className="w-10 h-10 rounded-lg object-cover" referrerPolicy="no-referrer" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[10px] font-black text-stone-800 truncate">{place.name}</p>
-                        <p className="text-[8px] text-stone-400 font-bold">{place.category}</p>
-                      </div>
-                      <Plus size={14} className="text-stone-300" />
-                    </button>
-                  ))}
+                  {PLACES
+                    .filter(p => !course.items.some(ci => ci.placeId === p.id))
+                    .sort((a, b) => Number(favoriteSet.has(b.id)) - Number(favoriteSet.has(a.id)))
+                    .map(place => {
+                      const isFavorite = favoriteSet.has(place.id);
+                      return (
+                        <div
+                          key={place.id}
+                          className={cn(
+                            'flex items-center gap-2 rounded-xl border-2 bg-white p-2 transition-all',
+                            isFavorite ? 'border-red-100' : 'border-transparent hover:border-blue-200',
+                          )}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => handleAddPlace(place.id)}
+                            className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                          >
+                            <img src={place.image} alt={place.name} className="w-10 h-10 rounded-lg object-cover" referrerPolicy="no-referrer" />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <p className="text-[10px] font-black text-stone-800 truncate">{place.name}</p>
+                                {isFavorite && <span className="rounded-full bg-red-50 px-1.5 py-0.5 text-[8px] font-black text-apple-red">찜</span>}
+                              </div>
+                              <p className="text-[8px] text-stone-400 font-bold">{place.category}</p>
+                            </div>
+                            <Plus size={14} className="text-stone-300" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onToggleFavorite?.(place.id)}
+                            className={cn(
+                              'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border-2 transition-all active:scale-90',
+                              isFavorite ? 'border-red-100 bg-red-50 text-apple-red' : 'border-stone-100 text-stone-300',
+                            )}
+                            aria-label={isFavorite ? `${place.name} 찜 해제` : `${place.name} 찜하기`}
+                          >
+                            <Heart size={14} fill={isFavorite ? 'currentColor' : 'none'} />
+                          </button>
+                        </div>
+                      );
+                    })}
                 </div>
               </div>
             ) : (

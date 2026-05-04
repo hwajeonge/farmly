@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Apple, Award, Camera, Gift, LayoutGrid, List, LogOut, MapPin, ShoppingBag, Sprout } from 'lucide-react';
+import { Apple, Award, Camera, Gift, LayoutGrid, List, Loader2, LogOut, MapPin, ShoppingBag, Sprout, Trash2 } from 'lucide-react';
 import { TreeState, UserProfile, VisitedPlace } from '../types';
 import { cn } from '../lib/utils';
 import { TreeOwnershipCard } from './TreeOwnershipCard';
@@ -10,8 +10,11 @@ interface MyPageProps {
   user: UserProfile;
   setUser: React.Dispatch<React.SetStateAction<UserProfile | null>>;
   handleLogout: () => void;
+  onDeleteAccount: () => Promise<void>;
   onOpenHarvestModal: () => void;
   onGoToStore: () => void;
+  requestedTab?: MenuTab | null;
+  onRequestedTabHandled?: () => void;
 }
 
 type MenuTab = 'profile' | 'travel' | 'cards';
@@ -29,9 +32,39 @@ const REWARD_MILESTONES = [
   { apples: 100, label: '교환권' },
 ];
 
-export const MyPage: React.FC<MyPageProps> = ({ user, handleLogout, onOpenHarvestModal, onGoToStore }) => {
+export const MyPage: React.FC<MyPageProps> = ({
+  user,
+  handleLogout,
+  onDeleteAccount,
+  onOpenHarvestModal,
+  onGoToStore,
+  requestedTab,
+  onRequestedTabHandled,
+}) => {
   const [activeTab, setActiveTab] = useState<MenuTab>('profile');
   const [selectedTree, setSelectedTree] = useState<TreeState | null>(null);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+
+  useEffect(() => {
+    if (!requestedTab) return;
+    setActiveTab(requestedTab);
+    onRequestedTabHandled?.();
+  }, [requestedTab, onRequestedTabHandled]);
+
+  const handleDeleteAccountClick = async () => {
+    const confirmed = window.confirm('회원 탈퇴 시 나무, 수확 기록, 배송 신청 내역이 모두 삭제됩니다.\n정말 탈퇴하시겠습니까?');
+    if (!confirmed) return;
+
+    const finalConfirmed = window.confirm('이 작업은 되돌릴 수 없습니다.\n그래도 회원 탈퇴를 진행할까요?');
+    if (!finalConfirmed) return;
+
+    setIsDeletingAccount(true);
+    try {
+      await onDeleteAccount();
+    } finally {
+      setIsDeletingAccount(false);
+    }
+  };
 
   return (
     <div className="pb-24 pt-2">
@@ -131,6 +164,28 @@ export const MyPage: React.FC<MyPageProps> = ({ user, handleLogout, onOpenHarves
           </div>
         )}
       </AnimatePresence>
+
+      <section className="mt-7 rounded-[1.75rem] border-2 border-red-100 bg-red-50 p-4">
+        <div className="mb-3 flex items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-red-500 shadow-sm">
+            <Trash2 size={18} />
+          </div>
+          <div>
+            <h3 className="text-sm font-black text-red-700">회원 탈퇴</h3>
+            <p className="mt-1 text-[11px] font-bold leading-relaxed text-red-500">
+              계정과 저장된 농장 데이터를 삭제합니다. 탈퇴 후에는 복구할 수 없어요.
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={handleDeleteAccountClick}
+          disabled={isDeletingAccount}
+          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-white py-3 text-xs font-black text-red-600 shadow-sm transition-all active:scale-[0.98] disabled:cursor-wait disabled:text-red-300"
+        >
+          {isDeletingAccount ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
+          {isDeletingAccount ? '탈퇴 처리 중...' : '회원 탈퇴하기'}
+        </button>
+      </section>
     </div>
   );
 };

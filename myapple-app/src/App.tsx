@@ -9,14 +9,13 @@ import { Header } from './components/Header';
 import { Navbar } from './components/Navbar';
 import { FarmSelection } from './components/FarmSelection';
 import { TreeManagement } from './components/TreeManagement';
-import { CommunityView } from './components/CommunityView';
 import { StoreView } from './components/Store';
 import { HarvestDeliveryModal } from './components/HarvestDeliveryModal';
 import { ActivityView } from './components/ActivityView';
 import { MyPage } from './components/MyPage';
 import { AdminDashboard } from './components/AdminDashboard';
 import { UserProfile, Farm, AppleVariety, TreeState, Decoration, Course, AppNotification, ItemId, ChatConversation, DeliveryInfo } from './types';
-import { VISIT_MISSIONS, FARMS } from './constants';
+import { VISIT_MISSIONS, FARMS, PLACES } from './constants';
 import { calculateDailyGrowth, calculateHarvestAmount, getPestEvent, getWeatherEvent, canTransitionToNextSeason, getGrowthStageLabel, getDailyStatusMessage, daysSince } from './services/growthService';
 import { FloatingChatbot } from './components/FloatingChatbot';
 import { RoleSelectionView } from './components/RoleSelectionView';
@@ -38,6 +37,7 @@ export default function App() {
   const [isHarvestModalOpen, setIsHarvestModalOpen] = useState(false);
   const [user, setUser] = useState<UserProfile | null>(null);
   const [activeCourseId, setActiveCourseId] = useState<string | null>(null);
+  const [profileRequestedTab, setProfileRequestedTab] = useState<'profile' | 'travel' | 'cards' | null>(null);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [decorations, setDecorations] = useState<Decoration[]>([]);
@@ -54,6 +54,8 @@ export default function App() {
 
   // Firebase Auth & Data Sync
   useEffect(() => {
+    authService.handleRedirectResult().catch(console.error);
+
     const unsubscribeAuth = authService.onAuthStateChange((u) => {
       setFirebaseUser(u);
       if (!u) {
@@ -81,6 +83,7 @@ export default function App() {
           if (!migProfile.items) migProfile.items = [];
           if (!migProfile.badges) migProfile.badges = [];
           if (!migProfile.trees) migProfile.trees = [];
+          if (!migProfile.favoritePlaceIds) migProfile.favoritePlaceIds = [];
           if (migProfile.accumulatedApples == null) migProfile.accumulatedApples = 0;
           if (migProfile.apples == null) migProfile.apples = 0;
           if (migProfile.lives == null) migProfile.lives = 5;
@@ -251,7 +254,7 @@ export default function App() {
     setIsNotificationOpen(false);
   };
 
-  const handleAdoptTree = (farm: Farm, variety: AppleVariety, nickname: string) => {
+  const handleAdoptTree = (farm: Farm, variety: AppleVariety, nickname: string, personality: string) => {
     if (!user || !firebaseUser) return;
     
     // Check for cooldown (3 days)
@@ -291,7 +294,7 @@ export default function App() {
       growthStage: '발아기',
       plantedAt: new Date().toISOString(),
       lastWatered: new Date().toISOString(),
-      personality: ['수줍은', '씩씩한', '다정한', '장난기 많은', '까칠한'][Math.floor(Math.random() * 5)],
+      personality,
       isGolden: Math.random() < 0.05
     };
 
@@ -372,7 +375,13 @@ export default function App() {
     setUser(prev => {
       if (!prev) return prev;
       const updatedTrees = [...prev.trees];
-      const tree = updatedTrees[0]; // Demo: update first tree
+      const activeTreeIndex = updatedTrees.findIndex(tree => tree.growthStage !== '시즌종료');
+      const treeIndex = activeTreeIndex === -1 ? 0 : activeTreeIndex;
+      const tree = { ...updatedTrees[treeIndex] };
+      if (tree.growthStage === '시즌종료') {
+        showAlert('이번 시즌은 이미 수확이 끝났어요.\n땅 정리 후 다음 시즌을 시작해주세요.', '🍎', 'info');
+        return prev;
+      }
       const updatedItems = [...prev.items];
 
       if (action === 'water') {
@@ -422,6 +431,7 @@ export default function App() {
         addNotification("🛡️ 방풍막 설치", "이상 기후로부터 나무를 보호합니다.", 'info');
       }
 
+      updatedTrees[treeIndex] = tree;
       return { ...prev, trees: updatedTrees, items: updatedItems.filter(i => i.count >= 0) };
     });
   };
@@ -550,8 +560,12 @@ export default function App() {
     });
   };
 
-  const handleBuyItem = (itemId: string, price: number) => {
-    if (!user || !firebaseUser || user.points < price) return;
+  const handleBuyItem = (itemId: string, price: number): boolean => {
+    if (!user || !firebaseUser) return false;
+    if (user.points < price) {
+      showAlert('보유한 포인트가 부족해요.\n미션을 완료해서 포인트를 모아보세요.', '🪙', 'warning');
+      return false;
+    }
     const updatedItems = user.items.map(i => i.id === itemId ? { ...i, count: i.count + 1 } : i);
     if (!user.items.find(i => i.id === itemId)) updatedItems.push({ id: itemId, count: 1 });
     const newUser = { ...user, points: user.points - price, items: updatedItems };
@@ -559,12 +573,13 @@ export default function App() {
     // 구매는 즉시 저장 — debounce 중 Firebase 스냅샷이 덮어쓰는 걸 방지
     authService.saveProfile(firebaseUser.uid, newUser).catch(console.error);
     addNotification("🛍️ 구매 완료!", "아이템이 가방에 추가되었습니다.", 'info');
+    return true;
   };
 
-  const handleBuyWithApples = (itemId: string, applePrice: number) => {
+  const handleBuyWithApples = (itemId: string, applePrice: number): boolean => {
     if (!user || !firebaseUser || user.apples < applePrice) {
       showAlert('보유한 사과가 부족해요!\n나무를 키워 사과를 수확해보세요.', '🍎', 'warning');
-      return;
+      return false;
     }
     const updatedItems = [...user.items];
     const idx = updatedItems.findIndex(i => i.id === itemId);
@@ -575,6 +590,7 @@ export default function App() {
     // 구매는 즉시 저장
     authService.saveProfile(firebaseUser.uid, newUser).catch(console.error);
     addNotification("🛍️ 구매 완료!", "사과로 아이템을 교환했습니다.", 'info');
+    return true;
   };
 
   const handleDeliverySubmit = (data: DeliveryInfo) => {
@@ -625,11 +641,11 @@ export default function App() {
   };
 
   const handleDeductLife = () => {
-    setUser(prev => ({ ...prev, lives: Math.max(0, prev.lives - 1) }));
+    setUser(prev => prev ? { ...prev, lives: Math.max(0, prev.lives - 1) } : prev);
   };
 
   const handleRestoreLife = (amount: number = 1) => {
-    setUser(prev => ({ ...prev, lives: Math.min(10, prev.lives + amount) }));
+    setUser(prev => prev ? { ...prev, lives: Math.min(10, prev.lives + amount) } : prev);
   };
 
   // Daily Heart Recharge & Demo Notifs
@@ -638,7 +654,7 @@ export default function App() {
     const today = new Date().toDateString();
 
     if (lastRecharge !== today) {
-      setUser(prev => ({ ...prev, lives: 5 }));
+      setUser(prev => prev ? { ...prev, lives: 5 } : prev);
       localStorage.setItem('last_heart_recharge', today);
     }
     
@@ -698,6 +714,29 @@ export default function App() {
   const handleUpdateConversations = (conversations: ChatConversation[]) => {
     if (!user) return;
     setUser(prev => prev ? { ...prev, chatConversations: conversations } : null);
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!firebaseUser) {
+      showAlert('로그인 정보를 확인할 수 없어요.\n다시 로그인한 뒤 시도해주세요.', '⚠️', 'warning');
+      return;
+    }
+
+    try {
+      await authService.deleteAccount(firebaseUser);
+      setUser(null);
+      setFirebaseUser(null);
+      setActiveTab('tree');
+      showAlert('회원 탈퇴가 완료되었습니다.', '👋', 'success');
+    } catch (error: any) {
+      const code = error?.code || '';
+      if (code === 'auth/requires-recent-login') {
+        showAlert('보안을 위해 최근 로그인 확인이 필요해요.\n로그아웃 후 다시 로그인한 다음 회원 탈퇴를 진행해주세요.', '🔐', 'warning');
+        return;
+      }
+      showAlert('회원 탈퇴 중 문제가 발생했어요.\n잠시 후 다시 시도해주세요.', '⚠️', 'warning');
+      console.error(error);
+    }
   };
 
   const handleAIAction = (name: string, args: any) => {
@@ -769,6 +808,95 @@ export default function App() {
     }
   };
 
+  const handleToggleFavoritePlace = (placeId: string) => {
+    if (!user) return;
+    const place = PLACES.find(item => item.id === placeId);
+    const current = user.favoritePlaceIds || [];
+    const isFavorite = current.includes(placeId);
+    const nextFavoritePlaceIds = isFavorite
+      ? current.filter(id => id !== placeId)
+      : [...current, placeId];
+
+    setUser(prev => prev ? {
+      ...prev,
+      favoritePlaceIds: nextFavoritePlaceIds,
+    } : prev);
+
+    addNotification(
+      isFavorite ? '찜 해제' : '찜 완료',
+      place ? `${place.name}${isFavorite ? '을(를) 찜 목록에서 뺐어요.' : '을(를) 코스 추천에 반영할게요.'}` : '찜 목록이 업데이트됐어요.',
+      'info',
+      undefined,
+      'activity',
+      'course',
+    );
+  };
+
+  const handleRestartSeason = (useFertilizer: boolean) => {
+    if (!user || user.trees.length === 0) return;
+
+    setUser(prev => {
+      if (!prev) return prev;
+
+      const updatedItems = [...(prev.items || [])];
+      const fertilizerIndex = updatedItems.findIndex(item => item.id === 'fertilizer');
+      const canUseFertilizer = useFertilizer && fertilizerIndex !== -1 && updatedItems[fertilizerIndex].count > 0;
+
+      if (useFertilizer && !canUseFertilizer) {
+        showAlert('보유한 영주 한우비료가 없어요.\n상점이나 보상으로 획득한 뒤 사용할 수 있어요.', '🌾', 'warning');
+        return prev;
+      }
+
+      if (canUseFertilizer) {
+        updatedItems[fertilizerIndex] = {
+          ...updatedItems[fertilizerIndex],
+          count: updatedItems[fertilizerIndex].count - 1,
+        };
+      }
+
+      const targetTreeIndex = prev.trees.findIndex(tree => tree.growthStage === '시즌종료');
+      if (targetTreeIndex === -1) return prev;
+
+      const updatedTrees = prev.trees.map((tree, index) => {
+        if (index !== targetTreeIndex) return tree;
+        if (tree.growthStage !== '시즌종료') return tree;
+
+        const restartedTree: TreeState = {
+          ...tree,
+          currentDay: 1,
+          growthRate: canUseFertilizer ? 10 : 0,
+          health: 100,
+          water: 50,
+          lastWatered: new Date().toISOString(),
+          nutrientsUsed: 0,
+          pestStatus: 'none',
+          shieldActive: false,
+          growthStage: '발아기',
+          plantedAt: new Date().toISOString(),
+          harvestedApples: undefined,
+        };
+
+        return restartedTree;
+      });
+
+      addNotification(
+        '🌱 다음 시즌 시작',
+        canUseFertilizer
+          ? '영주 한우비료 보너스로 성장률 10%부터 새 시즌을 시작했습니다.'
+          : '땅 정리를 마치고 새 30일 성장 시즌을 시작했습니다.',
+        'info',
+        undefined,
+        'tree',
+      );
+
+      return {
+        ...prev,
+        trees: updatedTrees,
+        items: updatedItems.filter(item => item.count > 0),
+      };
+    });
+  };
+
   const handleCloseGameIntro = () => {
     setUser(prev => prev ? { ...prev, onboardingSeen: true } : prev);
   };
@@ -797,8 +925,14 @@ export default function App() {
     );
   }
 
+  const managedTree = user.trees.find(tree => tree.growthStage !== '시즌종료') ?? user.trees[0] ?? null;
+  const favoritePlaceNames = (user.favoritePlaceIds || [])
+    .map(placeId => PLACES.find(place => place.id === placeId))
+    .filter(Boolean)
+    .map(place => `${place!.name}(${place!.category})`);
+
   return (
-    <div className="min-h-screen min-h-[100dvh] pb-24 max-w-md mx-auto grass-pattern overflow-x-hidden relative">
+    <div className="min-h-dvh pb-24 max-w-md mx-auto grass-pattern overflow-x-hidden relative">
       <Header 
         userName={user.name} 
         points={user.points} 
@@ -810,14 +944,17 @@ export default function App() {
         <AnimatePresence mode="wait">
           {activeTab === 'tree' && (
             <motion.div key="tree" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              {user.trees.length > 0 ? (
+              {managedTree ? (
                 <TreeManagement 
-                  tree={user.trees[0]} 
+                  tree={managedTree} 
                   onAction={handleTreeAction} 
                   onAdvanceDay={handleAdvanceDay}
-                  onDeleteTree={() => handleDeleteTree(user.trees[0].id)}
+                  onDeleteTree={() => handleDeleteTree(managedTree.id)}
                   inventory={user.items}
                   onGoToStore={() => { setPreviousTab(activeTab); setActiveTab('store'); }}
+                  onOpenHarvestModal={() => setIsHarvestModalOpen(true)}
+                  onPlantNextTree={() => { setPreviousTab('tree'); setActiveTab('map'); }}
+                  onViewTreeCards={() => { setProfileRequestedTab('cards'); setPreviousTab('tree'); setActiveTab('profile'); }}
                 />
               ) : (
                 <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -870,6 +1007,9 @@ export default function App() {
                 onUpdateConversations={handleUpdateConversations}
                 userName={user.name}
                 visitHistory={user.visitedHistory || []}
+                favoritePlaceIds={user.favoritePlaceIds || []}
+                favoritePlaces={favoritePlaceNames}
+                onToggleFavorite={handleToggleFavoritePlace}
                 activeCourse={user.courses?.find(c => c.id === activeCourseId) || null}
                 onEditCourse={() => setActiveTab('activity')}
                 onAIAction={handleAIAction}
@@ -890,7 +1030,7 @@ export default function App() {
                 onBack={() => setActiveTab(previousTab)}
                 onNavigateToMissions={() => { setActiveTab('activity'); setActivitySubTab('missions'); }}
                 ownedItems={user.items}
-                onPlantSeed={() => setActiveTab('map')}
+                onPlantSeed={() => { setPreviousTab('store'); setActiveTab('map'); }}
               />
             </motion.div>
           )}
@@ -901,8 +1041,11 @@ export default function App() {
                 user={user} 
                 setUser={setUser} 
                 handleLogout={authService.logout}
+                onDeleteAccount={handleDeleteAccount}
                 onOpenHarvestModal={() => setIsHarvestModalOpen(true)}
                 onGoToStore={() => { setPreviousTab(activeTab); setActiveTab('store'); }}
+                requestedTab={profileRequestedTab}
+                onRequestedTabHandled={() => setProfileRequestedTab(null)}
               />
             </motion.div>
           )}
@@ -933,6 +1076,7 @@ export default function App() {
         onUpdateConversations={handleUpdateConversations}
         userName={user.name}
         visitHistory={user.visitedHistory || []}
+        favoritePlaces={favoritePlaceNames}
         onAction={handleAIAction}
         onNavigate={handleNavigate}
       />

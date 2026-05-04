@@ -1,4 +1,5 @@
 import { TreeState, PestType } from '../types';
+import { getSeasonLabel, getYeongjuGrowthWeatherDay } from '../data/yeongjuPublicData';
 
 export type GrowthStage = TreeState['growthStage'];
 
@@ -16,6 +17,14 @@ export interface GrowthWeatherEvent {
   maxDailyGrowth: number;
   message: string;
   userMessage: string;
+  seasonLabel: string;
+  monthBasis: number;
+  climate: {
+    avgTempC: number;
+    precipitationMm: number;
+    humidityPct: number;
+    sunlightHours: number;
+  };
 }
 
 const DAY = 1000 * 60 * 60 * 24;
@@ -116,6 +125,11 @@ export const getDailyStatusMessage = (day: number): string => {
   return statusMap[Math.max(1, Math.min(30, day))] ?? '나무가 자라고 있어요';
 };
 
+export const getGrowthWeatherSummary = (day: number): string => {
+  const weather = getYeongjuGrowthWeatherDay(day);
+  return `${getSeasonLabel(weather.season)} 기준 · ${weather.monthBasis}월 평년 환산 · 평균 ${weather.avgTempC}℃ · 강수 ${weather.precipitationMm}mm`;
+};
+
 export const calculateHarvestAmount = (growthRate: number, pestStatus: PestType): number => {
   let baseAmount = 5;
   if (growthRate >= 100) baseAmount = 10;
@@ -138,58 +152,85 @@ export const getPestEvent = (day: number, lastWateredDays: number, hasUsedNutrie
 };
 
 export const getWeatherEvent = (day: number): GrowthWeatherEvent | null => {
-  if (day >= 2 && day <= 3) {
+  const weather = getYeongjuGrowthWeatherDay(day);
+  const seasonLabel = getSeasonLabel(weather.season);
+  const climate = {
+    avgTempC: weather.avgTempC,
+    precipitationMm: weather.precipitationMm,
+    humidityPct: weather.humidityPct,
+    sunlightHours: weather.sunlightHours,
+  };
+
+  if (day === 3) {
     return {
       type: 'spring_rain',
       effectModifier: 3,
       maxDailyGrowth: 12,
-      message: '어제 영주에 비가 내려 나무가 촉촉해졌어요!',
+      message: `영주 ${seasonLabel}비 이벤트예요. ${weather.monthBasis}월 강수 패턴을 반영해 토양 수분이 좋아졌어요.`,
       userMessage: '봄비 덕분에 물주기 효과가 자동 적용됐어요.',
+      seasonLabel,
+      monthBasis: weather.monthBasis,
+      climate,
     };
   }
-  if (day >= 4 && day <= 7) {
+  if (day === 6) {
     return {
       type: 'warm_weather',
       effectModifier: 5,
       maxDailyGrowth: 13,
-      message: '따뜻한 날씨 덕분에 새싹이 빨리 자라고 있어요!',
+      message: `영주 ${weather.monthBasis}월의 따뜻한 기온 흐름이 반영됐어요. 새싹 성장이 빨라집니다.`,
       userMessage: '평균 기온이 좋아 기본 성장이 빨라졌어요.',
+      seasonLabel,
+      monthBasis: weather.monthBasis,
+      climate,
     };
   }
-  if (day >= 9 && day <= 12) {
+  if (day === 10) {
     return {
       type: 'monsoon',
       effectModifier: 2,
       maxDailyGrowth: 10,
-      message: '장마철이에요! 습도가 높아 병충해를 조심하세요!',
+      message: `영주 여름 장마 패턴이에요. ${weather.monthBasis}월 강수량과 습도를 반영해 병충해 위험이 올라갑니다.`,
       userMessage: '장마 보너스가 적용됐지만 병충해 위험도 커졌어요.',
+      seasonLabel,
+      monthBasis: weather.monthBasis,
+      climate,
     };
   }
-  if (day >= 10 && day <= 13) {
+  if (day === 12) {
     return {
       type: 'heatwave',
       effectModifier: -5,
       maxDailyGrowth: 8,
-      message: '폭염이 찾아왔어요! 물을 더 자주 주세요!',
+      message: `영주 8월 수준의 더위가 압축 반영됐어요. 폭염 방풍막과 물 관리가 중요해요.`,
       userMessage: '폭염 패널티가 적용됐어요. 방풍막이 있으면 피해를 줄일 수 있어요.',
+      seasonLabel,
+      monthBasis: weather.monthBasis,
+      climate,
     };
   }
-  if (day >= 16 && day <= 20) {
+  if (day === 18) {
     return {
       type: 'strong_sunlight',
       effectModifier: 4,
       maxDailyGrowth: 12,
-      message: '햇빛이 좋아 사과 색이 빨리 변하고 있어요!',
-      userMessage: '강한 햇빛 덕분에 착색 속도가 올라갔어요.',
+      message: `영주 가을 일조 패턴이 좋아요. 사과 착색과 당도 형성 속도가 올라갑니다.`,
+      userMessage: '가을 햇빛 덕분에 착색 속도가 올라갔어요.',
+      seasonLabel,
+      monthBasis: weather.monthBasis,
+      climate,
     };
   }
-  if (day >= 24 && day <= 27) {
+  if (day === 25) {
     return {
       type: 'cold_wave',
       effectModifier: -10,
       maxDailyGrowth: 0,
-      message: '날씨가 추워 나무가 잠시 쉬고 있어요.',
+      message: `영주 겨울 최저기온 흐름이 반영됐어요. 나무가 잠시 쉬어갑니다.`,
       userMessage: '한파로 오늘 성장은 멈췄어요.',
+      seasonLabel,
+      monthBasis: weather.monthBasis,
+      climate,
     };
   }
   return null;

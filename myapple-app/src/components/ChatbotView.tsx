@@ -13,6 +13,7 @@ interface ChatbotViewProps {
   hideHeader?: boolean;
   userName: string;
   visitHistory?: VisitedPlace[];
+  favoritePlaces?: string[];
   onAction?: (name: string, args: any) => void;
   onNavigate?: (tab: string, subTab?: string) => void;
 }
@@ -26,6 +27,7 @@ export const ChatbotView: React.FC<ChatbotViewProps> = ({
   hideHeader = false,
   userName,
   visitHistory = [],
+  favoritePlaces = [],
   onAction,
   onNavigate,
 }) => {
@@ -98,6 +100,7 @@ export const ChatbotView: React.FC<ChatbotViewProps> = ({
       points,
       userName,
       visitHistory,
+      favoritePlaces,
     };
 
     try {

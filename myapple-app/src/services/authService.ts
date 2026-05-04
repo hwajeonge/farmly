@@ -1,11 +1,14 @@
-import { 
-  Auth, 
-  signInWithPopup,
+import {
+  Auth,
   GoogleAuthProvider,
-  signOut, 
+  signOut,
   onAuthStateChanged,
   User
 } from 'firebase/auth';
+// @ts-ignore — signInWithRedirect/getRedirectResult exist at runtime; TS can't resolve them due to @firebase/auth package exports config
+import { signInWithRedirect, getRedirectResult } from 'firebase/auth';
+// @ts-ignore — deleteUser exists at runtime; TS can't resolve it due to @firebase/auth package exports config
+import { deleteUser } from 'firebase/auth';
 import { 
   doc, 
   getDoc, 
@@ -14,6 +17,8 @@ import {
   increment,
   onSnapshot
 } from 'firebase/firestore';
+// @ts-ignore — deleteDoc exists at runtime; TS can't resolve it due to Firebase package exports config
+import { deleteDoc } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import { UserProfile } from '../types';
 
@@ -22,8 +27,11 @@ const INITIAL_POINTS = 5000; // Sign-up bonus
 export const authService = {
   async signInWithGoogle() {
     const provider = new GoogleAuthProvider();
-    const userCredential = await signInWithPopup(auth, provider);
-    return userCredential.user;
+    await signInWithRedirect(auth, provider);
+  },
+
+  async handleRedirectResult() {
+    return getRedirectResult(auth);
   },
 
   async getProfile(uid: string) {
@@ -58,11 +66,9 @@ export const authService = {
       visitMissionProgress: {},
       chatHistory: [],
       onboardingSeen: false,
-      neighborIds: [],
-      pendingNeighborRequests: [],
-      rankingScore: 0,
       courses: [],
       visitedHistory: [],
+      favoritePlaceIds: [],
     };
     await setDoc(doc(db, 'users', user.uid), profile);
     return profile;
@@ -70,6 +76,12 @@ export const authService = {
 
   async logout() {
     await signOut(auth);
+  },
+
+  async deleteAccount(user: User) {
+    const uid = user.uid;
+    await deleteUser(user);
+    await deleteDoc(doc(db, 'users', uid));
   },
 
   onAuthStateChange(callback: (user: User | null) => void) {

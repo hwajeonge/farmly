@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MissionsView } from './Missions';
-import { CommunityView } from './Community';
 import { ChatbotView } from './ChatbotView';
 import { TravelCourse } from './TravelCourse';
 import { cn } from '../lib/utils';
@@ -20,6 +19,9 @@ interface ActivityViewProps {
   onUpdateConversations: (conversations: ChatConversation[]) => void;
   userName: string;
   visitHistory?: VisitedPlace[];
+  favoritePlaceIds?: string[];
+  favoritePlaces?: string[];
+  onToggleFavorite?: (placeId: string) => void;
   activeCourse: Course | null;
   onEditCourse: () => void;
   onAIAction?: (name: string, args: any) => void;
@@ -30,7 +32,6 @@ interface ActivityViewProps {
 
 const SUB_TABS = [
   { id: 'missions',  emoji: '🎯', label: '퀘스트'  },
-  { id: 'community', emoji: '🤝', label: '이웃'    },
   { id: 'course',    emoji: '🗺️', label: '코스설계' },
 ] as const;
 
@@ -42,7 +43,7 @@ export const ActivityView: React.FC<ActivityViewProps> = (props) => {
 
   useEffect(() => {
     const req = props.requestedSubTab;
-    if (req && (req === 'missions' || req === 'community' || req === 'course')) {
+    if (req && (req === 'missions' || req === 'course')) {
       setActiveSubTab(req);
       props.onSubTabChange?.(null);
     }
@@ -96,18 +97,6 @@ export const ActivityView: React.FC<ActivityViewProps> = (props) => {
           </motion.div>
         )}
 
-        {activeSubTab === 'community' && (
-          <motion.div
-            key="community"
-            initial={{ opacity: 0, x: 12 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -12 }}
-            transition={{ duration: 0.2 }}
-          >
-            <CommunityView />
-          </motion.div>
-        )}
-
         {activeSubTab === 'course' && (
           <motion.div
             key="course"
@@ -145,6 +134,8 @@ export const ActivityView: React.FC<ActivityViewProps> = (props) => {
                     course={props.activeCourse}
                     onEditCourse={() => setCourseViewMode('design')}
                     onCreateSpontaneous={() => {}}
+                    favoritePlaceIds={props.favoritePlaceIds}
+                    onToggleFavorite={props.onToggleFavorite}
                   />
                 ) : courseViewMode === 'design' ? (
                   <ChatbotView
@@ -155,6 +146,7 @@ export const ActivityView: React.FC<ActivityViewProps> = (props) => {
                     onUpdateConversations={props.onUpdateConversations}
                     userName={props.userName}
                     visitHistory={props.visitHistory}
+                    favoritePlaces={props.favoritePlaces}
                     hideHeader={true}
                     onAction={props.onAIAction}
                     onNavigate={(tab, subTab) => {
@@ -168,6 +160,8 @@ export const ActivityView: React.FC<ActivityViewProps> = (props) => {
                     course={props.activeCourse}
                     onEditCourse={() => {}}
                     onCreateSpontaneous={() => {}}
+                    favoritePlaceIds={props.favoritePlaceIds}
+                    onToggleFavorite={props.onToggleFavorite}
                     onUpdateCourseItems={(items) => {
                       props.onAIAction?.('manage_travel_course', { action: 'update', items });
                     }}
@@ -183,6 +177,7 @@ export const ActivityView: React.FC<ActivityViewProps> = (props) => {
                 onUpdateConversations={props.onUpdateConversations}
                 userName={props.userName}
                 visitHistory={props.visitHistory}
+                favoritePlaces={props.favoritePlaces}
                 hideHeader={true}
                 onAction={props.onAIAction}
                 onNavigate={props.onNavigate}

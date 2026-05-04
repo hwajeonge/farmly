@@ -86,6 +86,7 @@ export async function getChatResponseStream(
     points: number;
     userName: string;
     visitHistory?: VisitedPlace[];
+    favoritePlaces?: string[];
   },
   callbacks: {
     onChunk: (text: string) => void;
@@ -116,13 +117,14 @@ export async function getChatResponseStream(
       - 보유 포인트: ${context.points}P
       - 수행 완료 미션: ${context.completedMissions.join(', ') || '없음'}
       - 최근 방문지: ${context.visitHistory?.map(v => `${v.name}(${v.date})`).join(', ') || '없음'}
+      - 찜한 장소: ${context.favoritePlaces?.join(', ') || '없음'}
       - 현재 시간: ${context.time}
       - 현재 날씨: ${context.weather}
 
       [기능 안내]
       1. **관광 정보:** PLACES 데이터와 Google Search를 활용하여 명확한 정보를 제공하세요.
       2. **코스 관리:** 'manage_travel_course' 도구로 코스를 수정하고, 수정 내용을 말로 설명하세요.
-      3. **실시간 추천:** 현재 상황과 위치를 고려하여 다음 목적지를 추천하세요.
+      3. **실시간 추천:** 찜한 장소, 현재 상황과 위치를 고려하여 다음 목적지를 추천하세요.
       4. **미션 안내:** 주변의 미션과 포인트 보상을 실시간으로 연계하세요.
 
       [데이터]
@@ -194,6 +196,7 @@ export async function getChatResponse(
     points: number;
     userName: string;
     visitHistory?: VisitedPlace[];
+    favoritePlaces?: string[];
   }
 ) {
   try {
@@ -214,11 +217,12 @@ export async function getChatResponse(
       - 보유 포인트: ${context.points}P
       - 수행 완료 미션: ${context.completedMissions.join(', ') || '없음'}
       - 최근 방문지: ${context.visitHistory?.map(v => `${v.name}(${v.date})`).join(', ') || '없음'}
+      - 찜한 장소: ${context.favoritePlaces?.join(', ') || '없음'}
       - 현재 시간: ${context.time}
       - 현재 날씨: ${context.weather}
 
       [지침 및 페르소나]
-      1. **상황 및 패턴 분석:** 사용자의 미션 수행 내역과 방문 이력을 토대로 패턴을 파악하여 맞춤형 장소를 추천하세요.
+      1. **상황 및 패턴 분석:** 사용자의 찜한 장소, 미션 수행 내역과 방문 이력을 토대로 패턴을 파악하여 맞춤형 장소를 추천하세요.
       2. **코스 설계 전문가:** 장소들을 연계하여 '여행 코스'를 설계해주세요.
       3. **미션 연계 전문가:** 추천 장소의 미션과 보상을 적극적으로 안내하세요.
       4. **실시간 여행 도우미:** 날씨에 따른 실내/실외 추천 및 이동 팁을 제공하세요.

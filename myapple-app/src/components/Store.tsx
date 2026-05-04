@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, ExternalLink, Leaf, PackageOpen, ShoppingBag, Sparkles, Store } from 'lucide-react';
 import { SHOP_ITEMS } from '../constants';
@@ -7,8 +7,8 @@ import { cn } from '../lib/utils';
 interface StoreProps {
   points: number;
   apples: number;
-  onBuyItem: (itemId: string, price: number) => void;
-  onBuyWithApples: (itemId: string, applePrice: number) => void;
+  onBuyItem: (itemId: string, price: number) => boolean;
+  onBuyWithApples: (itemId: string, applePrice: number) => boolean;
   onBack?: () => void;
   onNavigateToMissions?: () => void;
   ownedItems?: { id: string; count: number }[];
@@ -17,63 +17,92 @@ interface StoreProps {
 
 const ITEM_COPY: Record<string, { name: string; desc: string; icon: string; tag: string; bg: string }> = {
   seed_f1: {
-    name: '문수 과수원 씨앗',
-    desc: '첫 사과나무를 심고 30일 성장 퀘스트를 시작해요.',
-    icon: '🌱',
+    name: '영주소백팜 사과나무 씨앗',
+    desc: '농촌체험 기반 영주소백팜에서 시작하는 30일 사과나무 씨앗이에요.',
+    icon: '🌰',
     tag: '씨앗',
     bg: 'bg-lime-50 border-lime-100',
   },
   seed_f2: {
-    name: '풍기 사과농장 씨앗',
-    desc: '풍기 여행 미션과 함께 키우기 좋은 농가 씨앗이에요.',
-    icon: '🌱',
+    name: '풍기 사과인삼 농장 씨앗',
+    desc: '풍기인삼시장 관광 미션과 함께 키우기 좋은 풍기 권역 씨앗이에요.',
+    icon: '🌰',
     tag: '씨앗',
     bg: 'bg-lime-50 border-lime-100',
   },
   seed_f3: {
-    name: '금계 과수원 씨앗',
-    desc: '새로운 농가 슬롯을 채우고 수확 보상을 노려보세요.',
-    icon: '🌱',
+    name: '부석 소백산 사과농장 씨앗',
+    desc: '부석사와 소백산 자락 여행 동선에 맞춘 고랭지 사과 씨앗이에요.',
+    icon: '🌰',
+    tag: '씨앗',
+    bg: 'bg-lime-50 border-lime-100',
+  },
+  seed_f4: {
+    name: '문수 무섬 사과농장 씨앗',
+    desc: '무섬마을 관광 미션과 연결되는 문수면 사과나무 씨앗이에요.',
+    icon: '🌰',
+    tag: '씨앗',
+    bg: 'bg-lime-50 border-lime-100',
+  },
+  seed_f5: {
+    name: '순흥 선비촌 사과농장 씨앗',
+    desc: '소수서원과 선비촌 방문 흐름에 어울리는 순흥 권역 씨앗이에요.',
+    icon: '🌰',
+    tag: '씨앗',
+    bg: 'bg-lime-50 border-lime-100',
+  },
+  seed_f6: {
+    name: '봉현 친환경 사과농장 씨앗',
+    desc: '영주 과수 생산 기반을 반영한 봉현 권역 사과나무 씨앗이에요.',
+    icon: '🌰',
+    tag: '씨앗',
+    bg: 'bg-lime-50 border-lime-100',
+  },
+  seed_f7: {
+    name: '단산 고랭지 사과농장 씨앗',
+    desc: '소백산 고랭지 기후를 반영한 착색 중심 사과나무 씨앗이에요.',
+    icon: '🌰',
     tag: '씨앗',
     bg: 'bg-lime-50 border-lime-100',
   },
   nutrient: {
     name: '고급 영양제',
-    desc: '성장률을 10% 올려요. 한 시즌에 2번까지 사용할 수 있어요.',
-    icon: '🧪',
+    desc: '성장률을 10% 올려줘요. 나무 한 그루당 시즌 2회까지 사용할 수 있어요.',
+    icon: '✨',
     tag: '성장',
     bg: 'bg-emerald-50 border-emerald-100',
   },
   medicine: {
-    name: '병충해 치료약',
-    desc: '진딧물, 잎마름, 벌레 침입 상태를 바로 치료해요.',
+    name: '병충해 치료제',
+    desc: '진딧물, 잎마름병, 벌레 침입 상태를 바로 치료해요.',
     icon: '💊',
     tag: '치료',
     bg: 'bg-red-50 border-red-100',
   },
   shield: {
     name: '폭염 방풍막',
-    desc: '폭염 이벤트의 성장 패널티를 막아주는 보호 아이템이에요.',
+    desc: '여름 폭염 이벤트의 성장 패널티를 막아주는 보호 아이템이에요.',
     icon: '🛡️',
     tag: '보호',
     bg: 'bg-sky-50 border-sky-100',
   },
   fertilizer: {
     name: '영주 한우비료',
-    desc: '다음 시즌 초반 성장을 든든하게 밀어주는 프리미엄 아이템이에요.',
+    desc: '수확 후 땅 정리 단계에서 쓰면 다음 시즌을 성장률 보너스로 시작해요.',
     icon: '🌾',
     tag: '보너스',
     bg: 'bg-yellow-50 border-yellow-100',
   },
 };
 
-const getCopy = (id: string) => ITEM_COPY[id] ?? {
-  name: '사과나무 아이템',
-  desc: '나무 성장과 농가 관리에 사용할 수 있어요.',
-  icon: '🍎',
-  tag: '아이템',
-  bg: 'bg-stone-50 border-stone-100',
-};
+const getCopy = (id: string) =>
+  ITEM_COPY[id] ?? {
+    name: '사과나무 아이템',
+    desc: '나무 성장과 영주 여행 관리에 사용할 수 있어요.',
+    icon: '🎒',
+    tag: '아이템',
+    bg: 'bg-stone-50 border-stone-100',
+  };
 
 export const StoreView: React.FC<StoreProps> = ({
   points,
@@ -85,6 +114,19 @@ export const StoreView: React.FC<StoreProps> = ({
   ownedItems = [],
   onPlantSeed,
 }) => {
+  const [recentSeedId, setRecentSeedId] = useState<string | null>(null);
+  const recentSeedCopy = recentSeedId ? getCopy(recentSeedId) : null;
+
+  const handlePointBuy = (itemId: string, price: number, isSeed: boolean) => {
+    const didBuy = onBuyItem(itemId, price);
+    if (didBuy && isSeed) setRecentSeedId(itemId);
+  };
+
+  const handleAppleBuy = (itemId: string, applePrice: number, isSeed: boolean) => {
+    const didBuy = onBuyWithApples(itemId, applePrice);
+    if (didBuy && isSeed) setRecentSeedId(itemId);
+  };
+
   return (
     <div className="space-y-6 py-4">
       <header className="flex items-start justify-between gap-3">
@@ -100,7 +142,7 @@ export const StoreView: React.FC<StoreProps> = ({
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-apple-red">Growth Shop</p>
           <h2 className="mt-1 text-2xl font-black text-stone-900">나무 돌봄 상점</h2>
           <p className="mt-1 text-xs font-bold leading-relaxed text-warm-gray">
-            포인트와 수확 사과로 씨앗, 치료약, 성장 아이템을 준비해요.
+            씨앗을 구매하면 바로 농가 지도에서 심을 수 있어요.
           </p>
         </div>
 
@@ -128,6 +170,30 @@ export const StoreView: React.FC<StoreProps> = ({
         </div>
       </section>
 
+      {recentSeedCopy && onPlantSeed && (
+        <motion.section
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-[1.75rem] border-2 border-apple-green/20 bg-apple-green/10 p-4"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white text-3xl shadow-sm">
+              {recentSeedCopy.icon}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-black uppercase tracking-widest text-apple-green">씨앗 구매 완료</p>
+              <h3 className="mt-0.5 text-base font-black text-stone-900">{recentSeedCopy.name}을 바로 심어볼까요?</h3>
+            </div>
+            <button
+              onClick={onPlantSeed}
+              className="shrink-0 rounded-2xl bg-apple-green px-4 py-3 text-xs font-black text-white shadow-[0_4px_0_0_#2d7a2d] transition-all active:translate-y-0.5 active:shadow-none"
+            >
+              씨앗 심으러 가기
+            </button>
+          </div>
+        </motion.section>
+      )}
+
       <section>
         <div className="mb-3 flex items-center justify-between px-1">
           <div className="flex items-center gap-2">
@@ -145,6 +211,7 @@ export const StoreView: React.FC<StoreProps> = ({
             const canBuyWithApples = apples >= applePrice;
             const isSeed = item.id.startsWith('seed_');
             const ownedCount = ownedItems.find(i => i.id === item.id)?.count ?? 0;
+            const isRecentSeed = recentSeedId === item.id;
 
             return (
               <motion.div key={item.id} whileTap={{ scale: 0.98 }} className="cute-card p-4">
@@ -163,6 +230,11 @@ export const StoreView: React.FC<StoreProps> = ({
                           {ownedCount}개 보유
                         </span>
                       )}
+                      {isRecentSeed && (
+                        <span className="rounded-full bg-yellow-100 px-2 py-0.5 text-[9px] font-black text-yellow-700">
+                          방금 구매
+                        </span>
+                      )}
                     </div>
                     <h4 className="text-sm font-black text-stone-900">{copy.name}</h4>
                     <p className="mt-0.5 text-[11px] font-bold leading-snug text-warm-gray">{copy.desc}</p>
@@ -171,7 +243,7 @@ export const StoreView: React.FC<StoreProps> = ({
 
                 <div className="mt-4 grid grid-cols-2 gap-2">
                   <button
-                    onClick={() => onBuyItem(item.id, item.price)}
+                    onClick={() => handlePointBuy(item.id, item.price, isSeed)}
                     disabled={!canBuyWithPoints}
                     className={cn(
                       'rounded-xl px-3 py-2 text-[11px] font-black transition-all',
@@ -183,7 +255,7 @@ export const StoreView: React.FC<StoreProps> = ({
                     {item.price.toLocaleString()} P
                   </button>
                   <button
-                    onClick={() => onBuyWithApples(item.id, applePrice)}
+                    onClick={() => handleAppleBuy(item.id, applePrice, isSeed)}
                     disabled={!canBuyWithApples}
                     className={cn(
                       'rounded-xl px-3 py-2 text-[11px] font-black transition-all',
@@ -196,7 +268,7 @@ export const StoreView: React.FC<StoreProps> = ({
                   </button>
                 </div>
 
-                {isSeed && ownedCount > 0 && onPlantSeed && (
+                {isSeed && (ownedCount > 0 || isRecentSeed) && onPlantSeed && (
                   <button
                     onClick={onPlantSeed}
                     className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-apple-green py-2.5 text-xs font-black text-white shadow-[0_3px_0_0_#2d7a2d] transition-all active:translate-y-0.5 active:shadow-none"
@@ -213,7 +285,7 @@ export const StoreView: React.FC<StoreProps> = ({
       <section>
         <div className="mb-3 flex items-center gap-2 px-1">
           <Store size={15} className="text-apple-red" />
-          <h3 className="section-title">수확 후 실제 구매</h3>
+          <h3 className="section-title">수확 후 실물 구매</h3>
         </div>
 
         <motion.a
@@ -222,7 +294,7 @@ export const StoreView: React.FC<StoreProps> = ({
           rel="noopener noreferrer"
           whileHover={{ y: -3 }}
           whileTap={{ scale: 0.98 }}
-          className="relative block aspect-21/9 w-full overflow-hidden rounded-[2rem] border-4 border-white shadow-xl"
+          className="relative block aspect-[21/9] w-full overflow-hidden rounded-[2rem] border-4 border-white shadow-xl"
         >
           <img
             src="https://picsum.photos/seed/yeongjumarket/1200/600"
@@ -234,7 +306,7 @@ export const StoreView: React.FC<StoreProps> = ({
             <div className="flex items-end justify-between gap-3">
               <div>
                 <h4 className="mb-0.5 text-lg font-black text-white">영주장날 공식몰</h4>
-                <p className="text-[11px] font-bold text-white/75">게임에서 만난 사과를 실제 소비로 이어가요.</p>
+                <p className="text-[11px] font-bold text-white/75">게임에서 만난 사과 경험을 실제 소비로 이어가요.</p>
               </div>
               <div className="rounded-2xl bg-white/20 p-2.5 backdrop-blur-md">
                 <ExternalLink size={18} className="text-white" />
@@ -245,7 +317,7 @@ export const StoreView: React.FC<StoreProps> = ({
 
         <div className="mt-3 grid grid-cols-2 gap-2.5">
           {[
-            { icon: <PackageOpen size={14} />, label: '산지 직송', cls: 'bg-emerald-50 text-emerald-700 border-emerald-100' },
+            { icon: <PackageOpen size={14} />, label: '농장 직송', cls: 'bg-emerald-50 text-emerald-700 border-emerald-100' },
             { icon: <ShoppingBag size={14} />, label: '수확 보상 연계', cls: 'bg-sky-50 text-sky-700 border-sky-100' },
           ].map((feature) => (
             <div key={feature.label} className={cn('flex items-center justify-center gap-1.5 rounded-xl border-2 p-2.5 text-[11px] font-black shadow-sm', feature.cls)}>

@@ -16,7 +16,7 @@ const FEATURE_CHIPS = [
   { icon: Gift, label: '실물 보상', color: 'text-rose-600 bg-rose-50 border-rose-100' },
 ];
 
-export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
+export const LoginView: React.FC<LoginViewProps> = () => {
   const [loading, setLoading] = useState(false);
   const [alertState, setAlertState] = useState<{ message: string; emoji: string; type: AlertType } | null>(null);
 
@@ -26,40 +26,12 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
 
   const handleGoogleLogin = async () => {
     setLoading(true);
-    let handled = false;
-    let focusTimer: ReturnType<typeof setTimeout>;
-
-    const onWindowFocus = () => {
-      focusTimer = setTimeout(() => {
-        if (!handled) {
-          handled = true;
-          setLoading(false);
-          showLocalAlert('로그인이 취소되었어요.\n다시 시도해주세요.', '🍎', 'info');
-        }
-      }, 300);
-    };
-
-    window.addEventListener('focus', onWindowFocus, { once: true });
-
     try {
       await authService.signInWithGoogle();
-      handled = true;
-      clearTimeout(focusTimer);
-      window.removeEventListener('focus', onWindowFocus);
-      onLoginSuccess();
-    } catch (err: any) {
-      clearTimeout(focusTimer);
-      window.removeEventListener('focus', onWindowFocus);
-      if (!handled) {
-        handled = true;
-        if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
-          showLocalAlert('로그인이 취소되었어요.\n다시 시도해주세요.', '🍎', 'info');
-        } else {
-          showLocalAlert('로그인 중 오류가 발생했어요.\n잠시 후 다시 시도해주세요.', '⚠️', 'error');
-        }
-      }
-    } finally {
+      // Redirect login navigates away, which avoids popup window.closed COOP warnings.
+    } catch {
       setLoading(false);
+      showLocalAlert('로그인 중 오류가 발생했어요.\n잠시 후 다시 시도해주세요.', '⚠️', 'error');
     }
   };
 
@@ -68,35 +40,18 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_18%,rgba(255,107,107,0.30),transparent_30%),radial-gradient(circle_at_82%_72%,rgba(82,196,138,0.24),transparent_30%)]" />
       <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.75)_1px,transparent_1px),linear-gradient(rgba(255,255,255,0.75)_1px,transparent_1px)] bg-[length:26px_26px] opacity-[0.35]" />
 
-      <motion.div
-        animate={{ y: [0, -8, 0], rotate: [-3, 3, -3] }}
-        transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-        className="absolute left-7 top-16 text-4xl opacity-20"
-      >
+      <motion.div animate={{ y: [0, -8, 0], rotate: [-3, 3, -3] }} transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }} className="absolute left-7 top-16 text-4xl opacity-20">
         🍎
       </motion.div>
-      <motion.div
-        animate={{ y: [0, 10, 0], rotate: [5, -4, 5] }}
-        transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
-        className="absolute right-8 top-28 text-3xl opacity-20"
-      >
+      <motion.div animate={{ y: [0, 10, 0], rotate: [5, -4, 5] }} transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }} className="absolute right-8 top-28 text-3xl opacity-20">
         🌱
       </motion.div>
-      <motion.div
-        animate={{ scale: [1, 1.08, 1] }}
-        transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut' }}
-        className="absolute bottom-28 left-9 text-3xl opacity-20"
-      >
+      <motion.div animate={{ scale: [1, 1.08, 1] }} transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut' }} className="absolute bottom-28 left-9 text-3xl opacity-20">
         🧺
       </motion.div>
 
       <div className="relative z-10 flex min-h-screen flex-col justify-center px-6 py-8">
-        <motion.div
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.45 }}
-          className="text-center"
-        >
+        <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.45 }} className="text-center">
           <div className="relative mx-auto mb-4 h-44 w-44">
             <motion.div
               animate={{ rotate: [0, 2, -2, 0], y: [0, -5, 0] }}
@@ -106,7 +61,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
               <img src={FARMLY_LOGO_SRC} alt={FARMLY_LOGO_ALT} className="h-full w-full object-contain object-center drop-shadow-sm" />
             </motion.div>
             <div className="absolute -right-4 top-3 rounded-2xl border-4 border-white bg-yeoju-gold px-3 py-1 text-xs font-black text-white shadow-lg">
-              Farmly
+              영주가 간다
             </div>
           </div>
 
@@ -115,7 +70,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
             영주 사과 모험 시작
           </div>
 
-          <h1 className="mb-1 text-[36px] font-black leading-tight tracking-tight text-stone-900">
+          <h1 className="mb-1 text-[34px] font-black leading-tight tracking-tight text-stone-900">
             {SERVICE_NAME}
           </h1>
           <p className="mx-auto mb-3 max-w-[17rem] text-xs font-black uppercase tracking-[0.16em] text-apple-red">

@@ -3,81 +3,81 @@ import { Farm, Place, VisitMission } from './types';
 export const FARMS: Farm[] = [
   {
     id: 'f1',
-    name: '그랑농원',
-    location: '경북 영주시 문수면 문수로1017번길 24-2',
-    description: 'GAP 인증, 껍질째 먹는 사과, NFC 사과즙 판매. 소백산 자락 청정지역 재배.',
-    varieties: ['홍로', '부사'],
-    image: 'https://picsum.photos/seed/farm_gran/800/600',
+    name: '영주소백팜',
+    location: '경상북도 영주시 의상로116번길 43',
+    description: '사과 따기, 사과 음식, 피자 만들기 등 농촌체험이 가능한 영주 농촌관광 기반 농장입니다.',
+    varieties: ['홍로', '부사', '아리수'],
+    image: 'https://picsum.photos/seed/yeongju-sobaek-farm/800/600',
     rating: 4.9,
-    ownerName: '배그랑 농부',
-    coords: { x: 45, y: 75 },
+    ownerName: '소백팜 농부',
+    coords: { x: 55, y: 45 },
     isUnlocked: true
   },
   {
     id: 'f2',
-    name: '쫑말이네농장',
-    location: '경북 영주시 풍기읍 기주로 62',
-    description: '초미니/소과 상품, 당도 보장. 홍삼품은사과·사과즙 판매.',
-    varieties: ['아오리', '아리수', '홍옥', '양광', '부사'],
-    image: 'https://picsum.photos/seed/farm_jong/800/600',
+    name: '풍기 사과인삼 농장',
+    location: '경상북도 영주시 풍기읍',
+    description: '풍기인삼 권역의 사과 농장 콘셉트입니다. 인삼시장 관광 미션과 연계하기 좋습니다.',
+    varieties: ['아오리', '홍로', '부사', '감홍'],
+    image: 'https://picsum.photos/seed/yeongju-punggi-apple/800/600',
     rating: 4.8,
-    ownerName: '김쫑말 농부',
-    coords: { x: 30, y: 35 }
+    ownerName: '풍기 농부',
+    coords: { x: 28, y: 34 }
   },
   {
     id: 'f3',
-    name: '풍기금계농장',
-    location: '경북 영주시 풍기읍 인삼로 14',
-    description: '풍기 인삼과 영주사과를 함께 운영하는 농장. 감홍·부사·시나노골드 주력.',
-    varieties: ['감홍', '부사', '시나노골드'],
-    image: 'https://picsum.photos/seed/farm_keum/800/600',
+    name: '부석 소백산 사과농장',
+    location: '경상북도 영주시 부석면',
+    description: '부석사와 소백산 자락 관광 동선에 맞춘 고랭지 사과 농장입니다.',
+    varieties: ['시나노골드', '부사', '감홍'],
+    image: 'https://picsum.photos/seed/yeongju-buseok-apple/800/600',
     rating: 5.0,
-    ownerName: '이최부 농부',
-    coords: { x: 25, y: 30 }
+    ownerName: '부석 농부',
+    coords: { x: 34, y: 18 }
   },
   {
     id: 'f4',
-    name: '주하농원',
-    location: '영주시 산지직송',
-    description: '햇사과·선물세트·고당도 꿀사과 판매. 아오리와 부사 전문.',
-    varieties: ['아오리', '부사'],
-    image: 'https://picsum.photos/seed/farm_juha/800/600',
+    name: '문수 무섬 사과농장',
+    location: '경상북도 영주시 문수면',
+    description: '무섬마을 방문 미션과 이어지는 문수면 사과 농장입니다.',
+    varieties: ['홍옥', '홍로', '부사'],
+    image: 'https://picsum.photos/seed/yeongju-museom-apple/800/600',
     rating: 4.7,
-    ownerName: '박주하 농부',
-    coords: { x: 55, y: 45 }
+    ownerName: '문수 농부',
+    coords: { x: 47, y: 74 }
   },
   {
     id: 'f5',
-    name: '소백산맥농원',
-    location: '영주시 소백산 국립공원 내',
-    description: '소백산 청정지역에서 재배한 명품 사과.',
-    varieties: ['부사', '시나노골드'],
-    image: 'https://picsum.photos/seed/farm_sobaek/800/600',
+    name: '순흥 선비촌 사과농장',
+    location: '경상북도 영주시 순흥면',
+    description: '소수서원과 선비촌 관광 흐름에 연결되는 체험형 사과 농장입니다.',
+    varieties: ['양광', '시나노스위트', '부사'],
+    image: 'https://picsum.photos/seed/yeongju-sunheung-apple/800/600',
     rating: 4.9,
-    ownerName: '최산맥 농부',
-    coords: { x: 20, y: 20 }
+    ownerName: '순흥 농부',
+    coords: { x: 38, y: 28 }
   },
   {
     id: 'f6',
-    name: '사그레이사과',
-    location: '영주시 산지직송',
-    description: '홍옥·아오리·홍로·부사 등 여러 품종 판매. 아삭상큼 품종 강조.',
-    varieties: ['홍옥', '부사', '아오리', '홍로'],
-    image: 'https://picsum.photos/seed/farm_sagrey/800/600',
+    name: '봉현 친환경 사과농장',
+    location: '경상북도 영주시 봉현면',
+    description: '영주시 과수 생산 기반을 반영한 친환경 사과 농장 파일럿 데이터입니다.',
+    varieties: ['감홍', '홍로', '부사'],
+    image: 'https://picsum.photos/seed/yeongju-bonghyeon-apple/800/600',
     rating: 4.6,
-    ownerName: '정사그 농부',
-    coords: { x: 65, y: 35 }
+    ownerName: '봉현 농부',
+    coords: { x: 33, y: 48 }
   },
   {
     id: 'f7',
-    name: '소백순천사과농장',
-    location: '경북 영주시 봉현면 소백로 1622-8',
-    description: '감홍과 부사 주력 판매. 서리맞은 고당도 부사가 일품.',
-    varieties: ['감홍', '부사'],
-    image: 'https://picsum.photos/seed/farm_sooncheon/800/600',
+    name: '단산 고랭지 사과농장',
+    location: '경상북도 영주시 단산면',
+    description: '소백산 고랭지 기후를 반영한 착색·당도 중심 사과 농장입니다.',
+    varieties: ['시나노골드', '감홍', '부사'],
+    image: 'https://picsum.photos/seed/yeongju-dansan-apple/800/600',
     rating: 4.8,
-    ownerName: '안순천 농부',
-    coords: { x: 40, y: 55 }
+    ownerName: '단산 농부',
+    coords: { x: 48, y: 20 }
   }
 ];
 
@@ -121,9 +121,13 @@ export const GROWTH_STAGES_NEW = {
 };
 
 export const SHOP_ITEMS = [
-  { id: 'seed_f1', name: '그랑농원 씨앗', price: 3000, icon: '🌰', desc: '분양: 그랑농원 사과나무 씨콘', type: 'seed', farmId: 'f1' },
-  { id: 'seed_f2', name: '쫑말이네농장 씨앗', price: 3500, icon: '🌰', desc: '분양: 쫑말이네 사과나무 씨콘', type: 'seed', farmId: 'f2' },
-  { id: 'seed_f3', name: '풍기금계농장 씨앗', price: 3200, icon: '🌰', desc: '분양: 풍기금계 사과나무 씨콘', type: 'seed', farmId: 'f3' },
+  { id: 'seed_f1', name: '영주소백팜 씨앗', price: 3000, icon: '🌰', desc: '분양: 영주소백팜 사과나무 씨앗', type: 'seed', farmId: 'f1' },
+  { id: 'seed_f2', name: '풍기 사과인삼 농장 씨앗', price: 3500, icon: '🌰', desc: '분양: 풍기 권역 사과나무 씨앗', type: 'seed', farmId: 'f2' },
+  { id: 'seed_f3', name: '부석 소백산 사과농장 씨앗', price: 3200, icon: '🌰', desc: '분양: 부석 권역 사과나무 씨앗', type: 'seed', farmId: 'f3' },
+  { id: 'seed_f4', name: '문수 무섬 사과농장 씨앗', price: 3200, icon: '🌰', desc: '분양: 문수 권역 사과나무 씨앗', type: 'seed', farmId: 'f4' },
+  { id: 'seed_f5', name: '순흥 선비촌 사과농장 씨앗', price: 3300, icon: '🌰', desc: '분양: 순흥 권역 사과나무 씨앗', type: 'seed', farmId: 'f5' },
+  { id: 'seed_f6', name: '봉현 친환경 사과농장 씨앗', price: 3400, icon: '🌰', desc: '분양: 봉현 권역 사과나무 씨앗', type: 'seed', farmId: 'f6' },
+  { id: 'seed_f7', name: '단산 고랭지 사과농장 씨앗', price: 3600, icon: '🌰', desc: '분양: 단산 권역 사과나무 씨앗', type: 'seed', farmId: 'f7' },
   { id: 'nutrient', name: '고급 영양제', price: 1500, icon: '✨', desc: '성장률 +10% (시즌 2회 제한)', type: 'item' },
   { id: 'medicine', name: '병충해 치료제', price: 800, icon: '💊', desc: '병충해 상태 즉시 제거', type: 'item' },
   { id: 'shield', name: '폭염 방풍막', price: 2000, icon: '🛡️', desc: '폭염 패널티 100% 방어', type: 'item' },
@@ -131,6 +135,23 @@ export const SHOP_ITEMS = [
 ];
 
 export const PLACES: Place[] = [
+  {
+    id: 'p0',
+    name: '영주역',
+    category: '관광지',
+    location: '영주시 휴천동',
+    description: '영주 여행과 농촌관광 미션의 출발점입니다.',
+    benefits: ['첫 방문 미션 포인트', '관광 코스 시작점'],
+    lat: 36.811,
+    lng: 128.625,
+    operatingHours: '상시 이용',
+    isIndoor: true,
+    relatedSpecialty: '여행 출발',
+    estimatedStayTime: 20,
+    image: 'https://picsum.photos/seed/yeongju-station/800/600',
+    address: '경상북도 영주시 선비로 64',
+    parking: '역 주변 주차장 이용'
+  },
   {
     id: 'p1',
     name: '부석사',
@@ -300,6 +321,40 @@ export const PLACES: Place[] = [
     image: 'https://picsum.photos/seed/joongang/800/600',
     address: '경상북도 영주시 중앙로 123-1',
     parking: '영주 시내 공영 주차장 이용'
+  },
+  {
+    id: 'p11',
+    name: '영주소백팜',
+    category: '농가',
+    location: '영주시 상망동',
+    description: '사과 따기, 사과 음식, 피자 만들기 등 영주 농촌체험을 제공하는 농장입니다.',
+    benefits: ['사과나무 씨앗 미션', '농촌체험 보너스'],
+    lat: 36.835,
+    lng: 128.650,
+    operatingHours: '예약제 운영',
+    isIndoor: false,
+    relatedSpecialty: '사과',
+    estimatedStayTime: 120,
+    image: 'https://picsum.photos/seed/yeongju-sobaekfarm-place/800/600',
+    address: '경상북도 영주시 의상로116번길 43',
+    parking: '농장 주차 가능'
+  },
+  {
+    id: 'p12',
+    name: '선비촌',
+    category: '관광지',
+    location: '영주시 순흥면',
+    description: '소수서원과 함께 둘러보기 좋은 영주의 선비문화 체험 관광지입니다.',
+    benefits: ['선비문화 미션', '코스 설계 추천지'],
+    lat: 36.927,
+    lng: 128.579,
+    operatingHours: '09:00 - 18:00',
+    isIndoor: false,
+    relatedSpecialty: '선비문화',
+    estimatedStayTime: 90,
+    image: 'https://picsum.photos/seed/seonbichon/800/600',
+    address: '경상북도 영주시 순흥면 소백로 2796',
+    parking: '선비촌 공용 주차장 이용'
   }
 ];
 
@@ -358,6 +413,20 @@ export const VISIT_MISSIONS: VisitMission[] = [
       { id: 'arrival', label: '여행 시작', task: '무섬마을 주차장 GPS 도착 인증', reward: 400, icon: '📍' },
       { id: 'action', label: '여행 중', task: '외나무다리 위에서 균형잡기 인증샷', reward: 1000, icon: '📸' },
       { id: 'review', label: '방문 완료', task: '무섬마을 방문 팁 및 후기 작성', reward: 500, icon: '✍️' }
+    ]
+  },
+  {
+    id: 'm5',
+    title: '영주소백팜 사과 체험',
+    placeId: 'p11',
+    type: '체험형',
+    description: '영주 농촌체험 농장에서 사과나무와 지역 농산물 체험을 연결해보세요.',
+    img: 'https://picsum.photos/seed/sobaekfarm_mission/400/300',
+    stages: [
+      { id: 'prepare', label: '여행 전', task: '농장 체험 예약 가능 여부 확인', reward: 200, icon: '📋' },
+      { id: 'arrival', label: '여행 시작', task: '영주소백팜 GPS 도착 인증', reward: 500, icon: '📍' },
+      { id: 'action', label: '여행 중', task: '사과 체험 또는 농장 체험 인증샷 촬영', reward: 900, icon: '🍎' },
+      { id: 'review', label: '방문 완료', task: '농촌체험 후기 작성', reward: 300, icon: '✍️' }
     ]
   }
 ];
