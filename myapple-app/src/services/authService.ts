@@ -5,8 +5,8 @@ import {
   onAuthStateChanged,
   User
 } from 'firebase/auth';
-// @ts-ignore — signInWithRedirect/getRedirectResult exist at runtime; TS can't resolve them due to @firebase/auth package exports config
-import { signInWithRedirect, getRedirectResult } from 'firebase/auth';
+// @ts-ignore — signInWithPopup/getRedirectResult exist at runtime; TS can't resolve them due to @firebase/auth package exports config
+import { signInWithPopup, getRedirectResult } from 'firebase/auth';
 // @ts-ignore — deleteUser exists at runtime; TS can't resolve it due to @firebase/auth package exports config
 import { deleteUser } from 'firebase/auth';
 import { 
@@ -28,7 +28,7 @@ const INITIAL_POINTS = 5000; // Sign-up bonus
 export const authService = {
   async signInWithGoogle() {
     const provider = new GoogleAuthProvider();
-    await signInWithRedirect(auth, provider);
+    await signInWithPopup(auth, provider);
   },
 
   async handleRedirectResult() {
