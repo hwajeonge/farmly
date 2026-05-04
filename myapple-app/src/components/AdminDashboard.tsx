@@ -1,6 +1,4 @@
 import React from 'react';
-import { motion } from 'framer-motion';
-import { BarChart3, Users, Package, TrendingUp, ShieldAlert } from 'lucide-react';
 import { UserRole } from '../types';
 import { FarmAdminDashboard } from './FarmAdminDashboard';
 import { GovAdminDashboard } from './GovAdminDashboard';
@@ -14,10 +12,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
     return (
       <div className="py-4">
         <div className="mb-6">
-          <h2 className="text-2xl font-black mb-1">농가 관리자 모드 👨‍🌾</h2>
-          <p className="text-stone-400 text-xs font-bold leading-relaxed">
-            나의 농가 운영 현황 및 방문객을 관리하고<br />
-            AI Insight를 통해 판매 전략을 세워보세요.
+          <h2 className="mb-1 text-2xl font-black text-stone-800">농가 관리자</h2>
+          <p className="text-xs font-bold leading-relaxed text-stone-400">
+            사과나무 상품, 농가 정보, 주문, 리뷰, AI 분석을 관리합니다.
           </p>
         </div>
         <FarmAdminDashboard role={role} />
@@ -29,10 +26,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
     return (
       <div className="py-4">
         <div className="mb-6">
-          <h2 className="text-2xl font-black mb-1">지자체 관리 시스템 🏛️</h2>
-          <p className="text-stone-400 text-xs font-bold leading-relaxed">
-            영주시의 관광 유입 분석 및 농업 경제 성과를<br />
-            통합 데이터 시각화를 통해 확인하세요.
+          <h2 className="mb-1 text-2xl font-black text-stone-800">지자체 관리자</h2>
+          <p className="text-xs font-bold leading-relaxed text-stone-400">
+            관광 유입, 농가 성과, 소비 전환, 정책 운영 데이터를 관리합니다.
           </p>
         </div>
         <GovAdminDashboard />

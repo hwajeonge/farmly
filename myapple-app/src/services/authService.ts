@@ -21,6 +21,7 @@ import {
 import { deleteDoc } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import { UserProfile } from '../types';
+import { FARMS } from '../constants';
 
 const INITIAL_POINTS = 5000; // Sign-up bonus
 
@@ -61,7 +62,7 @@ export const authService = {
       badges: [
         { id: 'newbie', title: '새내기 농부', icon: '🌱', dateEarned: new Date().toISOString() }
       ],
-      adoptedFarmIds: ['f1'],
+      adoptedFarmIds: [FARMS[Math.floor(Math.random() * FARMS.length)].id],
       storedFarmIds: [],
       visitMissionProgress: {},
       chatHistory: [],

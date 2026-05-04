@@ -76,7 +76,7 @@ export default function App() {
           // Data Migration / Defaulting
           const migProfile = { ...profile };
           if (!migProfile.adoptedFarmIds || migProfile.adoptedFarmIds.length === 0) {
-            migProfile.adoptedFarmIds = ['f1'];
+            migProfile.adoptedFarmIds = [FARMS[Math.floor(Math.random() * FARMS.length)].id];
           }
           if (!migProfile.storedFarmIds) migProfile.storedFarmIds = [];
           if (!migProfile.claimedMilestones) migProfile.claimedMilestones = [];
