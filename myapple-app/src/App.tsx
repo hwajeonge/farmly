@@ -75,7 +75,10 @@ export default function App() {
         setAuthLoading(false);
         setUser(null);
         setProfilePending(false);
-        setAlertState(null);  // clear any alert that would bleed into the next session
+        // alertState intentionally preserved so it shows on the login screen
+      } else {
+        // New login/re-registration: clear any alerts from the previous session
+        setAlertState(null);
       }
     });
 
@@ -974,7 +977,19 @@ export default function App() {
   }
 
   if (!firebaseUser) {
-    return <LoginView onLoginSuccess={() => {}} />;
+    return (
+      <>
+        <LoginView onLoginSuccess={() => {}} />
+        <AlertModal
+          open={!!alertState}
+          message={alertState?.message ?? ''}
+          emoji={alertState?.emoji ?? '🍎'}
+          type={alertState?.type ?? 'info'}
+          onClose={() => setAlertState(null)}
+        />
+        <ConfirmModal />
+      </>
+    );
   }
 
   if (profilePending) {
