@@ -5,6 +5,7 @@ import { APP_LOGO_ALT, APP_LOGO_SRC, SERVICE_NAME } from '../brand';
 
 interface GameIntroModalProps {
   onClose: () => void;
+  onStartPlanting?: () => void;
 }
 
 const STEPS = [
@@ -34,7 +35,7 @@ const STEPS = [
   },
 ];
 
-export const GameIntroModal: React.FC<GameIntroModalProps> = ({ onClose }) => {
+export const GameIntroModal: React.FC<GameIntroModalProps> = ({ onClose, onStartPlanting }) => {
   return (
     <div className="fixed inset-0 z-[450] flex items-center justify-center px-4">
       <motion.div
@@ -94,11 +95,11 @@ export const GameIntroModal: React.FC<GameIntroModalProps> = ({ onClose }) => {
           </div>
 
           <button
-            onClick={onClose}
+            onClick={onStartPlanting ?? onClose}
             className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-stone-800 py-4 text-sm font-black text-white shadow-[0_5px_0_0_#171717] transition-all active:translate-y-[5px] active:shadow-none"
           >
             <CheckCircle2 size={17} />
-            시작할게요
+            씨앗 심으러 가기
           </button>
         </div>
       </motion.div>

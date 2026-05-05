@@ -87,13 +87,14 @@ export const TreeManagement: React.FC<TreeManagementProps> = ({
     .reduce((total, item) => total + item.count, 0);
 
   const nextGoal = useMemo(() => {
-    if (isSeasonEnded) return seedCount > 0 ? '나무 카드를 보관하고 새 씨앗을 심어 다음 30일을 시작하기' : '나무 카드를 보관하고 상점에서 다음 씨앗 준비하기';
-    if (tree.currentDay < 7) return 'Day 7까지 성장률 30%와 병충해 없음 달성하기';
-    if (tree.currentDay < 14) return 'Day 14까지 성장률 60%와 병충해 없음 달성하기';
-    if (tree.currentDay < 21) return 'Day 21까지 성장률 90%를 만들어 수확기로 전환하기';
-    if (tree.currentDay < 30) return '수확, 배송, 휴식, 땅 정리 단계를 마무리하기';
-    return '수확 결과를 확인하고 실물 보상으로 연결하기';
+    if (isSeasonEnded) return seedCount > 0 ? '나무 카드 보관 후\n새 씨앗으로 30일 시작하기' : '나무 카드 보관 후\n상점에서 다음 씨앗 준비하기';
+    if (tree.currentDay < 7) return 'Day 7까지 성장률 30%와\n병충해 없음 달성하기';
+    if (tree.currentDay < 14) return 'Day 14까지 성장률 60%와\n병충해 없음 달성하기';
+    if (tree.currentDay < 21) return 'Day 21까지 성장률 90%를 만들고\n수확기로 전환하기';
+    if (tree.currentDay < 30) return '수확, 배송, 휴식,\n땅 정리 단계 마무리하기';
+    return '수확 결과 확인 후\n실물 보상으로 연결하기';
   }, [isSeasonEnded, seedCount, tree.currentDay]);
+  const weatherInfo = (weatherEvent?.message ?? weatherSummary).replace(' · 평균', '\n평균');
 
   const fetchMessage = async (userInput?: string) => {
     if (isSeasonEnded && !userInput) {
@@ -305,7 +306,7 @@ export const TreeManagement: React.FC<TreeManagementProps> = ({
         </div>
         <div className="grid grid-cols-2 gap-3">
           <InfoCard title="다음 목표" value={nextGoal} tone="green" />
-          <InfoCard title={isSeasonEnded ? '수확 결과' : '영주 날씨'} value={isSeasonEnded ? `${tree.harvestedApples ?? 0}개의 사과를 수확했어요.` : weatherEvent?.message ?? weatherSummary} tone="blue" />
+          <InfoCard title={isSeasonEnded ? '수확 결과' : '영주 날씨'} value={isSeasonEnded ? `${tree.harvestedApples ?? 0}개의 사과를\n수확했어요.` : weatherInfo} tone="blue" />
         </div>
         {hasRainMoistureBonus && (
           <div className="mt-3 rounded-2xl border-2 border-sky-100 bg-sky-50 px-4 py-3">
@@ -440,12 +441,12 @@ const SeasonEndPanel = ({
       <button
         onClick={onOpenHarvestModal}
         disabled={!canRequestDelivery}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-white py-3.5 text-sm font-black text-stone-900 transition-all active:scale-95 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/45"
+        className="flex w-full items-center justify-center gap-2 whitespace-pre-line rounded-2xl bg-white py-3.5 text-center text-sm font-black text-stone-900 transition-all active:scale-95 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/45"
       >
         <PackageOpen size={16} />
         {canRequestDelivery
           ? '수확 보상 배송 신청'
-          : `누적 사과 ${nextDeliveryReward?.applesNeeded ?? HARVEST_DELIVERY_MIN_APPLES}개부터 배송 신청`}
+          : `누적 사과 ${nextDeliveryReward?.applesNeeded ?? HARVEST_DELIVERY_MIN_APPLES}개부터\n배송 신청 가능`}
       </button>
       <button
         onClick={onViewTreeCards}
@@ -492,7 +493,9 @@ const InfoCard = ({ title, value, tone }: { title: string; value: string; tone: 
     <p className={cn('mb-1 text-[10px] font-black uppercase tracking-wide', tone === 'green' ? 'text-emerald-600' : 'text-sky-600')}>
       {title}
     </p>
-    <p className="text-[11px] font-bold leading-relaxed text-stone-600">{value}</p>
+    <p className="whitespace-pre-line text-[11px] font-bold leading-[1.8] text-stone-600 [word-break:keep-all]">
+      {value}
+    </p>
   </div>
 );
 

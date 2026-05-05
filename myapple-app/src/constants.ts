@@ -1,10 +1,10 @@
 import { Farm, Place, VisitMission } from './types';
 
-const YEONGJU_STATION_IMAGE = 'https://commons.wikimedia.org/wiki/Special:FilePath/Korail_Yeongju_Station.JPG?width=1200';
+const YEONGJU_STATION_IMAGE = 'https://commons.wikimedia.org/wiki/Special:FilePath/Korail_Jungang_Yeongdong_Gyeongbuk_Line_Yeongju_Station.jpg?width=1200';
 const BUSEOKSA_IMAGE = 'https://commons.wikimedia.org/wiki/Special:FilePath/Muryangsujeon_at_Buseoksa_01.jpg?width=1200';
-const PUNGGI_GINSENG_MARKET_IMAGE = 'https://tong.visitkorea.or.kr/cms/resource/71/132671_image2_1.jpg';
+const PUNGGI_GINSENG_MARKET_IMAGE = 'https://commons.wikimedia.org/wiki/Special:FilePath/Punggi-insam.jpg?width=1200';
 const MUSEOM_VILLAGE_IMAGE = 'https://tong.visitkorea.or.kr/cms/resource/14/1950314_image2_1.jpg';
-const YEONGJU_SOBAEK_FARM_IMAGE = 'https://tong.visitkorea.or.kr/cms/resource/68/2725168_image2_1.jpg';
+const YEONGJU_SOBAEK_FARM_IMAGE = 'https://tong.visitkorea.or.kr/cms/resource/05/2820505_image2_1.jpg';
 
 export const FARMS: Farm[] = [
   {

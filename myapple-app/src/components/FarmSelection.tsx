@@ -130,6 +130,7 @@ export const FarmSelection: React.FC<FarmSelectionProps> = ({
     .filter(farm => (adoptedFarmIds || []).includes(farm.id) && !(storedFarmIds || []).includes(farm.id))
     .map(farm => trees.filter(tree => tree.farmId === farm.id).length)
     .reduce((max, count) => Math.max(max, Math.min(count, 3)), 0);
+  const selectableFarms = FARMS.filter(farm => (adoptedFarmIds || []).includes(farm.id) && !(storedFarmIds || []).includes(farm.id));
 
   const handleFarmSelect = (farm: Farm) => {
     if (!(adoptedFarmIds || []).includes(farm.id)) return;
@@ -256,9 +257,9 @@ export const FarmSelection: React.FC<FarmSelectionProps> = ({
               <div className="relative">
                 <div className="map-container mb-4 overflow-hidden rounded-[2.25rem] border-4 border-white bg-white shadow-[0_14px_34px_rgba(90,62,43,0.12)]">
                   <div className="map-surface relative aspect-square bg-gradient-to-br from-sky-50 via-apple-light-green/50 to-yellow-50">
-                    <div className="pointer-events-none absolute left-3 top-3 z-[80] flex items-center gap-1.5 rounded-full border-2 border-white bg-white/90 px-3 py-1.5 text-[10px] font-black text-apple-red shadow-[0_6px_16px_rgba(90,62,43,0.14)] backdrop-blur">
+                    <div className="pointer-events-none absolute left-3 top-3 z-[80] flex items-center gap-1.5 rounded-full border border-red-100 bg-white/90 px-3 py-1.5 text-[10px] font-black text-apple-red shadow-sm backdrop-blur">
                       <Trees size={12} />
-                      큰 빨간 핀 = 씨앗 심을 농가
+                      빨간 테두리 = 농가
                     </div>
                     <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full">
                       <defs>
@@ -372,46 +373,44 @@ export const FarmSelection: React.FC<FarmSelectionProps> = ({
                       const hasFarmSeed = ownedItems.some(item => item.id === `seed_${farm.id}` && item.count > 0);
                       const canEnterFarm = isUnlocked && !isStored;
                       const farmStatusLabel = isStored ? '보관 중' : !isUnlocked ? '잠김' : hasFarmSeed ? '바로 심기' : '씨앗 구매';
+                      const farmShortcutNumber = selectableFarms.findIndex(item => item.id === farm.id) + 1;
                       const tooltipPlacement = getMapTooltipPlacement(farm.coords.x);
                       return (
                         <motion.button
                           key={farm.id}
-                          whileHover={{ scale: canEnterFarm ? 1.08 : 1.04, y: canEnterFarm ? -4 : -2 }}
+                          whileHover={{ scale: canEnterFarm ? 1.08 : 1.04, y: canEnterFarm ? -2 : -1 }}
                           onClick={() => handleFarmSelect(farm)}
-                          className={cn('group absolute z-50 -translate-x-1/2 -translate-y-full hover:z-[110] focus-visible:z-[110]', (!isUnlocked || isStored) && 'grayscale opacity-80')}
+                          className={cn('group absolute z-40 -translate-x-1/2 -translate-y-1/2 hover:z-[110] focus-visible:z-[110]', (!isUnlocked || isStored) && 'grayscale opacity-70')}
                           style={{ left: `${farm.coords.x}%`, top: `${farm.coords.y}%` }}
                           aria-label={`${farm.name} 선택`}
                         >
                           <div className="relative flex flex-col items-center">
                             {canEnterFarm && (
-                              <span className="pointer-events-none absolute inset-[-8px] rounded-[1.6rem] bg-apple-red/20 opacity-75 motion-safe:animate-ping" />
+                              <span className="pointer-events-none absolute inset-[-5px] rounded-2xl border-2 border-apple-red/25 bg-white/45 shadow-[0_6px_16px_rgba(229,57,53,0.18)]" />
                             )}
                             <span
                               className={cn(
-                                'relative flex items-center justify-center border-[4px] border-white shadow-[0_10px_22px_rgba(90,62,43,0.28)] transition-all group-hover:-translate-y-0.5 group-focus-visible:ring-4 group-focus-visible:ring-apple-red/25',
-                                canEnterFarm && 'h-14 w-14 rounded-[1.35rem] bg-apple-red text-white ring-4 ring-apple-red/25',
-                                isStored && 'h-10 w-10 rounded-full bg-stone-700 text-white ring-2 ring-white/50',
-                                !isUnlocked && 'h-9 w-9 rounded-full bg-stone-500 text-white opacity-75 ring-2 ring-white/40',
+                                'relative flex items-center justify-center border-2 border-white shadow-[0_5px_12px_rgba(90,62,43,0.18)] transition-all group-hover:-translate-y-0.5 group-focus-visible:ring-4 group-focus-visible:ring-apple-red/25',
+                                canEnterFarm && 'h-9 w-9 rounded-2xl bg-white text-apple-red ring-2 ring-apple-red/35',
+                                isStored && 'h-8 w-8 rounded-full bg-stone-700 text-white ring-2 ring-white/50',
+                                !isUnlocked && 'h-7 w-7 rounded-full bg-stone-500 text-white opacity-75 ring-2 ring-white/40',
                               )}
                             >
                               {canEnterFarm && (
-                                <span className="absolute -right-2 -top-2 rounded-full border-2 border-white bg-white px-1.5 py-0.5 text-[9px] font-black text-apple-red shadow-sm">
-                                  농가
+                                <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full border-2 border-white bg-apple-red text-[8px] font-black leading-none text-white shadow-sm">
+                                  {farmShortcutNumber}
                                 </span>
                               )}
                               {isUnlocked ? (
-                                isStored ? <ShoppingBag size={15} /> : <Trees size={canEnterFarm ? 24 : 17} />
+                                isStored ? <ShoppingBag size={13} /> : <Trees size={canEnterFarm ? 17 : 14} />
                               ) : (
-                                <Lock size={15} />
+                                <Lock size={12} />
                               )}
                             </span>
-                            {canEnterFarm && (
-                              <span className="pointer-events-none absolute top-[45px] h-4 w-4 rotate-45 rounded-[4px] border-b-[4px] border-r-[4px] border-white bg-apple-red shadow-[4px_4px_8px_rgba(90,62,43,0.16)]" />
-                            )}
                             <span
                               className={cn(
-                                'pointer-events-none absolute left-1/2 top-full mt-1.5 flex max-w-[92px] -translate-x-1/2 items-center justify-center rounded-full border-2 border-white px-2.5 py-1 text-[10px] font-black shadow-[0_8px_16px_rgba(90,62,43,0.16)] backdrop-blur transition-all',
-                                canEnterFarm ? 'bg-white text-apple-red opacity-100' : 'bg-white/90 text-stone-500 opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100',
+                                'pointer-events-none absolute left-1/2 top-full mt-1 flex max-w-[76px] -translate-x-1/2 items-center justify-center rounded-full border border-white px-2 py-0.5 text-[9px] font-black shadow-sm backdrop-blur transition-all',
+                                canEnterFarm ? 'bg-white/95 text-apple-red opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100' : 'bg-white/90 text-stone-500 opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100',
                               )}
                             >
                               <span className="truncate">{farmStatusLabel}</span>
@@ -427,6 +426,51 @@ export const FarmSelection: React.FC<FarmSelectionProps> = ({
                 </div>
 
                 <MapLegend />
+
+                <section className="mt-3 rounded-[1.5rem] border-2 border-red-100 bg-white p-3 shadow-sm">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-apple-red">Farm Shortcut</p>
+                      <h3 className="text-sm font-black text-stone-800">지금 선택 가능한 농가</h3>
+                    </div>
+                    <span className="rounded-full bg-red-50 px-2.5 py-1 text-[10px] font-black text-apple-red">
+                      {selectableFarms.length}곳
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    {selectableFarms.map((farm) => {
+                      const treesInFarm = trees.filter(tree => tree.farmId === farm.id).length;
+                      const hasFarmSeed = ownedItems.some(item => item.id === `seed_${farm.id}` && item.count > 0);
+                      const farmShortcutNumber = selectableFarms.findIndex(item => item.id === farm.id) + 1;
+                      return (
+                        <button
+                          key={farm.id}
+                          type="button"
+                          onClick={() => handleFarmSelect(farm)}
+                          className="flex w-full items-center justify-between gap-3 rounded-2xl border border-stone-100 bg-stone-50 px-3 py-2.5 text-left transition-all active:scale-[0.99]"
+                        >
+                          <div className="flex min-w-0 items-center gap-2.5">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-red-100 bg-white text-apple-red shadow-sm">
+                              <span className="text-xs font-black">{farmShortcutNumber}</span>
+                            </div>
+                            <div className="min-w-0">
+                              <p className="truncate text-xs font-black text-stone-800">{farm.name}</p>
+                              <p className="mt-0.5 text-[10px] font-bold text-stone-400">
+                                {treesInFarm}/5 나무 · {hasFarmSeed ? '바로 심기 가능' : '씨앗 먼저 구매'}
+                              </p>
+                            </div>
+                          </div>
+                          <span className={cn(
+                            'shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black',
+                            hasFarmSeed ? 'bg-apple-green/10 text-apple-green' : 'bg-yellow-50 text-yellow-700',
+                          )}>
+                            {hasFarmSeed ? '심기' : '상점'}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
               </div>
             ) : (
               <div className="space-y-3">
@@ -654,10 +698,10 @@ const MiniStat = ({ label, value }: { label: string; value: string }) => (
 
 const GameGuide = () => {
   const steps = [
-    { title: '농가 선택', desc: '처음에는 랜덤으로 열린 내 농가 1곳에서 시작해요.', value: '1곳' },
+    { title: '농가 선택', desc: '처음에는 랜덤으로 열린\n내 농가 1곳에서 시작해요.', value: '1곳' },
     { title: '나무 3그루', desc: '한 농가에 나무 3그루를 심으면\n다음 농가가 열려요.', value: '3그루' },
-    { title: '최대 관리', desc: '농가당 나무 5그루, 동시에 활성 농가 3곳까지 관리해요.', value: '5/3' },
-    { title: '수확 배송', desc: '각 나무는 30일 성장 후 수확과 배송 신청으로 이어져요.', value: '30일' },
+    { title: '최대 관리', desc: '농가당 나무 5그루,\n활성 농가 3곳까지 관리해요.', value: '5/3' },
+    { title: '수확 배송', desc: '각 나무는 30일 성장 후\n수확과 배송 신청으로 이어져요.', value: '30일' },
   ];
 
   return (
@@ -680,7 +724,7 @@ const GameGuide = () => {
                 {step.value}
               </span>
             </div>
-            <p className="whitespace-pre-line text-[10px] font-bold leading-relaxed text-warm-gray">{step.desc}</p>
+            <p className="whitespace-pre-line text-[10px] font-bold leading-relaxed text-warm-gray [word-break:keep-all]">{step.desc}</p>
           </div>
         ))}
       </div>

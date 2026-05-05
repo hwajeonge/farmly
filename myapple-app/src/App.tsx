@@ -128,6 +128,12 @@ export default function App() {
 
           fromFirebase.current = true;
           setUser(migProfile);
+          if (migProfile.role === 'general' && migProfile.onboardingSeen === false) {
+            setPreviousTab('tree');
+            setActivitySubTab(null);
+            setProfileRequestedTab(null);
+            setActiveTab('tree');
+          }
           setProfilePending(false);
         } else {
           setProfilePending(true);
@@ -1042,6 +1048,14 @@ export default function App() {
     setUser(prev => prev ? { ...prev, onboardingSeen: true } : prev);
   };
 
+  const handleStartPlantingTutorial = () => {
+    setUser(prev => prev ? { ...prev, onboardingSeen: true } : prev);
+    setPreviousTab('tree');
+    setRequestedSeedFarmId(null);
+    setStoreSeedFarmId(null);
+    setActiveTab('map');
+  };
+
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-stone-50">
@@ -1265,7 +1279,7 @@ export default function App() {
 
       <AnimatePresence>
         {!user.onboardingSeen && (
-          <GameIntroModal onClose={handleCloseGameIntro} />
+          <GameIntroModal onClose={handleCloseGameIntro} onStartPlanting={handleStartPlantingTutorial} />
         )}
       </AnimatePresence>
     </div>

@@ -142,7 +142,8 @@ export const HarvestDeliveryModal: React.FC<HarvestDeliveryModalProps> = ({
                       배송 신청까지 {Math.max(0, nextReward.applesNeeded - accumulatedApples).toLocaleString()}개 남았어요
                     </p>
                     <p className="mt-1 text-[11px] font-bold leading-relaxed text-stone-400">
-                      누적 사과 {nextReward.applesNeeded}개를 달성하면 {nextReward.title}을 신청할 수 있어요.
+                      누적 사과 {nextReward.applesNeeded}개를 달성하면<br />
+                      {nextReward.title}을 신청할 수 있어요.
                     </p>
                   </div>
                 )}
@@ -194,8 +195,8 @@ export const HarvestDeliveryModal: React.FC<HarvestDeliveryModalProps> = ({
                 <div className="rounded-2xl border border-stone-100 bg-stone-50 p-4">
                   <div className="flex gap-2 text-stone-500">
                     <Info size={14} className="mt-0.5 shrink-0" />
-                    <p className="text-[10px] font-medium leading-relaxed">
-                      배송 보상은 누적 사과 기준으로 열려요. 100개 달성 시 1kg, 200개 달성 시 2kg 배송을 신청할 수 있어요.
+                    <p className="whitespace-pre-line text-[10px] font-medium leading-relaxed [word-break:keep-all]">
+                      {'배송 보상은 누적 사과 기준으로 열려요.\n100개 달성 시 1kg, 200개 달성 시 2kg 배송 신청 가능해요.'}
                     </p>
                   </div>
                 </div>

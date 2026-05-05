@@ -39,6 +39,37 @@ interface SmartRecommendation {
   note: string;
 }
 
+const IMAGE_FALLBACKS: Record<string, string[]> = {
+  m1: ['https://commons.wikimedia.org/wiki/Special:FilePath/Korail_Yeongju_Station.JPG?width=1200'],
+  p0: ['https://commons.wikimedia.org/wiki/Special:FilePath/Korail_Yeongju_Station.JPG?width=1200'],
+  m3: ['https://tong.visitkorea.or.kr/cms/resource/71/132671_image2_1.jpg'],
+  p3: ['https://tong.visitkorea.or.kr/cms/resource/71/132671_image2_1.jpg'],
+  m5: [
+    'https://tong.visitkorea.or.kr/cms/resource/06/2820506_image2_1.jpg',
+    'https://tong.visitkorea.or.kr/cms/resource/67/2725167_image2_1.jpg',
+    'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?auto=format&fit=crop&w=1200&q=80'
+  ],
+  p11: [
+    'https://tong.visitkorea.or.kr/cms/resource/06/2820506_image2_1.jpg',
+    'https://tong.visitkorea.or.kr/cms/resource/67/2725167_image2_1.jpg',
+    'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?auto=format&fit=crop&w=1200&q=80'
+  ]
+};
+
+const applyImageFallback = (event: React.SyntheticEvent<HTMLImageElement>, key?: string) => {
+  if (!key) return;
+
+  const image = event.currentTarget;
+  const fallbacks = IMAGE_FALLBACKS[key] || [];
+  const fallbackIndex = Number(image.dataset.fallbackIndex || '0');
+  const nextImage = fallbacks[fallbackIndex];
+
+  if (!nextImage) return;
+
+  image.dataset.fallbackIndex = String(fallbackIndex + 1);
+  image.src = nextImage;
+};
+
 const LUNCH_START = 11 * 60 + 20;
 const LUNCH_END = 13 * 60 + 30;
 const DINNER_START = 17 * 60 + 30;
@@ -510,7 +541,13 @@ export const MissionsView: React.FC<MissionsViewProps> = ({
             return (
               <div key={mission.id} className="farm-card overflow-hidden">
                 <div className="relative h-40">
-                  <img src={mission.img} alt={mission.title} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  <img
+                    src={mission.img}
+                    alt={mission.title}
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                    onError={(event) => applyImageFallback(event, mission.id)}
+                  />
                   <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-black shadow-sm">
                     {mission.type}
                   </div>
@@ -620,7 +657,13 @@ export const MissionsView: React.FC<MissionsViewProps> = ({
                                 className="w-full bg-white p-3 rounded-2xl shadow-sm border border-stone-100 flex items-center gap-3 group cursor-pointer hover:border-apple-red/20 transition-all text-left active:scale-[0.99]"
                               >
                                 <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0">
-                                  <img src={rec.image} className="w-full h-full object-cover" alt={rec.name} referrerPolicy="no-referrer" />
+                                  <img
+                                    src={rec.image}
+                                    className="w-full h-full object-cover"
+                                    alt={rec.name}
+                                    referrerPolicy="no-referrer"
+                                    onError={(event) => applyImageFallback(event, rec.id)}
+                                  />
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-1.5 mb-0.5">
@@ -714,7 +757,13 @@ export const MissionsView: React.FC<MissionsViewProps> = ({
 
                   {place && (
                     <div className="mb-4 overflow-hidden rounded-[1.75rem] border-2 border-stone-100 bg-stone-50">
-                      <img src={place.image} alt={place.name} className="h-28 w-full object-cover" referrerPolicy="no-referrer" />
+                      <img
+                        src={place.image}
+                        alt={place.name}
+                        className="h-28 w-full object-cover"
+                        referrerPolicy="no-referrer"
+                        onError={(event) => applyImageFallback(event, place.id)}
+                      />
                       <div className="p-4">
                         <div className="mb-2 flex items-center justify-between gap-2">
                           <h4 className="text-base font-black text-stone-800">{place.name}</h4>
