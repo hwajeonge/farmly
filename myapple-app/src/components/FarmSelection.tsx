@@ -74,20 +74,20 @@ const MAP_PLACES = PLACES.filter(place => PLACE_MARKER_IDS.includes(place.id));
 const getPlaceMarkerIcon = (kind: PlaceMarkerKind) => {
   switch (kind) {
     case 'station':
-      return <TrainFront size={15} />;
+      return <TrainFront size={13} />;
     case 'temple':
     case 'heritage':
-      return <Landmark size={15} />;
+      return <Landmark size={13} />;
     case 'market':
-      return <StoreIcon size={15} />;
+      return <StoreIcon size={13} />;
     case 'village':
-      return <House size={15} />;
+      return <House size={13} />;
     case 'food':
-      return <Utensils size={15} />;
+      return <Utensils size={13} />;
     case 'cafe':
-      return <Coffee size={15} />;
+      return <Coffee size={13} />;
     default:
-      return <Sprout size={15} />;
+      return <Sprout size={13} />;
   }
 };
 
@@ -101,6 +101,11 @@ const getShortPlaceDescription = (place: Place) => {
   if (place.description.length <= 42) return place.description;
   return `${place.description.slice(0, 42)}...`;
 };
+
+const getMapTooltipPlacement = (x: number) =>
+  x > 50
+    ? 'right-full top-1/2 mr-2 translate-x-1 -translate-y-1/2 group-hover:translate-x-0 group-focus-visible:translate-x-0'
+    : 'left-full top-1/2 ml-2 -translate-x-1 -translate-y-1/2 group-hover:translate-x-0 group-focus-visible:translate-x-0';
 
 export const FarmSelection: React.FC<FarmSelectionProps> = ({
   onAdopt,
@@ -259,8 +264,13 @@ export const FarmSelection: React.FC<FarmSelectionProps> = ({
 
             {viewMode === 'map' ? (
               <div className="relative">
-                <div className="map-container mb-4 overflow-hidden rounded-[2.5rem] border-4 border-white shadow-xl">
-                  <div className="map-surface relative aspect-square bg-stone-100/50">
+                <div className="map-container mb-4 overflow-hidden rounded-[2.25rem] border-4 border-white bg-white shadow-[0_14px_34px_rgba(90,62,43,0.12)]">
+                  <div className="map-surface relative aspect-square bg-gradient-to-br from-sky-50 via-apple-light-green/50 to-yellow-50">
+                    <div className="pointer-events-none absolute left-4 top-4 z-10 flex gap-1.5">
+                      <span className="h-2.5 w-2.5 rounded-full bg-apple-red/60 shadow-sm" />
+                      <span className="h-2.5 w-2.5 rounded-full bg-yeoju-gold/70 shadow-sm" />
+                      <span className="h-2.5 w-2.5 rounded-full bg-apple-green/60 shadow-sm" />
+                    </div>
                     <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full">
                       <defs>
                         <linearGradient id="yeongju-map-fill" x1="15" y1="10" x2="86" y2="94" gradientUnits="userSpaceOnUse">
@@ -339,9 +349,7 @@ export const FarmSelection: React.FC<FarmSelectionProps> = ({
 
                     {MAP_PLACES.map((place) => {
                       const marker = PLACE_MARKERS[place.id];
-                      const tooltipPlacement = marker.y > 68
-                        ? 'bottom-full mb-2 -translate-y-1 group-hover:translate-y-0 group-focus-visible:translate-y-0'
-                        : 'top-full mt-2 translate-y-1 group-hover:translate-y-0 group-focus-visible:translate-y-0';
+                      const tooltipPlacement = getMapTooltipPlacement(marker.x);
                       return (
                         <button
                           key={place.id}
@@ -353,15 +361,15 @@ export const FarmSelection: React.FC<FarmSelectionProps> = ({
                         >
                           <span
                             className={cn(
-                              'flex h-8 w-8 items-center justify-center rounded-full border-2 bg-white shadow-[0_5px_14px_rgba(0,0,0,0.16)] transition-all group-hover:-translate-y-1 group-hover:scale-110 group-focus-visible:-translate-y-1 group-focus-visible:scale-110',
+                              'flex h-7 w-7 items-center justify-center rounded-full border-2 bg-white shadow-[0_4px_10px_rgba(0,0,0,0.14)] ring-2 ring-white/60 transition-all group-hover:-translate-y-0.5 group-hover:scale-110 group-focus-visible:-translate-y-0.5 group-focus-visible:scale-110',
                               getPlaceMarkerTone(place),
                             )}
                           >
                             {getPlaceMarkerIcon(marker.kind)}
                           </span>
-                          <span className={cn('pointer-events-none absolute left-1/2 z-40 w-44 -translate-x-1/2 rounded-2xl border-2 border-white bg-stone-900/95 px-3 py-2 text-left opacity-0 shadow-xl transition-all group-hover:opacity-100 group-focus-visible:opacity-100', tooltipPlacement)}>
-                            <span className="block text-[11px] font-black text-white">{place.name}</span>
-                            <span className="mt-1 block text-[10px] font-bold leading-relaxed text-white/75">
+                          <span className={cn('pointer-events-none absolute z-40 w-40 rounded-[1.15rem] border-2 border-white bg-white/95 px-3 py-2 text-left opacity-0 shadow-[0_10px_22px_rgba(90,62,43,0.18)] backdrop-blur transition-all group-hover:opacity-100 group-focus-visible:opacity-100', tooltipPlacement)}>
+                            <span className="block text-[11px] font-black text-stone-800">{place.name}</span>
+                            <span className="mt-1 block text-[10px] font-bold leading-relaxed text-stone-500">
                               {getShortPlaceDescription(place)}
                             </span>
                           </span>
@@ -372,9 +380,7 @@ export const FarmSelection: React.FC<FarmSelectionProps> = ({
                     {FARMS.map((farm) => {
                       const isUnlocked = (adoptedFarmIds || []).includes(farm.id);
                       const isStored = (storedFarmIds || []).includes(farm.id);
-                      const tooltipPlacement = farm.coords.y > 68
-                        ? 'bottom-full mb-2 -translate-y-1 group-hover:translate-y-0 group-focus-visible:translate-y-0'
-                        : 'top-full mt-2 translate-y-1 group-hover:translate-y-0 group-focus-visible:translate-y-0';
+                      const tooltipPlacement = getMapTooltipPlacement(farm.coords.x);
                       return (
                         <motion.button
                           key={farm.id}
@@ -387,19 +393,19 @@ export const FarmSelection: React.FC<FarmSelectionProps> = ({
                           <div className="relative flex flex-col items-center">
                             <span
                               className={cn(
-                                'flex h-11 w-11 items-center justify-center rounded-full border-[3px] border-white shadow-[0_6px_16px_rgba(0,0,0,0.22)] transition-all group-focus-visible:ring-4 group-focus-visible:ring-apple-red/25',
+                                'flex h-9 w-9 items-center justify-center rounded-full border-[3px] border-white shadow-[0_5px_12px_rgba(0,0,0,0.2)] ring-2 ring-white/45 transition-all group-hover:-translate-y-0.5 group-focus-visible:ring-4 group-focus-visible:ring-apple-red/25',
                                 isUnlocked && !isStored && 'bg-apple-red text-white',
                                 isStored && 'bg-stone-700 text-white',
                                 !isUnlocked && 'bg-stone-500 text-white opacity-75',
                               )}
                             >
                               {isUnlocked ? (
-                                isStored ? <ShoppingBag size={18} /> : <Trees size={20} />
+                                isStored ? <ShoppingBag size={15} /> : <Trees size={17} />
                               ) : (
-                                <Lock size={18} />
+                                <Lock size={15} />
                               )}
                             </span>
-                            <span className={cn('pointer-events-none absolute left-1/2 z-40 w-max -translate-x-1/2 rounded-2xl border-2 border-white bg-stone-900/95 px-3 py-1.5 text-[11px] font-black text-white opacity-0 shadow-xl transition-all group-hover:opacity-100 group-focus-visible:opacity-100', tooltipPlacement)}>
+                            <span className={cn('pointer-events-none absolute z-40 w-max rounded-[1.1rem] border-2 border-white bg-white/95 px-3 py-1.5 text-[11px] font-black text-stone-800 opacity-0 shadow-[0_10px_22px_rgba(90,62,43,0.18)] backdrop-blur transition-all group-hover:opacity-100 group-focus-visible:opacity-100', tooltipPlacement)}>
                               {farm.name}
                             </span>
                           </div>
