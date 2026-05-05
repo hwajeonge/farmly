@@ -11,7 +11,7 @@ import { CatchAppleGame } from './CatchAppleGame';
 import { FindGinsengGame } from './FindGinsengGame';
 import { BugDefenseGame } from './BugDefenseGame';
 import { VISIT_MISSIONS, PLACES } from '../constants';
-import { VisitMission, MissionStatus } from '../types';
+import { Course, CourseItem, MissionReview, Place, VisitMission, MissionStatus } from '../types';
 
 interface MissionsViewProps {
   onAddPoints: (points: number) => void;
@@ -20,7 +20,205 @@ interface MissionsViewProps {
   onRestoreLife: (amount?: number) => void;
   missionProgress: Record<string, MissionStatus>;
   onUpdateProgress: (missionId: string, status: MissionStatus) => void;
+  missionReviews?: MissionReview[];
+  onSaveMissionReview?: (review: MissionReview) => void;
+  weather?: string;
+  activeCourse?: Course | null;
+  favoritePlaceIds?: string[];
+  onAIAction?: (name: string, args: any) => void;
+  onNavigate?: (tab: string, subTab?: string) => void;
 }
+
+type RecommendationReason = 'lunch' | 'dinner' | 'cafe' | 'nearby';
+
+interface SmartRecommendation {
+  place: Place;
+  arrivalMinutes: number;
+  distanceKm: number;
+  reason: RecommendationReason;
+  note: string;
+}
+
+const LUNCH_START = 11 * 60 + 20;
+const LUNCH_END = 13 * 60 + 30;
+const DINNER_START = 17 * 60 + 30;
+const DINNER_END = 19 * 60 + 30;
+
+const parseTimeToMinutes = (time?: string) => {
+  const match = time?.match(/(\d{1,2}):(\d{2})/);
+  if (!match) return null;
+  return Number(match[1]) * 60 + Number(match[2]);
+};
+
+const formatMinutes = (minutes: number) => {
+  const normalized = Math.max(0, Math.min(23 * 60 + 59, Math.round(minutes)));
+  const hours = Math.floor(normalized / 60);
+  const mins = normalized % 60;
+  return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+};
+
+const formatKoreanTime = (minutes: number) => {
+  const normalized = Math.max(0, Math.min(23 * 60 + 59, Math.round(minutes)));
+  const hours = Math.floor(normalized / 60);
+  const mins = normalized % 60;
+  const period = hours < 12 ? '오전' : '오후';
+  const displayHour = hours % 12 === 0 ? 12 : hours % 12;
+  return `${period} ${displayHour}:${String(mins).padStart(2, '0')}`;
+};
+
+const roundToNextTen = (minutes: number) => Math.ceil(minutes / 10) * 10;
+
+const getDistanceKm = (a: Place, b: Place) => {
+  const earthRadiusKm = 6371;
+  const toRad = (value: number) => (value * Math.PI) / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return earthRadiusKm * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+};
+
+const estimateTravelMinutes = (from?: Place, to?: Place) => {
+  if (!from || !to) return 20;
+  const distance = getDistanceKm(from, to);
+  return Math.max(12, Math.min(55, Math.round(distance * 4 + 10)));
+};
+
+const getOperatingWindow = (place: Place) => {
+  if (place.operatingHours.includes('24시간') || place.operatingHours.includes('상시')) return null;
+  const matches = [...place.operatingHours.matchAll(/(\d{1,2}):(\d{2})/g)];
+  if (matches.length < 2) return null;
+  const start = Number(matches[0][1]) * 60 + Number(matches[0][2]);
+  const end = Number(matches[1][1]) * 60 + Number(matches[1][2]);
+  return { start, end };
+};
+
+const adjustForOperatingHours = (place: Place, minutes: number) => {
+  const window = getOperatingWindow(place);
+  if (!window) return roundToNextTen(minutes);
+  const minArrival = window.start + 10;
+  const latestArrival = window.end - Math.min(place.estimatedStayTime, 60);
+  if (minutes < minArrival) return roundToNextTen(minArrival);
+  if (minutes > latestArrival) return null;
+  return roundToNextTen(minutes);
+};
+
+const getPreferredReason = (minutes: number): RecommendationReason => {
+  if (minutes >= LUNCH_START && minutes <= LUNCH_END) return 'lunch';
+  if (minutes >= DINNER_START && minutes <= DINNER_END) return 'dinner';
+  if (minutes >= 13 * 60 + 30 && minutes <= 17 * 60 + 20) return 'cafe';
+  return 'nearby';
+};
+
+const getReasonLabel = (reason: RecommendationReason) => {
+  if (reason === 'lunch') return '점심 식사';
+  if (reason === 'dinner') return '저녁 식사';
+  if (reason === 'cafe') return '카페 휴식';
+  return '가까운 동선';
+};
+
+const getReasonNote = (reason: RecommendationReason, place: Place, arrivalMinutes: number) => {
+  const time = formatKoreanTime(arrivalMinutes);
+  if (reason === 'lunch') return `${time} 도착 기준 점심 식사 장소로 좋아요.`;
+  if (reason === 'dinner') return `${time} 도착 기준 저녁 식사 장소로 좋아요.`;
+  if (reason === 'cafe') return `${time}쯤 쉬어가기 좋은 카페 동선이에요.`;
+  return `${time} 운영시간 안에 들르기 좋은 가까운 장소예요.`;
+};
+
+const getCategoryScore = (place: Place, reason: RecommendationReason) => {
+  if ((reason === 'lunch' || reason === 'dinner') && place.category === '맛집') return 80;
+  if (reason === 'cafe' && place.category === '카페') return 80;
+  if (reason === 'nearby' && place.category === '관광지') return 35;
+  if (reason === 'nearby' && place.category === '카페') return 25;
+  return 0;
+};
+
+const getAnchorMinutes = (currentPlace: Place, activeCourse?: Course | null) => {
+  const courseItem = activeCourse?.items.find(item => item.placeId === currentPlace.id);
+  const courseTime = parseTimeToMinutes(courseItem?.estimatedArrival);
+  if (courseTime != null) return courseTime + currentPlace.estimatedStayTime;
+
+  const timedItems = activeCourse?.items
+    .map(item => {
+      const place = PLACES.find(candidate => candidate.id === item.placeId);
+      const minutes = parseTimeToMinutes(item.estimatedArrival);
+      return place && minutes != null ? minutes + place.estimatedStayTime : null;
+    })
+    .filter((value): value is number => value != null);
+
+  if (timedItems && timedItems.length > 0) return Math.max(...timedItems);
+
+  const now = new Date();
+  return now.getHours() * 60 + now.getMinutes();
+};
+
+const buildSmartRecommendations = (
+  currentPlace: Place,
+  activeCourse?: Course | null,
+  favoritePlaceIds: string[] = [],
+): SmartRecommendation[] => {
+  const coursePlaceIds = new Set(activeCourse?.items.map(item => item.placeId) ?? []);
+  const favoriteSet = new Set(favoritePlaceIds);
+  const anchorMinutes = getAnchorMinutes(currentPlace, activeCourse);
+  const reason = getPreferredReason(anchorMinutes);
+
+  const candidates = PLACES
+    .filter(place => place.id !== currentPlace.id)
+    .filter(place => place.category !== '숙소' && place.category !== '농가')
+    .filter(place => !coursePlaceIds.has(place.id))
+    .map(place => {
+      const distanceKm = getDistanceKm(currentPlace, place);
+      const rawArrival = anchorMinutes + estimateTravelMinutes(currentPlace, place);
+      const arrivalMinutes = adjustForOperatingHours(place, rawArrival);
+      if (arrivalMinutes == null) return null;
+
+      const score =
+        getCategoryScore(place, reason) +
+        (favoriteSet.has(place.id) ? 16 : 0) +
+        Math.max(0, 30 - distanceKm * 2) +
+        (place.category === '카페' && reason !== 'nearby' ? 8 : 0);
+
+      return {
+        place,
+        arrivalMinutes,
+        distanceKm,
+        reason,
+        note: getReasonNote(reason, place, arrivalMinutes),
+        score,
+      };
+    })
+    .filter((item): item is SmartRecommendation & { score: number } => item != null)
+    .sort((a, b) => b.score - a.score);
+
+  return candidates.slice(0, 2);
+};
+
+const scheduleCourseItems = (items: CourseItem[]) => {
+  const ordered = [...items].sort((a, b) => a.order - b.order);
+  const firstTime = parseTimeToMinutes(ordered[0]?.estimatedArrival) ?? 10 * 60;
+  let cursor = firstTime;
+
+  return ordered.map((item, index) => {
+    const place = PLACES.find(candidate => candidate.id === item.placeId);
+    const previous = index > 0 ? PLACES.find(candidate => candidate.id === ordered[index - 1].placeId) : null;
+
+    if (index === 0) {
+      const adjusted = place ? adjustForOperatingHours(place, cursor) ?? cursor : cursor;
+      cursor = adjusted;
+      return { ...item, order: index, estimatedArrival: formatMinutes(adjusted) };
+    }
+
+    const previousPlace = previous ?? undefined;
+    const currentPlace = place ?? undefined;
+    cursor += (previous?.estimatedStayTime ?? 45) + estimateTravelMinutes(previousPlace, currentPlace);
+    const adjusted = place ? adjustForOperatingHours(place, cursor) ?? cursor : cursor;
+    cursor = adjusted;
+    return { ...item, order: index, estimatedArrival: formatMinutes(adjusted) };
+  });
+};
 
 export const MissionsView: React.FC<MissionsViewProps> = ({ 
   onAddPoints, 
@@ -28,7 +226,14 @@ export const MissionsView: React.FC<MissionsViewProps> = ({
   onDeductLife, 
   onRestoreLife,
   missionProgress,
-  onUpdateProgress
+  onUpdateProgress,
+  missionReviews = [],
+  onSaveMissionReview,
+  weather = '맑음',
+  activeCourse,
+  favoritePlaceIds = [],
+  onAIAction,
+  onNavigate,
 }) => {
   const [showCatchGame, setShowCatchGame] = useState(false);
   const [showGinsengGame, setShowGinsengGame] = useState(false);
@@ -111,6 +316,9 @@ export const MissionsView: React.FC<MissionsViewProps> = ({
       setSelectedMission(mission);
       setShowPhotoPopup(true);
     } else if (currentStatus === 'action') {
+      const savedReview = missionReviews.find(item => item.missionId === mission.id);
+      setReview(savedReview?.content ?? '');
+      setRating(savedReview?.rating ?? 0);
       setSelectedMission(mission);
       setShowReviewPopup(true);
     }
@@ -130,6 +338,8 @@ export const MissionsView: React.FC<MissionsViewProps> = ({
       if (!didClaim) return;
       setShowPhotoPopup(false);
       setUploadedPhoto(null);
+      setReview('');
+      setRating(0);
       // Automatically open review popup after photo
       setShowReviewPopup(true);
     }
@@ -137,8 +347,27 @@ export const MissionsView: React.FC<MissionsViewProps> = ({
 
   const handleReviewSubmit = () => {
     if (selectedMission) {
+      if (rating === 0 && !review.trim()) {
+        showAlert('별점이나 후기 내용을 입력해주세요.\n작성한 후기는 마이페이지에서 다시 볼 수 있어요.', '📝', 'warning');
+        return;
+      }
       const didClaim = claimStageReward(selectedMission, 'review', 'completed', 'action');
       if (!didClaim) return;
+      const place = PLACES.find(item => item.id === selectedMission.placeId);
+      const savedReview = missionReviews.find(item => item.missionId === selectedMission.id);
+      const now = new Date().toISOString();
+
+      onSaveMissionReview?.({
+        id: savedReview?.id ?? `${selectedMission.id}_${Date.now()}`,
+        missionId: selectedMission.id,
+        placeId: selectedMission.placeId,
+        missionTitle: selectedMission.title,
+        placeName: place?.name ?? selectedMission.title,
+        rating,
+        content: review.trim(),
+        createdAt: savedReview?.createdAt ?? now,
+        updatedAt: now,
+      });
       setShowReviewPopup(false);
       setReview('');
       setRating(0);
@@ -146,10 +375,61 @@ export const MissionsView: React.FC<MissionsViewProps> = ({
     }
   };
 
+  const handleAddRecommendedPlace = (
+    currentPlace: Place,
+    recommendation: SmartRecommendation,
+  ) => {
+    const recommendationItem: CourseItem = {
+      placeId: recommendation.place.id,
+      order: activeCourse?.items.length ?? 1,
+      estimatedArrival: formatMinutes(recommendation.arrivalMinutes),
+      status: 'none',
+      memo: `${getReasonLabel(recommendation.reason)} 추천 · ${recommendation.distanceKm.toFixed(1)}km · ${recommendation.note}`,
+    };
+
+    if (activeCourse) {
+      const currentIndex = activeCourse.items.findIndex(item => item.placeId === currentPlace.id);
+      const insertIndex = currentIndex === -1 ? activeCourse.items.length : currentIndex + 1;
+      const withoutDuplicate = activeCourse.items.filter(item => item.placeId !== recommendation.place.id);
+      const nextItems = [
+        ...withoutDuplicate.slice(0, insertIndex),
+        recommendationItem,
+        ...withoutDuplicate.slice(insertIndex),
+      ].map((item, index) => ({ ...item, order: index }));
+
+      onAIAction?.('manage_travel_course', {
+        action: 'update',
+        items: scheduleCourseItems(nextItems),
+      });
+    } else {
+      onAIAction?.('manage_travel_course', {
+        action: 'create',
+        courseName: '영주 추천 방문 코스',
+        items: scheduleCourseItems([
+          {
+            placeId: currentPlace.id,
+            order: 0,
+            estimatedArrival: formatMinutes(Math.max(10 * 60, recommendation.arrivalMinutes - currentPlace.estimatedStayTime - estimateTravelMinutes(currentPlace, recommendation.place))),
+            status: 'completed',
+            memo: '완료한 방문 미션 장소',
+          },
+          recommendationItem,
+        ]),
+      });
+    }
+
+    showAlert(
+      `${recommendation.place.name}을 코스에 추가했어요.\n${recommendation.note}\n동선에 맞춰 방문 시간도 다시 정리했어요.`,
+      '🗺️',
+      'success',
+    );
+    onNavigate?.('activity', 'course');
+  };
+
   const games = [
     { id: 'catch', title: '사과 받기', icon: '🍎', reward: '최대 200P', desc: '떨어지는 사과를 바구니에 담으세요!' },
-    { id: 'ginseng', title: '인삼 찾기', icon: '✨', reward: '최대 300P', desc: '돌을 피해 인삼을 모두 찾으세요!' },
-    { id: 'bug', title: '벌레 퇴치', icon: '🐛', reward: '최대 250P', desc: '사과나무를 갉아먹는 벌레를 막으세요!' },
+    { id: 'ginseng', title: '인삼 찾기', icon: '✨', reward: '최대 250P', desc: '돌을 피해 인삼을 모두 찾으세요!' },
+    { id: 'bug', title: '벌레 퇴치', icon: '🐛', reward: '최대 300P', desc: '사과나무를 갉아먹는 벌레를 막으세요!' },
   ];
 
   return (
@@ -163,7 +443,7 @@ export const MissionsView: React.FC<MissionsViewProps> = ({
           </h3>
           <div className="flex items-center gap-1.5 bg-apple-red/10 px-3 py-1 rounded-full">
             <Heart size={10} fill="#ef4444" className="text-apple-red" />
-            <span className="text-[10px] font-black text-apple-red">{lives} / 10</span>
+            <span className="text-[10px] font-black text-apple-red">{lives} / 5</span>
           </div>
         </div>
         <div className="grid grid-cols-1 gap-3">
@@ -323,39 +603,44 @@ export const MissionsView: React.FC<MissionsViewProps> = ({
                           <Sparkles size={12} className="text-yeoju-gold" /> 이런 곳은 어때요?
                         </p>
                         <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-black text-blue-400 bg-blue-50 px-2 py-0.5 rounded-md">맑음</span>
-                          <span className="text-[10px] font-black text-stone-400 bg-stone-100 px-2 py-0.5 rounded-md">오후 6시</span>
+                          <span className="text-[10px] font-black text-blue-400 bg-blue-50 px-2 py-0.5 rounded-md">{weather}</span>
+                          <span className="text-[10px] font-black text-stone-400 bg-stone-100 px-2 py-0.5 rounded-md">동선 최적화</span>
                         </div>
                       </div>
                       
                       <div className="space-y-3">
-                        {PLACES
-                          .filter(p => p.id !== place.id && p.category !== '숙소')
-                          .slice(0, 2)
-                          .map((rec, idx) => {
-                            // Simple distance simulation (in real app, use Haversine formula)
-                            const dist = (Math.random() * 5 + 1).toFixed(1);
+                        {buildSmartRecommendations(place, activeCourse, favoritePlaceIds)
+                          .map((recommendation) => {
+                            const rec = recommendation.place;
                             return (
-                              <div key={rec.id} className="bg-white p-3 rounded-2xl shadow-sm border border-stone-100 flex items-center gap-3 group cursor-pointer hover:border-apple-red/20 transition-all">
+                              <button
+                                key={rec.id}
+                                type="button"
+                                onClick={() => handleAddRecommendedPlace(place, recommendation)}
+                                className="w-full bg-white p-3 rounded-2xl shadow-sm border border-stone-100 flex items-center gap-3 group cursor-pointer hover:border-apple-red/20 transition-all text-left active:scale-[0.99]"
+                              >
                                 <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0">
                                   <img src={rec.image} className="w-full h-full object-cover" alt={rec.name} referrerPolicy="no-referrer" />
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-1.5 mb-0.5">
                                     <span className="text-[9px] font-black text-apple-red px-1.5 py-0.5 bg-apple-red/5 rounded-md">
-                                      {rec.category === '맛집' ? '맛집' : rec.category === '카페' ? '카페' : '명소'}
+                                      {getReasonLabel(recommendation.reason)}
                                     </span>
                                     <h5 className="text-xs font-black truncate">{rec.name}</h5>
                                   </div>
                                   <p className="text-[10px] text-stone-400 font-bold mb-1 flex items-center gap-1">
-                                    <MapPin size={10} /> {dist}km • {rec.relatedSpecialty}
+                                    <MapPin size={10} /> {recommendation.distanceKm.toFixed(1)}km • {formatKoreanTime(recommendation.arrivalMinutes)} 도착
+                                  </p>
+                                  <p className="mb-1 line-clamp-2 text-[9px] font-bold leading-relaxed text-stone-400">
+                                    {recommendation.note} 운영 {rec.operatingHours}
                                   </p>
                                   <div className="flex items-center gap-1 text-[9px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md w-fit">
-                                    <Sparkles size={8} /> 추천 코스 이동 시 500P 추가 보너스!
+                                    <Plus size={8} /> 누르면 코스에 추가하고 시간 재정렬
                                   </div>
                                 </div>
                                 <ChevronRight size={16} className="text-stone-300 group-hover:text-apple-red transition-colors" />
-                              </div>
+                              </button>
                             );
                           })}
                       </div>

@@ -71,6 +71,7 @@ export const authService = {
       onboardingSeen: false,
       courses: [],
       visitedHistory: [],
+      missionReviews: [],
       favoritePlaceIds: [],
     };
     await setDoc(doc(db, 'users', user.uid), profile);

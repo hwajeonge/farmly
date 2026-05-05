@@ -148,7 +148,7 @@ export const PLACES: Place[] = [
     isIndoor: true,
     relatedSpecialty: '여행 출발',
     estimatedStayTime: 20,
-    image: 'https://picsum.photos/seed/yeongju-station/800/600',
+    image: 'https://loremflickr.com/900/650/train,station?lock=1101',
     address: '경상북도 영주시 선비로 64',
     parking: '역 주변 주차장 이용'
   },
@@ -165,7 +165,7 @@ export const PLACES: Place[] = [
     isIndoor: false,
     relatedSpecialty: '사과',
     estimatedStayTime: 120,
-    image: 'https://picsum.photos/seed/buseoksa/800/600',
+    image: 'https://loremflickr.com/900/650/korea,temple?lock=1102',
     address: '경상북도 영주시 부석면 부석사로 435',
     parking: '전용 주차장 완비 (대형 가능)'
   },
@@ -182,7 +182,7 @@ export const PLACES: Place[] = [
     isIndoor: false,
     relatedSpecialty: '선비문화',
     estimatedStayTime: 90,
-    image: 'https://picsum.photos/seed/sosuseowon/800/600',
+    image: 'https://loremflickr.com/900/650/korea,heritage?lock=1103',
     address: '경상북도 영주시 순흥면 내죽리 151',
     parking: '공용 주차장 이용 가능'
   },
@@ -199,7 +199,7 @@ export const PLACES: Place[] = [
     isIndoor: true,
     relatedSpecialty: '인삼',
     estimatedStayTime: 60,
-    image: 'https://picsum.photos/seed/ginsengmarket/800/600',
+    image: 'https://loremflickr.com/900/650/korea,market?lock=1104',
     address: '경상북도 영주시 풍기읍 인삼로 8',
     parking: '시장 전용 주차장 및 인근 공영 주차장'
   },
@@ -216,7 +216,7 @@ export const PLACES: Place[] = [
     isIndoor: false,
     relatedSpecialty: '한옥체험',
     estimatedStayTime: 120,
-    image: 'https://picsum.photos/seed/museom/800/600',
+    image: 'https://loremflickr.com/900/650/korea,village?lock=1105',
     address: '경상북도 영주시 문수면 무섬로 238-2',
     parking: '마을 입구 관광객 전용 주차장'
   },
@@ -233,7 +233,7 @@ export const PLACES: Place[] = [
     isIndoor: true,
     relatedSpecialty: '생강',
     estimatedStayTime: 30,
-    image: 'https://picsum.photos/seed/donuts/800/600',
+    image: 'https://loremflickr.com/900/650/donut,cafe?lock=1106',
     address: '경상북도 영주시 풍기읍 동양대로 6-1',
     parking: '매장 앞 및 인근 도로변 주차 가능'
   },
@@ -250,7 +250,7 @@ export const PLACES: Place[] = [
     isIndoor: true,
     relatedSpecialty: '쫄면',
     estimatedStayTime: 40,
-    image: 'https://picsum.photos/seed/nadri/800/600',
+    image: 'https://loremflickr.com/900/650/korean,food?lock=1107',
     address: '경상북도 영주시 중앙로 89',
     parking: '영주 시내 공영 주차장 이용'
   },
@@ -267,7 +267,7 @@ export const PLACES: Place[] = [
     isIndoor: true,
     relatedSpecialty: '영주한우',
     estimatedStayTime: 90,
-    image: 'https://picsum.photos/seed/hanwoo/800/600',
+    image: 'https://loremflickr.com/900/650/korean,beef?lock=1108',
     address: '경상북도 영주시 가흥로 2',
     parking: '자체 대형 주차장 완비'
   },
@@ -284,7 +284,7 @@ export const PLACES: Place[] = [
     isIndoor: true,
     relatedSpecialty: '비빔밥',
     estimatedStayTime: 60,
-    image: 'https://picsum.photos/seed/jongga/800/600',
+    image: 'https://loremflickr.com/900/650/korean,meal?lock=1109',
     address: '경상북도 영주시 순흥면 소백로 2796',
     parking: '선비촌 공용 주차장 이용'
   },
@@ -301,7 +301,7 @@ export const PLACES: Place[] = [
     isIndoor: true,
     relatedSpecialty: '사과주스',
     estimatedStayTime: 50,
-    image: 'https://picsum.photos/seed/applecafe/800/600',
+    image: 'https://loremflickr.com/900/650/apple,cafe?lock=1110',
     address: '경상북도 영주시 부석면 부석사로 312',
     parking: '카페 앞 전용 주차 공간'
   },
@@ -318,7 +318,7 @@ export const PLACES: Place[] = [
     isIndoor: true,
     relatedSpecialty: '쫄면',
     estimatedStayTime: 40,
-    image: 'https://picsum.photos/seed/joongang/800/600',
+    image: 'https://loremflickr.com/900/650/noodles,korean?lock=1111',
     address: '경상북도 영주시 중앙로 123-1',
     parking: '영주 시내 공영 주차장 이용'
   },
@@ -335,7 +335,7 @@ export const PLACES: Place[] = [
     isIndoor: false,
     relatedSpecialty: '사과',
     estimatedStayTime: 120,
-    image: 'https://picsum.photos/seed/yeongju-sobaekfarm-place/800/600',
+    image: 'https://loremflickr.com/900/650/apple,orchard?lock=1112',
     address: '경상북도 영주시 의상로116번길 43',
     parking: '농장 주차 가능'
   },
@@ -352,7 +352,7 @@ export const PLACES: Place[] = [
     isIndoor: false,
     relatedSpecialty: '선비문화',
     estimatedStayTime: 90,
-    image: 'https://picsum.photos/seed/seonbichon/800/600',
+    image: 'https://loremflickr.com/900/650/korea,traditional?lock=1113',
     address: '경상북도 영주시 순흥면 소백로 2796',
     parking: '선비촌 공용 주차장 이용'
   }
@@ -365,7 +365,7 @@ export const VISIT_MISSIONS: VisitMission[] = [
     placeId: 'p0',
     type: '탐험형',
     description: '영주 여행의 시작! 영주역에 도착했음을 알려주세요.',
-    img: 'https://picsum.photos/seed/station/400/300',
+    img: 'https://loremflickr.com/900/650/train,station?lock=2101',
     stages: [
       { id: 'prepare', label: '여행 전', task: '관광 정책 확인 및 안내소 위치 파악', reward: 100, icon: '📋' },
       { id: 'arrival', label: '여행 시작', task: '영주역 도착 (GPS 체크인)', reward: 400, icon: '📍' },
@@ -379,7 +379,7 @@ export const VISIT_MISSIONS: VisitMission[] = [
     placeId: 'p1',
     type: '체험형',
     description: '무량수전의 아름다운 배흘림기둥을 직접 확인해보세요.',
-    img: 'https://picsum.photos/seed/buseok_mission/400/300',
+    img: 'https://loremflickr.com/900/650/korea,temple?lock=2102',
     stages: [
       { id: 'prepare', label: '여행 전', task: '부석사 문화재 해설 시간표 확인하기', reward: 200, icon: '📜' },
       { id: 'arrival', label: '여행 시작', task: '부석사 매표소 GPS 도착 인증', reward: 500, icon: '📍' },
@@ -393,7 +393,7 @@ export const VISIT_MISSIONS: VisitMission[] = [
     placeId: 'p3',
     type: '소비형',
     description: '건강한 풍기 인삼의 향기를 느껴보세요.',
-    img: 'https://picsum.photos/seed/ginseng_mission/400/300',
+    img: 'https://loremflickr.com/900/650/ginseng,market?lock=2103',
     stages: [
       { id: 'prepare', label: '여행 전', task: '풍기 인삼 효능 및 시장 종류 파악', reward: 100, icon: '🔍' },
       { id: 'arrival', label: '여행 시작', task: '인삼 시장 입구 GPS 도착 인증', reward: 300, icon: '📍' },
@@ -407,7 +407,7 @@ export const VISIT_MISSIONS: VisitMission[] = [
     placeId: 'p4',
     type: '체험형',
     description: '아슬아슬 재미있는 외나무다리를 건너보세요.',
-    img: 'https://picsum.photos/seed/bridge_mission/400/300',
+    img: 'https://loremflickr.com/900/650/korea,bridge,village?lock=2104',
     stages: [
       { id: 'prepare', label: '여행 전', task: '무섬마을 자전거 대여 정책 확인', reward: 200, icon: '🚲' },
       { id: 'arrival', label: '여행 시작', task: '무섬마을 주차장 GPS 도착 인증', reward: 400, icon: '📍' },
@@ -421,7 +421,7 @@ export const VISIT_MISSIONS: VisitMission[] = [
     placeId: 'p11',
     type: '체험형',
     description: '영주 농촌체험 농장에서 사과나무와 지역 농산물 체험을 연결해보세요.',
-    img: 'https://picsum.photos/seed/sobaekfarm_mission/400/300',
+    img: 'https://loremflickr.com/900/650/apple,orchard,farm?lock=2105',
     stages: [
       { id: 'prepare', label: '여행 전', task: '농장 체험 예약 가능 여부 확인', reward: 200, icon: '📋' },
       { id: 'arrival', label: '여행 시작', task: '영주소백팜 GPS 도착 인증', reward: 500, icon: '📍' },

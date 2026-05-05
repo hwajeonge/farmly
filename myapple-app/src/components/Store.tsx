@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, ExternalLink, Leaf, PackageOpen, ShoppingBag, Sparkles, Store } from 'lucide-react';
-import { SHOP_ITEMS } from '../constants';
+import { FARMS, SHOP_ITEMS } from '../constants';
 import { cn } from '../lib/utils';
 
 interface StoreProps {
@@ -13,6 +13,7 @@ interface StoreProps {
   onNavigateToMissions?: () => void;
   ownedItems?: { id: string; count: number }[];
   onPlantSeed?: (seedId?: string) => void;
+  requestedSeedFarmId?: string | null;
 }
 
 const ITEM_COPY: Record<string, { name: string; desc: string; icon: string; tag: string; bg: string }> = {
@@ -104,6 +105,9 @@ const getCopy = (id: string) =>
     bg: 'bg-stone-50 border-stone-100',
   };
 
+const getApplePrice = (item: { type: string; price: number }) =>
+  item.type === 'item' ? 5 : Math.max(1, Math.round(item.price / 500));
+
 export const StoreView: React.FC<StoreProps> = ({
   points,
   apples = 0,
@@ -113,9 +117,18 @@ export const StoreView: React.FC<StoreProps> = ({
   onNavigateToMissions,
   ownedItems = [],
   onPlantSeed,
+  requestedSeedFarmId,
 }) => {
   const [recentSeedId, setRecentSeedId] = useState<string | null>(null);
   const recentSeedCopy = recentSeedId ? getCopy(recentSeedId) : null;
+  const requestedSeedId = requestedSeedFarmId ? `seed_${requestedSeedFarmId}` : null;
+  const requestedSeedItem = requestedSeedId ? SHOP_ITEMS.find(item => item.id === requestedSeedId) : undefined;
+  const requestedFarm = requestedSeedFarmId ? FARMS.find(farm => farm.id === requestedSeedFarmId) : undefined;
+  const requestedSeedCopy = requestedSeedItem ? getCopy(requestedSeedItem.id) : null;
+  const requestedOwnedCount = requestedSeedItem ? ownedItems.find(item => item.id === requestedSeedItem.id)?.count ?? 0 : 0;
+  const orderedShopItems = requestedSeedId
+    ? [...SHOP_ITEMS].sort((a, b) => Number(b.id === requestedSeedId) - Number(a.id === requestedSeedId))
+    : SHOP_ITEMS;
 
   const handlePointBuy = (itemId: string, price: number, isSeed: boolean) => {
     const didBuy = onBuyItem(itemId, price);
@@ -142,7 +155,9 @@ export const StoreView: React.FC<StoreProps> = ({
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-apple-red">Growth Shop</p>
           <h2 className="mt-1 text-2xl font-black text-stone-900">나무 돌봄 상점</h2>
           <p className="mt-1 text-xs font-bold leading-relaxed text-warm-gray">
-            씨앗을 구매하면 바로 농가 지도에서 심을 수 있어요.
+            {requestedFarm
+              ? `${requestedFarm.name} 씨앗을 먼저 준비하고 바로 심기 단계로 돌아가요.`
+              : '씨앗을 구매하면 바로 농가 지도에서 심을 수 있어요.'}
           </p>
         </div>
 
@@ -170,7 +185,67 @@ export const StoreView: React.FC<StoreProps> = ({
         </div>
       </section>
 
-      {recentSeedCopy && onPlantSeed && (
+      {requestedSeedItem && requestedSeedCopy && onPlantSeed && (
+        <motion.section
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-[1.75rem] border-2 border-apple-green/25 bg-white p-4 shadow-[0_8px_24px_rgba(45,122,45,0.08)]"
+        >
+          <div className="mb-3 flex items-start gap-3">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-apple-green/10 text-3xl">
+              {requestedSeedCopy.icon}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-black uppercase tracking-widest text-apple-green">선택한 농가 씨앗</p>
+              <h3 className="mt-0.5 text-base font-black text-stone-900">{requestedSeedCopy.name}</h3>
+              <p className="mt-1 text-[11px] font-bold leading-relaxed text-warm-gray">{requestedSeedCopy.desc}</p>
+              {requestedOwnedCount > 0 && (
+                <span className="mt-2 inline-flex rounded-full bg-apple-green/10 px-2.5 py-1 text-[10px] font-black text-apple-green">
+                  {requestedOwnedCount}개 보유 중
+                </span>
+              )}
+            </div>
+          </div>
+
+          {requestedOwnedCount > 0 ? (
+            <button
+              onClick={() => onPlantSeed(requestedSeedItem.id)}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-apple-green py-3.5 text-sm font-black text-white shadow-[0_4px_0_0_#2d7a2d] transition-all active:translate-y-0.5 active:shadow-none"
+            >
+              <Leaf size={16} /> 바로 씨앗 심기
+            </button>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => handlePointBuy(requestedSeedItem.id, requestedSeedItem.price, true)}
+                disabled={points < requestedSeedItem.price}
+                className={cn(
+                  'rounded-2xl px-3 py-3 text-xs font-black transition-all',
+                  points >= requestedSeedItem.price
+                    ? 'bg-yeoju-gold text-white shadow-[0_3px_0_0_#b07a00] active:translate-y-0.5 active:shadow-none'
+                    : 'cursor-not-allowed bg-stone-100 text-stone-300',
+                )}
+              >
+                {requestedSeedItem.price.toLocaleString()} P로 구매
+              </button>
+              <button
+                onClick={() => handleAppleBuy(requestedSeedItem.id, getApplePrice(requestedSeedItem), true)}
+                disabled={apples < getApplePrice(requestedSeedItem)}
+                className={cn(
+                  'rounded-2xl px-3 py-3 text-xs font-black transition-all',
+                  apples >= getApplePrice(requestedSeedItem)
+                    ? 'bg-apple-red text-white shadow-[0_3px_0_0_#cc2828] active:translate-y-0.5 active:shadow-none'
+                    : 'cursor-not-allowed bg-stone-100 text-stone-300',
+                )}
+              >
+                사과 {getApplePrice(requestedSeedItem)}개
+              </button>
+            </div>
+          )}
+        </motion.section>
+      )}
+
+      {recentSeedCopy && onPlantSeed && recentSeedId !== requestedSeedId && (
         <motion.section
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -204,17 +279,22 @@ export const StoreView: React.FC<StoreProps> = ({
         </div>
 
         <div className="space-y-3">
-          {SHOP_ITEMS.map((item) => {
+          {orderedShopItems.map((item) => {
             const copy = getCopy(item.id);
-            const applePrice = item.type === 'item' ? 5 : Math.max(1, Math.round(item.price / 500));
+            const applePrice = getApplePrice(item);
             const canBuyWithPoints = points >= item.price;
             const canBuyWithApples = apples >= applePrice;
             const isSeed = item.id.startsWith('seed_');
             const ownedCount = ownedItems.find(i => i.id === item.id)?.count ?? 0;
             const isRecentSeed = recentSeedId === item.id;
+            const isRequestedSeed = requestedSeedId === item.id;
 
             return (
-              <motion.div key={item.id} whileTap={{ scale: 0.98 }} className="cute-card p-4">
+              <motion.div
+                key={item.id}
+                whileTap={{ scale: 0.98 }}
+                className={cn('cute-card p-4', isRequestedSeed && 'border-apple-green/40 ring-4 ring-apple-green/10')}
+              >
                 <div className="flex items-center gap-4">
                   <div className={cn('flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border-2 text-3xl', copy.bg)}>
                     {copy.icon}
@@ -233,6 +313,11 @@ export const StoreView: React.FC<StoreProps> = ({
                       {isRecentSeed && (
                         <span className="rounded-full bg-yellow-100 px-2 py-0.5 text-[9px] font-black text-yellow-700">
                           방금 구매
+                        </span>
+                      )}
+                      {isRequestedSeed && (
+                        <span className="rounded-full bg-apple-green/10 px-2 py-0.5 text-[9px] font-black text-apple-green">
+                          선택한 농가
                         </span>
                       )}
                     </div>
@@ -273,7 +358,7 @@ export const StoreView: React.FC<StoreProps> = ({
                     onClick={() => onPlantSeed(item.id)}
                     className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-apple-green py-2.5 text-xs font-black text-white shadow-[0_3px_0_0_#2d7a2d] transition-all active:translate-y-0.5 active:shadow-none"
                   >
-                    <Leaf size={15} /> 지도에서 바로 심기
+                    <Leaf size={15} /> {isRequestedSeed ? '선택한 농가에 바로 심기' : '바로 씨앗 심기'}
                   </button>
                 )}
               </motion.div>

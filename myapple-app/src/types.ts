@@ -164,6 +164,18 @@ export interface ChatConversation {
   messages: ChatMessage[];
 }
 
+export interface MissionReview {
+  id: string;
+  missionId: string;
+  placeId: string;
+  missionTitle: string;
+  placeName: string;
+  rating: number;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface UserProfile {
   role: UserRole;
   name: string;
@@ -188,6 +200,7 @@ export interface UserProfile {
   slotCooldowns?: Record<string, { farmId: string; lockedUntil: string }>; // farmId + index key
   courses?: Course[];
   visitedHistory?: VisitedPlace[];
+  missionReviews?: MissionReview[];
   favoritePlaceIds?: string[];
   preferences?: {
     categories: Record<string, number>;

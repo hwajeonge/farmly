@@ -4,7 +4,7 @@ import { MissionsView } from './Missions';
 import { ChatbotView } from './ChatbotView';
 import { TravelCourse } from './TravelCourse';
 import { cn } from '../lib/utils';
-import { Course, MissionStatus, VisitedPlace, ChatConversation } from '../types';
+import { Course, MissionReview, MissionStatus, VisitedPlace, ChatConversation } from '../types';
 
 interface ActivityViewProps {
   onAddPoints: (points: number) => void;
@@ -13,6 +13,8 @@ interface ActivityViewProps {
   onRestoreLife: (amount?: number) => void;
   missionProgress: Record<string, MissionStatus>;
   onUpdateProgress: (missionId: string, status: MissionStatus) => void;
+  missionReviews?: MissionReview[];
+  onSaveMissionReview?: (review: MissionReview) => void;
   points: number;
   weather: string;
   conversations: ChatConversation[];

@@ -23,8 +23,9 @@ export const FindGinsengGame: React.FC<FindGinsengGameProps> = ({ onClose, onFin
   }[]>([]);
 
   const GRID_SIZE = 6;
-  const STONE_COUNT = 6;
+  const STONE_COUNT = 8;
   const rewardClaimedRef = useRef(false);
+  const rewardPoints = Math.min(250, score);
 
   const generateGrid = () => {
     const totalCells = GRID_SIZE * GRID_SIZE;
@@ -84,7 +85,7 @@ export const FindGinsengGame: React.FC<FindGinsengGameProps> = ({ onClose, onFin
     if (rewardClaimedRef.current) return;
     rewardClaimedRef.current = true;
     setIsRewardClaimed(true);
-    onFinish(score, gameState === 'gameover' || score === 0);
+    onFinish(rewardPoints, gameState === 'gameover' || score === 0);
   };
 
   useEffect(() => {
@@ -284,7 +285,7 @@ export const FindGinsengGame: React.FC<FindGinsengGameProps> = ({ onClose, onFin
                   disabled={isRewardClaimed}
                   className="w-full py-5 bg-apple-green text-white rounded-3xl font-black text-xl shadow-[0_8px_0_0_#2e7d32] active:shadow-none active:translate-y-2 transition-all disabled:bg-stone-200 disabled:text-stone-400 disabled:shadow-none disabled:translate-y-0"
                 >
-                  {isRewardClaimed ? '보상 수령 완료' : `${score}P 받기`}
+                  {isRewardClaimed ? '보상 수령 완료' : `${rewardPoints}P 받기`}
                 </button>
                 <button 
                   onClick={startGame}

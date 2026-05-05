@@ -21,7 +21,7 @@ interface Bug {
 export const BugDefenseGame: React.FC<BugDefenseGameProps> = ({ onClose, onFinish, onRestart }) => {
   const [gameState, setGameState] = useState<'playing' | 'result' | 'paused'>('playing');
   const [score, setScore] = useState(0);
-  const [appleHp, setAppleHp] = useState(5);
+  const [appleHp, setAppleHp] = useState(3);
   const [timeLeft, setTimeLeft] = useState(30);
   const [bugs, setBugs] = useState<Bug[]>([]);
   const [isRewardClaimed, setIsRewardClaimed] = useState(false);
@@ -34,7 +34,7 @@ export const BugDefenseGame: React.FC<BugDefenseGameProps> = ({ onClose, onFinis
   const gameStateRef = useRef(gameState);
   const rewardClaimedRef = useRef(false);
   const healthBonus = appleHp * 10;
-  const rewardPoints = Math.min(250, score + healthBonus);
+  const rewardPoints = Math.min(300, score + healthBonus);
 
   useEffect(() => {
     gameStateRef.current = gameState;
@@ -49,7 +49,7 @@ export const BugDefenseGame: React.FC<BugDefenseGameProps> = ({ onClose, onFinis
     if (onRestart && !onRestart()) return;
     setGameState('playing');
     setScore(0);
-    setAppleHp(5);
+    setAppleHp(3);
     setTimeLeft(30);
     setBugs([]);
     setIsRewardClaimed(false);
@@ -73,7 +73,7 @@ export const BugDefenseGame: React.FC<BugDefenseGameProps> = ({ onClose, onFinis
     lastFrameTime.current = time;
 
     // Spawn bugs
-    const spawnInterval = Math.max(400, 1000 - (30 - timeLeft) * 20); // Get faster over time
+    const spawnInterval = Math.max(300, 800 - (30 - timeLeft) * 25); // Get faster over time
     if (time - lastBugTime.current > spawnInterval) {
       const side = Math.floor(Math.random() * 4); // 0: top, 1: right, 2: bottom, 3: left
       let x = 0, y = 0;
@@ -88,8 +88,8 @@ export const BugDefenseGame: React.FC<BugDefenseGameProps> = ({ onClose, onFinis
       let hp = 1;
       let speed = 0.05;
 
-      if (typeRand > 0.9) { type = 'tank'; hp = 3; speed = 0.03; }
-      else if (typeRand > 0.7) { type = 'fast'; hp = 1; speed = 0.1; }
+      if (typeRand > 0.82) { type = 'tank'; hp = 3; speed = 0.035; }
+      else if (typeRand > 0.55) { type = 'fast'; hp = 1; speed = 0.12; }
 
       const newBug: Bug = {
         id: bugIdCounter.current++,
@@ -298,7 +298,7 @@ export const BugDefenseGame: React.FC<BugDefenseGameProps> = ({ onClose, onFinis
               <div className="text-6xl font-black text-apple-red mb-4">{score}</div>
               <div className="mb-10 space-y-1 rounded-2xl bg-green-50 px-4 py-3">
                 <p className="text-xs font-black text-apple-green">남은 체력 보너스: +{healthBonus}P</p>
-                <p className="text-[10px] font-bold text-stone-400">체력 1칸당 +10P, 총 보상은 최대 250P</p>
+                <p className="text-[10px] font-bold text-stone-400">체력 1칸당 +10P, 총 보상은 최대 300P</p>
               </div>
               
               <div className="w-full space-y-4">

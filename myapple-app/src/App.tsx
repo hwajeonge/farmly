@@ -14,7 +14,7 @@ import { HarvestDeliveryModal } from './components/HarvestDeliveryModal';
 import { ActivityView } from './components/ActivityView';
 import { MyPage } from './components/MyPage';
 import { AdminDashboard } from './components/AdminDashboard';
-import { UserProfile, Farm, AppleVariety, TreeState, Course, AppNotification, ItemId, ChatConversation, DeliveryInfo } from './types';
+import { UserProfile, Farm, AppleVariety, TreeState, Course, AppNotification, ItemId, ChatConversation, DeliveryInfo, MissionReview } from './types';
 import { VISIT_MISSIONS, FARMS, PLACES } from './constants';
 import { calculateDailyGrowth, calculateHarvestAmount, getPestEvent, getWeatherEvent, canTransitionToNextSeason, getGrowthStageLabel, getDailyStatusMessage, daysSince } from './services/growthService';
 import { FloatingChatbot } from './components/FloatingChatbot';
@@ -38,7 +38,7 @@ const MISSION_STATUS_RANK = {
   completed: 4,
 } as const;
 
-const MINI_GAME_MAX_LIVES = 10;
+const MINI_GAME_MAX_LIVES = 5;
 const HEART_RECHARGE_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
 export default function App() {
@@ -52,6 +52,7 @@ export default function App() {
   const [activeCourseId, setActiveCourseId] = useState<string | null>(null);
   const [profileRequestedTab, setProfileRequestedTab] = useState<'profile' | 'travel' | 'cards' | null>(null);
   const [requestedSeedFarmId, setRequestedSeedFarmId] = useState<string | null>(null);
+  const [storeSeedFarmId, setStoreSeedFarmId] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [weather, setWeather] = useState('맑음');
@@ -104,6 +105,7 @@ export default function App() {
           if (!migProfile.badges) migProfile.badges = [];
           if (!migProfile.trees) migProfile.trees = [];
           if (!migProfile.favoritePlaceIds) migProfile.favoritePlaceIds = [];
+          if (!migProfile.missionReviews) migProfile.missionReviews = [];
           if (migProfile.accumulatedApples == null) migProfile.accumulatedApples = 0;
           if (migProfile.apples == null) migProfile.apples = 0;
           if (migProfile.lives == null) migProfile.lives = MINI_GAME_MAX_LIVES;
@@ -642,9 +644,15 @@ export default function App() {
 
   const handlePlantSeedFromStore = (seedId?: string) => {
     if (!user) return;
+    const preferredSeedId = storeSeedFarmId ? `seed_${storeSeedFarmId}` : null;
+    const hasPreferredSeed = preferredSeedId
+      ? user.items.some(item => item.id === preferredSeedId && item.count > 0)
+      : false;
 
     const targetSeedId = seedId?.startsWith('seed_')
       ? seedId
+      : hasPreferredSeed
+        ? preferredSeedId
       : user.items.find(item => item.id.startsWith('seed_') && item.count > 0)?.id;
 
     if (!targetSeedId) {
@@ -661,8 +669,42 @@ export default function App() {
     }
 
     setRequestedSeedFarmId(farmId);
+    setStoreSeedFarmId(null);
     setPreviousTab('store');
     setActiveTab('map');
+  };
+
+  const handleSaveMissionReview = (missionReview: MissionReview) => {
+    setUser(prev => {
+      if (!prev) return prev;
+
+      const currentReviews = prev.missionReviews || [];
+      const existingIndex = currentReviews.findIndex(item => item.missionId === missionReview.missionId);
+      const nextReviews = existingIndex === -1
+        ? [missionReview, ...currentReviews]
+        : currentReviews.map((item, index) => index === existingIndex ? { ...item, ...missionReview } : item);
+
+      const place = PLACES.find(item => item.id === missionReview.placeId);
+      const currentHistory = prev.visitedHistory || [];
+      const alreadyVisited = currentHistory.some(item => item.placeId === missionReview.placeId);
+      const nextHistory = alreadyVisited || !place
+        ? currentHistory
+        : [
+            {
+              placeId: place.id,
+              date: new Date(missionReview.updatedAt).toLocaleDateString('ko-KR'),
+              name: place.name,
+              category: place.category,
+            },
+            ...currentHistory,
+          ];
+
+      return {
+        ...prev,
+        missionReviews: nextReviews,
+        visitedHistory: nextHistory,
+      };
+    });
   };
 
   const handleDeliverySubmit = (data: DeliveryInfo) => {
@@ -1032,7 +1074,7 @@ export default function App() {
                   onAdvanceDay={handleAdvanceDay}
                   onDeleteTree={() => handleDeleteTree(managedTree.id)}
                   inventory={user.items}
-                  onGoToStore={() => { setPreviousTab(activeTab); setActiveTab('store'); }}
+                  onGoToStore={() => { setPreviousTab(activeTab); setStoreSeedFarmId(null); setActiveTab('store'); }}
                   onOpenHarvestModal={() => setIsHarvestModalOpen(true)}
                   onPlantNextTree={() => { setPreviousTab('tree'); setActiveTab('map'); }}
                   onViewTreeCards={() => { setProfileRequestedTab('cards'); setPreviousTab('tree'); setActiveTab('profile'); }}
@@ -1066,7 +1108,7 @@ export default function App() {
                 onUnstoreFarm={handleUnstoreFarm}
                 trees={user.trees}
                 ownedItems={user.items}
-                onGoToStore={() => { setPreviousTab(activeTab); setActiveTab('store'); }}
+                onGoToStore={(farmId) => { setPreviousTab(activeTab); setStoreSeedFarmId(farmId ?? null); setActiveTab('store'); }}
                 requestedFarmId={requestedSeedFarmId}
                 onRequestedFarmHandled={() => setRequestedSeedFarmId(null)}
               />
@@ -1082,6 +1124,8 @@ export default function App() {
                 onRestoreLife={handleRestoreLife}
                 missionProgress={user.visitMissionProgress}
                 onUpdateProgress={handleUpdateMissionProgress}
+                missionReviews={user.missionReviews || []}
+                onSaveMissionReview={handleSaveMissionReview}
                 points={user.points}
                 weather={weather}
                 conversations={user.chatConversations || []}
@@ -1108,10 +1152,11 @@ export default function App() {
                 apples={user.apples}
                 onBuyItem={handleBuyItem}
                 onBuyWithApples={handleBuyWithApples}
-                onBack={() => setActiveTab(previousTab)}
-                onNavigateToMissions={() => { setActiveTab('activity'); setActivitySubTab('missions'); }}
+                onBack={() => { setStoreSeedFarmId(null); setActiveTab(previousTab); }}
+                onNavigateToMissions={() => { setStoreSeedFarmId(null); setActiveTab('activity'); setActivitySubTab('missions'); }}
                 ownedItems={user.items}
                 onPlantSeed={handlePlantSeedFromStore}
+                requestedSeedFarmId={storeSeedFarmId}
               />
             </motion.div>
           )}
@@ -1124,7 +1169,7 @@ export default function App() {
                 handleLogout={authService.logout}
                 onDeleteAccount={handleDeleteAccount}
                 onOpenHarvestModal={() => setIsHarvestModalOpen(true)}
-                onGoToStore={() => { setPreviousTab(activeTab); setActiveTab('store'); }}
+                onGoToStore={() => { setPreviousTab(activeTab); setStoreSeedFarmId(null); setActiveTab('store'); }}
                 requestedTab={profileRequestedTab}
                 onRequestedTabHandled={() => setProfileRequestedTab(null)}
               />

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Apple, Award, Camera, Gift, LayoutGrid, List, Loader2, LogOut, MapPin, ShoppingBag, Sprout, Trash2 } from 'lucide-react';
-import { TreeState, UserProfile, VisitedPlace } from '../types';
+import { Apple, Award, Camera, Edit3, Gift, LayoutGrid, List, Loader2, LogOut, MapPin, MessageSquare, Save, ShoppingBag, Sprout, Star, Trash2, X } from 'lucide-react';
+import { MissionReview, TreeState, UserProfile, VisitedPlace } from '../types';
 import { cn } from '../lib/utils';
 import { TreeOwnershipCard } from './TreeOwnershipCard';
 import { SERVICE_NAME } from '../brand';
@@ -19,11 +19,12 @@ interface MyPageProps {
   onRequestedTabHandled?: () => void;
 }
 
-type MenuTab = 'profile' | 'travel' | 'cards';
+type MenuTab = 'profile' | 'travel' | 'reviews' | 'cards';
 
 const MENU_TABS = [
   { id: 'profile', icon: Apple, label: '내 농장' },
   { id: 'travel', icon: MapPin, label: '여행 기록' },
+  { id: 'reviews', icon: MessageSquare, label: '후기 관리' },
   { id: 'cards', icon: Sprout, label: '나무 카드' },
 ] as const;
 
@@ -242,6 +243,7 @@ export const MyPage: React.FC<MyPageProps> = ({
         >
           {activeTab === 'profile' && <ProfileView user={user} onOpenHarvestModal={onOpenHarvestModal} />}
           {activeTab === 'travel' && <TravelView history={user.visitedHistory} />}
+          {activeTab === 'reviews' && <ReviewsView reviews={user.missionReviews || []} setUser={setUser} />}
           {activeTab === 'cards' && <CardsView trees={user.trees} user={user} onSelect={setSelectedTree} />}
         </motion.div>
       </AnimatePresence>
@@ -407,6 +409,208 @@ const TravelView = ({ history }: { history?: VisitedPlace[] }) => {
           ))}
         </div>
       </section>
+    </div>
+  );
+};
+
+const formatReviewDate = (date: string) => {
+  const parsed = new Date(date);
+  if (Number.isNaN(parsed.getTime())) return date;
+  return parsed.toLocaleDateString('ko-KR');
+};
+
+const ReviewsView = ({
+  reviews,
+  setUser,
+}: {
+  reviews: MissionReview[];
+  setUser: React.Dispatch<React.SetStateAction<UserProfile | null>>;
+}) => {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draftRating, setDraftRating] = useState(0);
+  const [draftContent, setDraftContent] = useState('');
+  const sortedReviews = [...reviews].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+
+  const startEdit = (review: MissionReview) => {
+    setEditingId(review.id);
+    setDraftRating(review.rating);
+    setDraftContent(review.content);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setDraftRating(0);
+    setDraftContent('');
+  };
+
+  const saveEdit = () => {
+    if (!editingId) return;
+    if (draftRating === 0 && !draftContent.trim()) {
+      showAlert('별점이나 후기 내용을 입력해주세요.', '📝', 'warning');
+      return;
+    }
+
+    setUser(prev => prev ? {
+      ...prev,
+      missionReviews: (prev.missionReviews || []).map(review => review.id === editingId
+        ? {
+            ...review,
+            rating: draftRating,
+            content: draftContent.trim(),
+            updatedAt: new Date().toISOString(),
+          }
+        : review),
+    } : prev);
+    cancelEdit();
+    showAlert('방문 후기가 수정되었어요.', '📝', 'success');
+  };
+
+  const deleteReview = async (reviewId: string) => {
+    const confirmed = await showConfirm({
+      message: '이 방문 후기를 삭제할까요?\n미션 완료 기록은 유지됩니다.',
+      emoji: '🗑️',
+      type: 'warning',
+      confirmText: '삭제하기',
+      cancelText: '취소',
+    });
+    if (!confirmed) return;
+
+    setUser(prev => prev ? {
+      ...prev,
+      missionReviews: (prev.missionReviews || []).filter(review => review.id !== reviewId),
+    } : prev);
+    if (editingId === reviewId) cancelEdit();
+    showAlert('방문 후기를 삭제했어요.', '🗑️', 'info');
+  };
+
+  if (sortedReviews.length === 0) {
+    return (
+      <div className="rounded-[2rem] border-2 border-dashed border-stone-200 px-8 py-14 text-center">
+        <div className="mb-3 text-4xl">📝</div>
+        <p className="mb-1 text-sm font-black text-stone-700">아직 작성한 후기가 없어요</p>
+        <p className="text-[11px] font-bold leading-relaxed text-warm-gray">
+          방문 미션의 후기 단계를 완료하면 이곳에서 다시 보고 수정할 수 있어요.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <section className="rounded-[2rem] border-2 border-apple-green/20 bg-white p-5 shadow-sm">
+        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-apple-green">Mission Reviews</p>
+        <div className="mt-1 flex items-end justify-between gap-3">
+          <h3 className="text-lg font-black text-stone-900">내가 작성한 방문 후기</h3>
+          <span className="rounded-full bg-apple-green/10 px-3 py-1 text-[10px] font-black text-apple-green">
+            {sortedReviews.length}개
+          </span>
+        </div>
+        <p className="mt-1 text-[11px] font-bold leading-relaxed text-warm-gray">
+          방문 미션에서 남긴 별점과 후기를 모아두고, 필요할 때 내용을 고칠 수 있어요.
+        </p>
+      </section>
+
+      {sortedReviews.map((review) => {
+        const isEditing = editingId === review.id;
+        return (
+          <section key={review.id} className="cute-card p-4">
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[10px] font-black text-apple-red">{review.placeName}</p>
+                <h4 className="mt-0.5 truncate text-sm font-black text-stone-900">{review.missionTitle}</h4>
+                <p className="mt-1 text-[10px] font-bold text-stone-400">
+                  수정일 {formatReviewDate(review.updatedAt)}
+                </p>
+              </div>
+              <div className="flex shrink-0 gap-1">
+                {isEditing ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={saveEdit}
+                      className="flex h-9 w-9 items-center justify-center rounded-xl bg-apple-green text-white transition-all active:scale-90"
+                      aria-label="후기 저장"
+                    >
+                      <Save size={15} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={cancelEdit}
+                      className="flex h-9 w-9 items-center justify-center rounded-xl bg-stone-100 text-stone-400 transition-all active:scale-90"
+                      aria-label="편집 취소"
+                    >
+                      <X size={15} />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => startEdit(review)}
+                      className="flex h-9 w-9 items-center justify-center rounded-xl bg-stone-100 text-stone-500 transition-all active:scale-90"
+                      aria-label="후기 편집"
+                    >
+                      <Edit3 size={15} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deleteReview(review.id)}
+                      className="flex h-9 w-9 items-center justify-center rounded-xl bg-red-50 text-red-400 transition-all active:scale-90"
+                      aria-label="후기 삭제"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {isEditing ? (
+              <div className="space-y-3">
+                <div className="flex gap-1.5">
+                  {[1, 2, 3, 4, 5].map((score) => (
+                    <button
+                      key={score}
+                      type="button"
+                      onClick={() => setDraftRating(score)}
+                      className="rounded-lg p-0.5 transition-transform active:scale-90"
+                      aria-label={`${score}점`}
+                    >
+                      <Star
+                        size={24}
+                        fill={score <= draftRating ? '#e9c46a' : 'none'}
+                        className={score <= draftRating ? 'text-yeoju-gold' : 'text-stone-200'}
+                      />
+                    </button>
+                  ))}
+                </div>
+                <textarea
+                  value={draftContent}
+                  onChange={(event) => setDraftContent(event.target.value)}
+                  placeholder="방문 후기를 입력해주세요"
+                  className="h-28 w-full rounded-2xl border-2 border-stone-100 bg-stone-50 p-3 text-xs font-bold leading-relaxed text-stone-700 outline-none transition-all placeholder:text-stone-300 focus:border-apple-red focus:bg-white"
+                />
+              </div>
+            ) : (
+              <>
+                <div className="mb-3 flex gap-1">
+                  {[1, 2, 3, 4, 5].map((score) => (
+                    <Star
+                      key={score}
+                      size={16}
+                      fill={score <= review.rating ? '#e9c46a' : 'none'}
+                      className={score <= review.rating ? 'text-yeoju-gold' : 'text-stone-200'}
+                    />
+                  ))}
+                </div>
+                <p className="rounded-2xl bg-stone-50 p-3 text-xs font-bold leading-relaxed text-stone-600">
+                  {review.content || '텍스트 없이 별점만 남긴 후기예요.'}
+                </p>
+              </>
+            )}
+          </section>
+        );
+      })}
     </div>
   );
 };

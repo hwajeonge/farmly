@@ -1,9 +1,24 @@
 import React, { useEffect, useState } from 'react';
 import { showAlert } from '../lib/alertEmitter';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronLeft, List, Lock, Map as MapIcon, MapPin, ShoppingBag, Star } from 'lucide-react';
-import { AppleVariety, Farm, TreeState } from '../types';
-import { FARMS } from '../constants';
+import {
+  ChevronLeft,
+  Coffee,
+  House,
+  Landmark,
+  List,
+  Lock,
+  Map as MapIcon,
+  ShoppingBag,
+  Sprout,
+  Star,
+  Store as StoreIcon,
+  TrainFront,
+  Trees,
+  Utensils,
+} from 'lucide-react';
+import { AppleVariety, Farm, Place, TreeState } from '../types';
+import { FARMS, PLACES } from '../constants';
 import { cn } from '../lib/utils';
 
 interface FarmSelectionProps {
@@ -15,7 +30,7 @@ interface FarmSelectionProps {
   onUnstoreFarm: (farmId: string) => void;
   trees: TreeState[];
   ownedItems: { id: string; count: number }[];
-  onGoToStore: () => void;
+  onGoToStore: (farmId?: string) => void;
   requestedFarmId?: string | null;
   onRequestedFarmHandled?: () => void;
 }
@@ -38,6 +53,54 @@ const PERSONALITIES: { value: string; emoji: string; desc: string }[] = [
   { value: '장난기 많은', emoji: '😜', desc: '예상치 못한 성장 이벤트가 자주 생겨요' },
   { value: '까칠한',      emoji: '😤', desc: '까다롭지만 잘 키우면 최고 수확량을 자랑해요' },
 ];
+
+type PlaceMarkerKind = 'station' | 'temple' | 'heritage' | 'market' | 'village' | 'food' | 'cafe';
+
+const PLACE_MARKERS: Record<string, { x: number; y: number; kind: PlaceMarkerKind }> = {
+  p0: { x: 61, y: 57, kind: 'station' },
+  p1: { x: 69, y: 23, kind: 'temple' },
+  p2: { x: 39, y: 31, kind: 'heritage' },
+  p3: { x: 27, y: 32, kind: 'market' },
+  p4: { x: 41, y: 77, kind: 'village' },
+  p5: { x: 24, y: 38, kind: 'food' },
+  p6: { x: 58, y: 55, kind: 'food' },
+  p9: { x: 72, y: 29, kind: 'cafe' },
+  p12: { x: 44, y: 27, kind: 'heritage' },
+};
+
+const PLACE_MARKER_IDS = Object.keys(PLACE_MARKERS);
+const MAP_PLACES = PLACES.filter(place => PLACE_MARKER_IDS.includes(place.id));
+
+const getPlaceMarkerIcon = (kind: PlaceMarkerKind) => {
+  switch (kind) {
+    case 'station':
+      return <TrainFront size={15} />;
+    case 'temple':
+    case 'heritage':
+      return <Landmark size={15} />;
+    case 'market':
+      return <StoreIcon size={15} />;
+    case 'village':
+      return <House size={15} />;
+    case 'food':
+      return <Utensils size={15} />;
+    case 'cafe':
+      return <Coffee size={15} />;
+    default:
+      return <Sprout size={15} />;
+  }
+};
+
+const getPlaceMarkerTone = (place: Place) => {
+  if (place.category === '맛집') return 'border-orange-100 bg-orange-50 text-orange-600';
+  if (place.category === '카페') return 'border-amber-100 bg-amber-50 text-amber-700';
+  return 'border-sky-100 bg-sky-50 text-sky-600';
+};
+
+const getShortPlaceDescription = (place: Place) => {
+  if (place.description.length <= 42) return place.description;
+  return `${place.description.slice(0, 42)}...`;
+};
 
 export const FarmSelection: React.FC<FarmSelectionProps> = ({
   onAdopt,
@@ -68,6 +131,18 @@ export const FarmSelection: React.FC<FarmSelectionProps> = ({
   const handleFarmSelect = (farm: Farm) => {
     if (!(adoptedFarmIds || []).includes(farm.id)) return;
     if ((storedFarmIds || []).includes(farm.id)) return;
+    const hasFarmSeed = ownedItems.some(item => item.id === `seed_${farm.id}` && item.count > 0);
+
+    if (!hasFarmSeed) {
+      showAlert(
+        `${farm.name} 씨앗이 먼저 필요해요.\n상점에서 이 농가 씨앗을 구매하면 바로 심기 단계로 돌아올게요.`,
+        '🌱',
+        'info',
+      );
+      onGoToStore(farm.id);
+      return;
+    }
+
     setSelectedFarm(farm);
     setStep('survey');
   };
@@ -109,15 +184,26 @@ export const FarmSelection: React.FC<FarmSelectionProps> = ({
 
     const isUnlocked = (adoptedFarmIds || []).includes(farm.id);
     const isStored = (storedFarmIds || []).includes(farm.id);
+    const hasFarmSeed = ownedItems.some(item => item.id === `seed_${farm.id}` && item.count > 0);
 
     setViewMode('map');
     if (isUnlocked && !isStored) {
+      if (!hasFarmSeed) {
+        setStep('view');
+        showAlert(
+          `${farm.name} 씨앗이 아직 없어요.\n상점에서 씨앗을 구매한 뒤 다시 이어갈 수 있어요.`,
+          '🌱',
+          'warning',
+        );
+        onRequestedFarmHandled?.();
+        return;
+      }
       setSelectedFarm(farm);
       setSurveyResult(null);
       setSelectedPersonality(null);
       setNickname('');
       setStep('survey');
-      showAlert(`${farm.name}에서 씨앗 심기를 이어갈게요.`, '🌱', 'success');
+      showAlert(`${farm.name} 씨앗을 준비했어요.\n이제 바로 심기 단계로 이어갈게요.`, '🌱', 'success');
     } else {
       setStep('view');
       showAlert(
@@ -130,7 +216,7 @@ export const FarmSelection: React.FC<FarmSelectionProps> = ({
     }
 
     onRequestedFarmHandled?.();
-  }, [requestedFarmId, adoptedFarmIds, storedFarmIds, onRequestedFarmHandled]);
+  }, [requestedFarmId, adoptedFarmIds, storedFarmIds, ownedItems, onRequestedFarmHandled]);
 
   return (
     <div className="py-4">
@@ -213,72 +299,109 @@ export const FarmSelection: React.FC<FarmSelectionProps> = ({
                       <path d="M28 88 C34 75 40 67 49 59 C57 51 61 39 65 17" fill="none" stroke="#FFF4C2" strokeWidth="4.5" strokeLinecap="round" />
                       <path d="M28 88 C34 75 40 67 49 59 C57 51 61 39 65 17" fill="none" stroke="#D9A441" strokeWidth="1.1" strokeDasharray="3 3" strokeLinecap="round" opacity="0.8" />
 
-                      <path d="M16 18 C22 10 30 9 38 12 C31 18 24 21 16 18 Z" fill="#8BCB69" opacity="0.85" />
-                      <path d="M12 25 C18 18 28 17 36 22 C27 27 19 29 12 25 Z" fill="#6FB95A" opacity="0.75" />
-                      <text x="18" y="16" fontSize="4" fontWeight="900" fill="#487A43">소백산</text>
-
-                      <g opacity="0.95">
-                        <rect x="50" y="48" width="20" height="11" rx="4" fill="#FFFFFF" opacity="0.86" />
-                        <text x="54" y="55" fontSize="4.2" fontWeight="900" fill="#5A3E2B">영주시내</text>
-                      </g>
-                      <g opacity="0.95">
-                        <rect x="22" y="25" width="17" height="9" rx="3.5" fill="#FFFFFF" opacity="0.84" />
-                        <text x="26" y="31" fontSize="3.8" fontWeight="900" fill="#5A3E2B">풍기읍</text>
-                      </g>
-                      <g opacity="0.95">
-                        <rect x="58" y="18" width="17" height="9" rx="3.5" fill="#FFFFFF" opacity="0.84" />
-                        <text x="62" y="24" fontSize="3.8" fontWeight="900" fill="#5A3E2B">부석면</text>
-                      </g>
-                      <g opacity="0.95">
-                        <rect x="28" y="72" width="21" height="9" rx="3.5" fill="#FFFFFF" opacity="0.84" />
-                        <text x="31" y="78" fontSize="3.8" fontWeight="900" fill="#5A3E2B">무섬마을</text>
+                      <g opacity="0.9">
+                        <path d="M13 22 L24 10 L34 22 Z" fill="#72B95E" />
+                        <path d="M22 22 L31 13 L40 22 Z" fill="#8FD47D" />
+                        <path d="M24 10 L28 16 L20 16 Z" fill="#EAF8FF" opacity="0.85" />
+                        <path d="M31 13 L34 17 L28 17 Z" fill="#EAF8FF" opacity="0.75" />
                       </g>
 
-                      <text x="11" y="82" fontSize="3.6" fontWeight="900" fill="#2583AD" opacity="0.85">서천</text>
-                      <text x="74" y="86" fontSize="4" fontWeight="900" fill="#FFFFFF" opacity="0.8">Y E O N G J U</text>
+                      <g opacity="0.95">
+                        <rect x="51" y="47" width="19" height="13" rx="4" fill="#FFFFFF" opacity="0.86" />
+                        <rect x="56" y="42" width="9" height="18" rx="2" fill="#E9B96E" />
+                        <rect x="53" y="50" width="4" height="10" rx="1" fill="#FFD88C" />
+                        <rect x="65" y="50" width="3.5" height="10" rx="1" fill="#FFD88C" />
+                        <circle cx="60.5" cy="50" r="1.4" fill="#8C6A43" opacity="0.7" />
+                      </g>
+                      <g opacity="0.95">
+                        <path d="M23 26 H39 L36 21 H26 Z" fill="#FFFFFF" opacity="0.86" />
+                        <rect x="24" y="26" width="14" height="8" rx="2" fill="#E9B96E" />
+                        <path d="M24 26 H38" stroke="#7DBB62" strokeWidth="2" strokeLinecap="round" />
+                        <circle cx="28" cy="33" r="1" fill="#C0653C" />
+                        <circle cx="33" cy="33" r="1" fill="#C0653C" />
+                      </g>
+                      <g opacity="0.95">
+                        <path d="M59 24 H76 L67.5 17 Z" fill="#FFFFFF" opacity="0.86" />
+                        <path d="M62 24 H73 L67.5 19 Z" fill="#6FB95A" />
+                        <rect x="62" y="24" width="11" height="5" rx="1.5" fill="#8C6A43" opacity="0.65" />
+                      </g>
+                      <g opacity="0.95">
+                        <path d="M29 77 C34 72 42 72 47 77" fill="none" stroke="#FFFFFF" strokeWidth="4" strokeLinecap="round" opacity="0.86" />
+                        <path d="M31 76 L39 70 L47 76 Z" fill="#E9B96E" />
+                        <rect x="33" y="76" width="12" height="6" rx="2" fill="#8C6A43" opacity="0.62" />
+                      </g>
+
+                      <path d="M10 84 C14 80 18 88 22 84 C26 80 30 88 34 84" fill="none" stroke="#2583AD" strokeWidth="2" strokeLinecap="round" opacity="0.75" />
+                      <circle cx="78" cy="84" r="1.4" fill="#FFFFFF" opacity="0.72" />
+                      <circle cx="84" cy="88" r="1" fill="#FFFFFF" opacity="0.52" />
+                      <circle cx="88" cy="82" r="0.9" fill="#FFFFFF" opacity="0.5" />
                     </svg>
+
+                    {MAP_PLACES.map((place) => {
+                      const marker = PLACE_MARKERS[place.id];
+                      const tooltipPlacement = marker.y > 68
+                        ? 'bottom-full mb-2 -translate-y-1 group-hover:translate-y-0 group-focus-visible:translate-y-0'
+                        : 'top-full mt-2 translate-y-1 group-hover:translate-y-0 group-focus-visible:translate-y-0';
+                      return (
+                        <button
+                          key={place.id}
+                          type="button"
+                          onClick={() => showAlert(`${place.name}\n${place.description}`, '📍', 'info')}
+                          className="group absolute z-20 -translate-x-1/2 -translate-y-1/2"
+                          style={{ left: `${marker.x}%`, top: `${marker.y}%` }}
+                          aria-label={`${place.name}: ${place.description}`}
+                        >
+                          <span
+                            className={cn(
+                              'flex h-8 w-8 items-center justify-center rounded-full border-2 bg-white shadow-[0_5px_14px_rgba(0,0,0,0.16)] transition-all group-hover:-translate-y-1 group-hover:scale-110 group-focus-visible:-translate-y-1 group-focus-visible:scale-110',
+                              getPlaceMarkerTone(place),
+                            )}
+                          >
+                            {getPlaceMarkerIcon(marker.kind)}
+                          </span>
+                          <span className={cn('pointer-events-none absolute left-1/2 z-40 w-44 -translate-x-1/2 rounded-2xl border-2 border-white bg-stone-900/95 px-3 py-2 text-left opacity-0 shadow-xl transition-all group-hover:opacity-100 group-focus-visible:opacity-100', tooltipPlacement)}>
+                            <span className="block text-[11px] font-black text-white">{place.name}</span>
+                            <span className="mt-1 block text-[10px] font-bold leading-relaxed text-white/75">
+                              {getShortPlaceDescription(place)}
+                            </span>
+                          </span>
+                        </button>
+                      );
+                    })}
 
                     {FARMS.map((farm) => {
                       const isUnlocked = (adoptedFarmIds || []).includes(farm.id);
                       const isStored = (storedFarmIds || []).includes(farm.id);
-                      const farmTreeCount = trees.filter(tree => tree.farmId === farm.id).length;
+                      const tooltipPlacement = farm.coords.y > 68
+                        ? 'bottom-full mb-2 -translate-y-1 group-hover:translate-y-0 group-focus-visible:translate-y-0'
+                        : 'top-full mt-2 translate-y-1 group-hover:translate-y-0 group-focus-visible:translate-y-0';
                       return (
                         <motion.button
                           key={farm.id}
                           whileHover={{ scale: 1.06, y: -3 }}
                           onClick={() => handleFarmSelect(farm)}
-                          className={cn('group absolute z-10 -translate-x-1/2 -translate-y-full', (!isUnlocked || isStored) && 'grayscale')}
+                          className={cn('group absolute z-30 -translate-x-1/2 -translate-y-full', (!isUnlocked || isStored) && 'grayscale')}
                           style={{ left: `${farm.coords.x}%`, top: `${farm.coords.y}%` }}
                           aria-label={`${farm.name} 선택`}
                         >
-                          <div className="flex flex-col items-center">
-                            <div
+                          <div className="relative flex flex-col items-center">
+                            <span
                               className={cn(
-                                'flex h-10 w-10 items-center justify-center rounded-full border-[3px] border-white shadow-[0_6px_16px_rgba(0,0,0,0.22)]',
+                                'flex h-11 w-11 items-center justify-center rounded-full border-[3px] border-white shadow-[0_6px_16px_rgba(0,0,0,0.22)] transition-all group-focus-visible:ring-4 group-focus-visible:ring-apple-red/25',
                                 isUnlocked && !isStored && 'bg-apple-red text-white',
                                 isStored && 'bg-stone-700 text-white',
                                 !isUnlocked && 'bg-stone-500 text-white opacity-75',
                               )}
                             >
                               {isUnlocked ? (
-                                isStored ? <ShoppingBag size={17} /> : <MapPin size={20} fill="currentColor" />
+                                isStored ? <ShoppingBag size={18} /> : <Trees size={20} />
                               ) : (
-                                <Lock size={17} />
+                                <Lock size={18} />
                               )}
-                            </div>
-                            <div
-                              className={cn(
-                                'mt-1 whitespace-nowrap rounded-full border-2 border-white px-2.5 py-1 text-[9px] font-black shadow-lg',
-                                isUnlocked && !isStored && 'bg-apple-red text-white',
-                                isStored && 'bg-stone-700 text-white',
-                                !isUnlocked && 'bg-white/90 text-stone-500',
-                              )}
-                            >
-                              {isUnlocked ? (isStored ? '보관 농가' : '내 농가') : '잠김'} · {farm.name}
-                            </div>
-                            <div className="mt-1 rounded-full bg-white/90 px-2 py-0.5 text-[8px] font-black text-stone-500 shadow-sm">
-                              나무 {farmTreeCount}/5
-                            </div>
+                            </span>
+                            <span className={cn('pointer-events-none absolute left-1/2 z-40 w-max -translate-x-1/2 rounded-2xl border-2 border-white bg-stone-900/95 px-3 py-1.5 text-[11px] font-black text-white opacity-0 shadow-xl transition-all group-hover:opacity-100 group-focus-visible:opacity-100', tooltipPlacement)}>
+                              {farm.name}
+                            </span>
                           </div>
                         </motion.button>
                       );
@@ -511,7 +634,7 @@ export const FarmSelection: React.FC<FarmSelectionProps> = ({
                       showNicknameRequired();
                       return;
                     }
-                    onGoToStore();
+                    onGoToStore(selectedFarm.id);
                   }}
                   aria-disabled={!canProceedWithTreeName}
                   disabled={!canProceedWithTreeName}
@@ -572,10 +695,11 @@ const GameGuide = () => {
 };
 
 const MapLegend = () => (
-  <div className="grid grid-cols-3 gap-2 rounded-[1.5rem] border-2 border-stone-100 bg-white p-3 shadow-sm">
+  <div className="grid grid-cols-2 gap-2 rounded-[1.5rem] border-2 border-stone-100 bg-white p-3 shadow-sm">
     <LegendItem color="bg-apple-red" label="내 농가" />
     <LegendItem color="bg-stone-500" label="잠긴 농가" />
     <LegendItem color="bg-stone-700" label="보관 농가" />
+    <LegendItem color="bg-sky-500" label="관광·방문지" />
   </div>
 );
 
