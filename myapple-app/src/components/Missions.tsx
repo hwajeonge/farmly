@@ -486,7 +486,7 @@ export const MissionsView: React.FC<MissionsViewProps> = ({
               onClick={() => handleStartMiniGame(game.id)}
               className="farm-card p-4 sm:p-5 flex items-center gap-3 sm:gap-5 group cursor-pointer hover:border-apple-red/30 transition-all active:scale-[0.98]"
             >
-              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-stone-50 rounded-2xl sm:rounded-[1.5rem] flex items-center justify-center text-2xl sm:text-4xl group-hover:scale-110 transition-transform shrink-0">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-stone-50 rounded-2xl sm:rounded-3xl flex items-center justify-center text-2xl sm:text-4xl group-hover:scale-110 transition-transform shrink-0">
                 {game.icon}
               </div>
               <div className="flex-1 min-w-0">
@@ -532,16 +532,16 @@ export const MissionsView: React.FC<MissionsViewProps> = ({
         {(() => {
           const claimed = claimedLinkMissions.includes('vr_panorama');
           return (
-            <div className="farm-card p-4 sm:p-5 flex items-center gap-3 sm:gap-4">
-              <div className="w-12 h-12 bg-stone-50 rounded-2xl flex items-center justify-center text-2xl shrink-0">
+            <div className="farm-card p-4 sm:p-5 flex items-center gap-3 sm:gap-5">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-stone-50 rounded-2xl sm:rounded-3xl flex items-center justify-center text-2xl sm:text-4xl shrink-0">
                 🥽
               </div>
-              <div className="flex-1">
-                <h4 className="font-black text-xs sm:text-sm leading-snug">영주시 VR 파노라마 체험</h4>
-                <p className="text-[10px] text-stone-400 font-medium mt-0.5 leading-snug">영주시 누리집 VR 파노라마로<br />영주를 미리 만나보세요!</p>
+              <div className="flex-1 min-w-0">
+                <h4 className="font-black text-base sm:text-lg mb-0.5 sm:mb-1">영주시 VR 파노라마 체험</h4>
+                <p className="text-[10px] sm:text-xs text-stone-400 font-medium">영주시 누리집 VR 파노라마로 영주를 미리 만나보세요!</p>
               </div>
-              <div className="shrink-0 flex flex-col items-center gap-1.5">
-                <span className="px-2 py-0.5 bg-yeoju-gold/10 text-yeoju-gold text-[9px] font-black rounded-lg">
+              <div className="shrink-0 flex flex-col items-center gap-2">
+                <span className="px-1.5 sm:px-2 py-0.5 bg-yeoju-gold/10 text-yeoju-gold text-[8px] sm:text-[10px] font-black rounded-lg whitespace-nowrap">
                   +100P
                 </span>
                 <button
@@ -553,23 +553,23 @@ export const MissionsView: React.FC<MissionsViewProps> = ({
                       showAlert('VR 파노라마 체험 완료!\n+100P 획득!', '🥽', 'success');
                     }
                   }}
-                  className={`flex items-center gap-1 px-3 py-1.5 rounded-xl font-black text-[11px] transition-all ${
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-2xl font-black text-xs transition-all ${
                     claimed
                       ? 'bg-stone-100 text-stone-400 cursor-not-allowed'
                       : 'bg-yeoju-gold text-white shadow-[0_3px_0_0_#b07a00] active:shadow-none active:translate-y-0.5'
                   }`}
-              >
-                {claimed ? (
-                  <>
-                    <CheckCircle2 size={14} />
-                    완료
-                  </>
-                ) : (
-                  <>
-                    <ExternalLink size={14} />
-                    체험하기
-                  </>
-                )}
+                >
+                  {claimed ? (
+                    <>
+                      <CheckCircle2 size={14} />
+                      완료
+                    </>
+                  ) : (
+                    <>
+                      <ExternalLink size={14} />
+                      체험하기
+                    </>
+                  )}
                 </button>
               </div>
             </div>
