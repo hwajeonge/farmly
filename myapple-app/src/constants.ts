@@ -1,5 +1,11 @@
 import { Farm, Place, VisitMission } from './types';
 
+const YEONGJU_STATION_IMAGE = 'https://commons.wikimedia.org/wiki/Special:FilePath/Korail_Yeongju_Station.JPG?width=1200';
+const BUSEOKSA_IMAGE = 'https://commons.wikimedia.org/wiki/Special:FilePath/Muryangsujeon_at_Buseoksa_01.jpg?width=1200';
+const PUNGGI_GINSENG_MARKET_IMAGE = 'https://tong.visitkorea.or.kr/cms/resource/71/132671_image2_1.jpg';
+const MUSEOM_VILLAGE_IMAGE = 'https://tong.visitkorea.or.kr/cms/resource/14/1950314_image2_1.jpg';
+const YEONGJU_SOBAEK_FARM_IMAGE = 'https://tong.visitkorea.or.kr/cms/resource/68/2725168_image2_1.jpg';
+
 export const FARMS: Farm[] = [
   {
     id: 'f1',
@@ -148,7 +154,7 @@ export const PLACES: Place[] = [
     isIndoor: true,
     relatedSpecialty: '여행 출발',
     estimatedStayTime: 20,
-    image: 'https://loremflickr.com/900/650/train,station?lock=1101',
+    image: YEONGJU_STATION_IMAGE,
     address: '경상북도 영주시 선비로 64',
     parking: '역 주변 주차장 이용'
   },
@@ -165,7 +171,7 @@ export const PLACES: Place[] = [
     isIndoor: false,
     relatedSpecialty: '사과',
     estimatedStayTime: 120,
-    image: 'https://loremflickr.com/900/650/korea,temple?lock=1102',
+    image: BUSEOKSA_IMAGE,
     address: '경상북도 영주시 부석면 부석사로 435',
     parking: '전용 주차장 완비 (대형 가능)'
   },
@@ -199,7 +205,7 @@ export const PLACES: Place[] = [
     isIndoor: true,
     relatedSpecialty: '인삼',
     estimatedStayTime: 60,
-    image: 'https://loremflickr.com/900/650/korea,market?lock=1104',
+    image: PUNGGI_GINSENG_MARKET_IMAGE,
     address: '경상북도 영주시 풍기읍 인삼로 8',
     parking: '시장 전용 주차장 및 인근 공영 주차장'
   },
@@ -216,7 +222,7 @@ export const PLACES: Place[] = [
     isIndoor: false,
     relatedSpecialty: '한옥체험',
     estimatedStayTime: 120,
-    image: 'https://loremflickr.com/900/650/korea,village?lock=1105',
+    image: MUSEOM_VILLAGE_IMAGE,
     address: '경상북도 영주시 문수면 무섬로 238-2',
     parking: '마을 입구 관광객 전용 주차장'
   },
@@ -335,7 +341,7 @@ export const PLACES: Place[] = [
     isIndoor: false,
     relatedSpecialty: '사과',
     estimatedStayTime: 120,
-    image: 'https://loremflickr.com/900/650/apple,orchard?lock=1112',
+    image: YEONGJU_SOBAEK_FARM_IMAGE,
     address: '경상북도 영주시 의상로116번길 43',
     parking: '농장 주차 가능'
   },
@@ -365,7 +371,7 @@ export const VISIT_MISSIONS: VisitMission[] = [
     placeId: 'p0',
     type: '탐험형',
     description: '영주 여행의 시작! 영주역에 도착했음을 알려주세요.',
-    img: 'https://loremflickr.com/900/650/train,station?lock=2101',
+    img: YEONGJU_STATION_IMAGE,
     stages: [
       { id: 'prepare', label: '여행 전', task: '관광 정책 확인 및 안내소 위치 파악', reward: 100, icon: '📋' },
       { id: 'arrival', label: '여행 시작', task: '영주역 도착 (GPS 체크인)', reward: 400, icon: '📍' },
@@ -379,7 +385,7 @@ export const VISIT_MISSIONS: VisitMission[] = [
     placeId: 'p1',
     type: '체험형',
     description: '무량수전의 아름다운 배흘림기둥을 직접 확인해보세요.',
-    img: 'https://loremflickr.com/900/650/korea,temple?lock=2102',
+    img: BUSEOKSA_IMAGE,
     stages: [
       { id: 'prepare', label: '여행 전', task: '부석사 문화재 해설 시간표 확인하기', reward: 200, icon: '📜' },
       { id: 'arrival', label: '여행 시작', task: '부석사 매표소 GPS 도착 인증', reward: 500, icon: '📍' },
@@ -393,7 +399,7 @@ export const VISIT_MISSIONS: VisitMission[] = [
     placeId: 'p3',
     type: '소비형',
     description: '건강한 풍기 인삼의 향기를 느껴보세요.',
-    img: 'https://loremflickr.com/900/650/ginseng,market?lock=2103',
+    img: PUNGGI_GINSENG_MARKET_IMAGE,
     stages: [
       { id: 'prepare', label: '여행 전', task: '풍기 인삼 효능 및 시장 종류 파악', reward: 100, icon: '🔍' },
       { id: 'arrival', label: '여행 시작', task: '인삼 시장 입구 GPS 도착 인증', reward: 300, icon: '📍' },
@@ -407,7 +413,7 @@ export const VISIT_MISSIONS: VisitMission[] = [
     placeId: 'p4',
     type: '체험형',
     description: '아슬아슬 재미있는 외나무다리를 건너보세요.',
-    img: 'https://loremflickr.com/900/650/korea,bridge,village?lock=2104',
+    img: MUSEOM_VILLAGE_IMAGE,
     stages: [
       { id: 'prepare', label: '여행 전', task: '무섬마을 자전거 대여 정책 확인', reward: 200, icon: '🚲' },
       { id: 'arrival', label: '여행 시작', task: '무섬마을 주차장 GPS 도착 인증', reward: 400, icon: '📍' },
@@ -421,7 +427,7 @@ export const VISIT_MISSIONS: VisitMission[] = [
     placeId: 'p11',
     type: '체험형',
     description: '영주 농촌체험 농장에서 사과나무와 지역 농산물 체험을 연결해보세요.',
-    img: 'https://loremflickr.com/900/650/apple,orchard,farm?lock=2105',
+    img: YEONGJU_SOBAEK_FARM_IMAGE,
     stages: [
       { id: 'prepare', label: '여행 전', task: '농장 체험 예약 가능 여부 확인', reward: 200, icon: '📋' },
       { id: 'arrival', label: '여행 시작', task: '영주소백팜 GPS 도착 인증', reward: 500, icon: '📍' },

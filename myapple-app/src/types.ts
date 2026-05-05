@@ -84,6 +84,18 @@ export interface VisitedPlace {
 }
 
 export type PestType = 'none' | 'aphids' | 'leaf_blight' | 'bug_invasion';
+export type TreeCardTheme =
+  | 'classic'
+  | 'neon'
+  | 'vintage'
+  | 'nature'
+  | 'sunset'
+  | 'picnic'
+  | 'sky'
+  | 'blossom'
+  | 'night'
+  | 'golden'
+  | 'forest';
 
 export interface TreeState {
   id: string;
@@ -95,6 +107,7 @@ export interface TreeState {
   health: number; // 0 to 100
   water: number; // 0 to 100
   lastWatered: string; // ISO date string
+  lastWateredDay?: number; // In-game day when the user manually watered this tree
   nutrientsUsed: number; // Max 2 per season
   pestStatus: PestType;
   shieldActive: boolean;
@@ -104,7 +117,8 @@ export interface TreeState {
   isGolden: boolean;
   harvestedApples?: number;
   cardConfig?: {
-    theme: 'classic' | 'neon' | 'vintage' | 'nature';
+    theme: TreeCardTheme;
+    icon?: string;
     stickers: { id: string; x: number; y: number; type: string }[];
     backgroundImage?: string;
   };
@@ -197,7 +211,6 @@ export interface UserProfile {
   chatHistory?: { role: 'user' | 'model'; text: string }[]; // legacy
   chatConversations?: ChatConversation[];
   onboardingSeen?: boolean;
-  slotCooldowns?: Record<string, { farmId: string; lockedUntil: string }>; // farmId + index key
   courses?: Course[];
   visitedHistory?: VisitedPlace[];
   missionReviews?: MissionReview[];

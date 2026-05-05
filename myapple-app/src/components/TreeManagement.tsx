@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, CreditCard, Droplets, Leaf, PackageOpen, Pill, Send, Shield, ShoppingBag, Sprout, Trash2 } from 'lucide-react';
+import { Calendar, CreditCard, Droplets, Leaf, MessageCircle, PackageOpen, Pill, Send, Shield, ShoppingBag, Sprout, Trash2 } from 'lucide-react';
 import { PestType, TreeState } from '../types';
 import { getTreeMessage } from '../services/geminiService';
 import { cn } from '../lib/utils';
@@ -59,6 +59,7 @@ export const TreeManagement: React.FC<TreeManagementProps> = ({
 }) => {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
 
@@ -66,6 +67,15 @@ export const TreeManagement: React.FC<TreeManagementProps> = ({
   const weatherEvent = isSeasonEnded ? null : getWeatherEvent(tree.currentDay);
   const weatherSummary = isSeasonEnded ? '30일 성장 주기를 마친 나무예요.' : getGrowthWeatherSummary(tree.currentDay);
   const dailyStatus = isSeasonEnded ? '수확 완료! 땅 정리와 다음 시즌 준비 단계예요.' : getDailyStatusMessage(tree.currentDay);
+  const isWateredToday = tree.lastWateredDay === tree.currentDay;
+  const hasRainMoistureBonus = weatherEvent?.type === 'spring_rain' || weatherEvent?.type === 'monsoon';
+  const rainMoistureMessage = weatherEvent?.type === 'spring_rain'
+    ? '영주에 비가 와서 나무가 촉촉해졌어요. 자동 수분 보너스가 적용되지만, 직접 물주기 1회는 따로 관리돼요.'
+    : weatherEvent?.type === 'monsoon'
+      ? '영주 장마 패턴이 반영되어 토양 수분 보너스가 적용돼요. 습도가 높아 병충해도 함께 조심해야 해요.'
+      : '';
+  const waterActionLabel = isWateredToday ? '오늘 물주기 완료' : '오늘 물주기 가능';
+  const waterActionSublabel = isWateredToday ? '내일 다시 물 줄 수 있어요' : '직접 물주기 · 성장 +5%';
   const stageVisual = isSeasonEnded
     ? { icon: '📦', label: '수확완료' }
     : STAGE_VISUALS.find((stage) => tree.currentDay <= stage.maxDay) ?? STAGE_VISUALS[STAGE_VISUALS.length - 1];
@@ -106,6 +116,11 @@ export const TreeManagement: React.FC<TreeManagementProps> = ({
   useEffect(() => {
     fetchMessage();
   }, [tree.growthStage, tree.currentDay]);
+
+  useEffect(() => {
+    setIsChatOpen(false);
+    setChatInput('');
+  }, [tree.id]);
 
   const handleChatSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -186,42 +201,69 @@ export const TreeManagement: React.FC<TreeManagementProps> = ({
           </div>
         </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="speech-bubble mx-auto mb-4 w-full text-center"
-        >
-          {loading ? (
-            <div className="flex justify-center gap-1.5 px-6 py-3">
-              {[0, 0.2, 0.4].map((delay) => (
-                <div key={delay} className="h-2 w-2 animate-bounce rounded-full bg-stone-200" style={{ animationDelay: `${delay}s` }} />
-              ))}
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <p className="text-sm font-medium leading-relaxed text-stone-600">{message}</p>
-              {!isSeasonEnded && (
-                <form onSubmit={handleChatSubmit} className="relative flex items-center">
-                  <input
-                    type="text"
-                    value={chatInput}
-                    onChange={(e) => setChatInput(e.target.value)}
-                    placeholder={`${tree.nickname}에게 말 걸기`}
-                    className="w-full rounded-full border-2 border-stone-100 bg-stone-50 px-4 py-2 pr-10 text-xs font-bold outline-none transition-all placeholder:text-stone-300 focus:border-apple-green focus:bg-white focus:ring-2 focus:ring-apple-green/20"
-                  />
-                  <button
-                    type="submit"
-                    disabled={chatLoading || !chatInput.trim()}
-                    className="absolute right-1 flex h-7 w-7 items-center justify-center rounded-full bg-apple-green text-white transition-all active:scale-90 disabled:opacity-40"
-                    aria-label="나무에게 메시지 보내기"
-                  >
-                    {chatLoading ? <div className="h-3 w-3 animate-spin rounded-full border-2 border-white/30 border-t-white" /> : <Send size={13} />}
-                  </button>
-                </form>
+        <div className="mb-4">
+          <button
+            type="button"
+            onClick={() => setIsChatOpen((prev) => !prev)}
+            aria-expanded={isChatOpen}
+            className={cn(
+              'flex w-full items-center justify-between gap-3 rounded-2xl border-2 px-4 py-3 text-left transition-all active:scale-[0.99]',
+              isChatOpen
+                ? 'border-apple-green/30 bg-apple-green/10 text-apple-green-dark'
+                : 'border-stone-100 bg-stone-50 text-stone-600',
+            )}
+          >
+            <span className="flex items-center gap-2 text-xs font-black">
+              <MessageCircle size={16} />
+              {isChatOpen ? '대화창 끄기' : `${tree.nickname}와 대화하기`}
+            </span>
+            <span className={cn(
+              'rounded-full px-2.5 py-1 text-[10px] font-black',
+              isChatOpen ? 'bg-white text-apple-green' : 'bg-white text-stone-400',
+            )}>
+              {isChatOpen ? 'ON' : 'OFF'}
+            </span>
+          </button>
+
+          {isChatOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="speech-bubble mx-auto mt-3 w-full text-center"
+            >
+              {loading ? (
+                <div className="flex justify-center gap-1.5 px-6 py-3">
+                  {[0, 0.2, 0.4].map((delay) => (
+                    <div key={delay} className="h-2 w-2 animate-bounce rounded-full bg-stone-200" style={{ animationDelay: `${delay}s` }} />
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-sm font-medium leading-relaxed text-stone-600">{message}</p>
+                  {!isSeasonEnded && (
+                    <form onSubmit={handleChatSubmit} className="relative flex items-center">
+                      <input
+                        type="text"
+                        value={chatInput}
+                        onChange={(e) => setChatInput(e.target.value)}
+                        placeholder={`${tree.nickname}에게 말 걸기`}
+                        className="w-full rounded-full border-2 border-stone-100 bg-stone-50 px-4 py-2 pr-10 text-xs font-bold outline-none transition-all placeholder:text-stone-300 focus:border-apple-green focus:bg-white focus:ring-2 focus:ring-apple-green/20"
+                      />
+                      <button
+                        type="submit"
+                        disabled={chatLoading || !chatInput.trim()}
+                        className="absolute right-1 flex h-7 w-7 items-center justify-center rounded-full bg-apple-green text-white transition-all active:scale-90 disabled:opacity-40"
+                        aria-label="나무에게 메시지 보내기"
+                      >
+                        {chatLoading ? <div className="h-3 w-3 animate-spin rounded-full border-2 border-white/30 border-t-white" /> : <Send size={13} />}
+                      </button>
+                    </form>
+                  )}
+                </div>
               )}
-            </div>
+            </motion.div>
           )}
-        </motion.div>
+        </div>
 
         <div className="relative flex h-56 items-center justify-center">
           <div className="absolute bottom-4 h-9 w-40 rounded-[100%] bg-stone-900/5 blur-xl" />
@@ -230,7 +272,10 @@ export const TreeManagement: React.FC<TreeManagementProps> = ({
             animate={{ scale: [1, 1.04, 1], rotate: [-1, 1, -1] }}
             transition={{ duration: 5, repeat: Infinity }}
             className="relative z-10 text-[8.5rem] drop-shadow-2xl"
-            onClick={() => fetchMessage()}
+            onClick={() => {
+              setIsChatOpen(true);
+              fetchMessage();
+            }}
             aria-label="나무와 대화하기"
           >
             {stageVisual.icon}
@@ -262,6 +307,19 @@ export const TreeManagement: React.FC<TreeManagementProps> = ({
           <InfoCard title="다음 목표" value={nextGoal} tone="green" />
           <InfoCard title={isSeasonEnded ? '수확 결과' : '영주 날씨'} value={isSeasonEnded ? `${tree.harvestedApples ?? 0}개의 사과를 수확했어요.` : weatherEvent?.message ?? weatherSummary} tone="blue" />
         </div>
+        {hasRainMoistureBonus && (
+          <div className="mt-3 rounded-2xl border-2 border-sky-100 bg-sky-50 px-4 py-3">
+            <div className="flex items-start gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-white text-sky-500 shadow-sm">
+                <Droplets size={17} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-sky-600">자동 수분 보너스</p>
+                <p className="mt-1 text-[11px] font-bold leading-relaxed text-stone-600">{rainMoistureMessage}</p>
+              </div>
+            </div>
+          </div>
+        )}
       </section>
 
       {isSeasonEnded ? (
@@ -291,7 +349,15 @@ export const TreeManagement: React.FC<TreeManagementProps> = ({
               </button>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <ActionCard onClick={() => onAction('water')} icon={<Droplets size={24} />} label="물주기" sublabel="하루 1회 성장 +5%" color="sky" />
+              <ActionCard
+                onClick={() => onAction('water')}
+                icon={<Droplets size={24} />}
+                label={waterActionLabel}
+                sublabel={waterActionSublabel}
+                color="sky"
+                disabled={isWateredToday}
+                badge={isWateredToday ? '완료' : '가능'}
+              />
               <ActionCard onClick={() => onAction('nutrient')} icon={<Leaf size={24} />} label="영양제" sublabel={`시즌 2회 · ${getItemCount('nutrient')}개 보유`} color="green" count={getItemCount('nutrient')} />
               <ActionCard onClick={() => onAction('medicine')} icon={<Pill size={24} />} label="치료약" sublabel={`병충해 치료 · ${getItemCount('medicine')}개`} color="red" count={getItemCount('medicine')} />
               <ActionCard onClick={() => onAction('shield')} icon={<Shield size={24} />} label="방풍막" sublabel={`폭염 방어 · ${getItemCount('shield')}개`} color="stone" count={getItemCount('shield')} />
@@ -444,6 +510,8 @@ const ActionCard = ({
   sublabel,
   color,
   count,
+  disabled = false,
+  badge,
 }: {
   onClick: () => void;
   icon: React.ReactNode;
@@ -451,21 +519,36 @@ const ActionCard = ({
   sublabel: string;
   color: string;
   count?: number;
+  disabled?: boolean;
+  badge?: string;
 }) => (
   <motion.button
-    whileTap={{ scale: 0.96 }}
+    whileTap={disabled ? undefined : { scale: 0.96 }}
     onClick={onClick}
-    className={cn('relative flex flex-col items-center gap-2 rounded-[1.5rem] border-2 p-4 transition-all active:opacity-80', COLOR_MAP[color] ?? COLOR_MAP.stone)}
+    disabled={disabled}
+    className={cn(
+      'relative flex flex-col items-center gap-2 rounded-[1.5rem] border-2 p-4 transition-all active:opacity-80 disabled:cursor-not-allowed disabled:active:opacity-100',
+      COLOR_MAP[color] ?? COLOR_MAP.stone,
+      disabled && 'bg-stone-50 border-stone-100 text-stone-300',
+    )}
   >
     {count !== undefined && count > 0 && (
       <span className="absolute right-2.5 top-2.5 flex h-5 w-5 items-center justify-center rounded-full border-2 border-white bg-apple-red text-[9px] font-black leading-none text-white">
         {count}
       </span>
     )}
+    {badge && (
+      <span className={cn(
+        'absolute right-2.5 top-2.5 rounded-full border-2 border-white px-2 py-0.5 text-[9px] font-black leading-none shadow-sm',
+        disabled ? 'bg-stone-200 text-stone-500' : 'bg-sky-500 text-white',
+      )}>
+        {badge}
+      </span>
+    )}
     {icon}
     <div className="text-center">
-      <p className="text-xs font-black text-stone-800">{label}</p>
-      <p className="mt-0.5 text-[9px] font-bold text-stone-400">{sublabel}</p>
+      <p className={cn('text-xs font-black', disabled ? 'text-stone-400' : 'text-stone-800')}>{label}</p>
+      <p className={cn('mt-0.5 text-[9px] font-bold', disabled ? 'text-stone-300' : 'text-stone-400')}>{sublabel}</p>
     </div>
   </motion.button>
 );

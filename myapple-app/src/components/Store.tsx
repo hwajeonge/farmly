@@ -397,7 +397,7 @@ export const StoreView: React.FC<StoreProps> = ({
       <section>
         <div className="mb-3 flex items-center gap-2 px-1">
           <Store size={15} className="text-apple-red" />
-          <h3 className="section-title">수확 후 실물 구매</h3>
+          <h3 className="section-title">영주 직거래 장터 바로가기</h3>
         </div>
 
         <motion.a
@@ -410,14 +410,14 @@ export const StoreView: React.FC<StoreProps> = ({
         >
           <img
             src="https://picsum.photos/seed/yeongjumarket/1200/600"
-            alt="영주장날 공식몰"
+            alt="영주 직거래 장터"
             className="h-full w-full object-cover"
             referrerPolicy="no-referrer"
           />
           <div className="absolute inset-0 flex flex-col justify-end bg-linear-to-t from-black/80 via-black/20 to-transparent p-5">
             <div className="flex items-end justify-between gap-3">
               <div>
-                <h4 className="mb-0.5 text-lg font-black text-white">영주장날 공식몰</h4>
+                <h4 className="mb-0.5 text-lg font-black text-white">영주 직거래 장터 바로가기</h4>
                 <p className="text-[11px] font-bold text-white/75">게임에서 만난 사과 경험을 실제 소비로 이어가요.</p>
               </div>
               <div className="rounded-2xl bg-white/20 p-2.5 backdrop-blur-md">

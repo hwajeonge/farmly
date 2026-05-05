@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { showAlert } from '../lib/alertEmitter';
 import { motion } from 'framer-motion';
-import { Share2, Info, Calendar, MapPin, Star, Apple, Droplets, TrendingUp, Sparkles, X, Users } from 'lucide-react';
-import { TreeState, AppleVariety } from '../types';
+import { Apple, Calendar, Droplets, MapPin, Sparkles, TrendingUp, Users, X } from 'lucide-react';
+import { TreeState } from '../types';
 import { cn } from '../lib/utils';
+import { getTreeCardDesign, getTreeCardStickerIcon } from '../treeCardDesign';
 
 interface TreeOwnershipCardProps {
   tree: TreeState;
@@ -13,22 +14,7 @@ interface TreeOwnershipCardProps {
 
 export const TreeOwnershipCard: React.FC<TreeOwnershipCardProps> = ({ tree, ownerName, onClose }) => {
   const [isFlipped, setIsFlipped] = useState(false);
-  const theme = tree.cardConfig?.theme || 'classic';
-
-  const themeStyles = {
-    classic: 'bg-white border-stone-200 text-stone-800 shadow-xl shadow-stone-200/50',
-    neon: 'bg-gradient-to-br from-stone-900 to-blue-900 border-blue-500 text-white shadow-blue-500/20',
-    nature: 'bg-gradient-to-br from-green-50 to-emerald-100 border-green-200 text-green-900 shadow-lg shadow-green-200/50',
-  };
-
-  const varietyIcons: Record<string, string> = {
-    '부사': '🍎',
-    '홍로': '🍎',
-    '시나노골드': '🍏',
-    '감홍': '🍏',
-    '아오리': '🍏',
-    '홍옥': '🍎'
-  };
+  const design = getTreeCardDesign(tree);
 
   const handleShare = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -44,32 +30,46 @@ export const TreeOwnershipCard: React.FC<TreeOwnershipCardProps> = ({ tree, owne
       >
         {/* Front Side */}
         <div className={cn(
-          "absolute w-full h-full backface-hidden rounded-[2.5rem] border-[6px] shadow-2xl p-6 flex flex-col items-center justify-between transition-colors",
-          themeStyles[theme as keyof typeof themeStyles] || themeStyles.classic
+          'absolute w-full h-full backface-hidden overflow-hidden rounded-[2.5rem] border-[6px] shadow-2xl p-6 flex flex-col items-center justify-between transition-colors',
+          design.frameClass,
         )}>
+          <div className={cn('absolute -right-16 -top-16 h-40 w-40 rounded-full blur-2xl', design.glowClass)} />
+          <div className={cn('absolute -bottom-20 -left-14 h-44 w-44 rounded-full blur-2xl', design.glowClass)} />
           <div className="absolute inset-2 border border-current opacity-10 rounded-[2rem] pointer-events-none" />
           
           <div className="w-full flex justify-between items-start z-10">
             <div className="flex flex-col">
               <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Apple Farmer Card</span>
               <h3 className="text-lg font-black leading-tight">{tree.nickname}</h3>
+              <span className={cn('mt-1 text-[9px] font-black uppercase tracking-[0.16em]', design.mutedTextClass)}>
+                {design.label}
+              </span>
             </div>
-            <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 text-xl">
-              {varietyIcons[tree.variety] || '🍎'}
+            <div className={cn('w-11 h-11 rounded-2xl backdrop-blur-md flex items-center justify-center border text-2xl shadow-sm', design.miniClass)}>
+              {design.icon}
             </div>
           </div>
 
-          <div className="relative w-full aspect-square bg-stone-50 rounded-2xl overflow-hidden border-2 border-stone-200/50 shadow-inner group-hover:scale-[1.02] transition-transform duration-500">
+          <div className={cn('relative w-full aspect-square rounded-2xl overflow-hidden border-2 shadow-inner group-hover:scale-[1.02] transition-transform duration-500', design.artClass)}>
+             {design.stickers.map((sticker) => (
+               <span
+                 key={sticker.id}
+                 className="pointer-events-none absolute z-0 text-lg opacity-55"
+                 style={{ left: `${sticker.x}%`, top: `${sticker.y}%` }}
+               >
+                 {getTreeCardStickerIcon(sticker.type)}
+               </span>
+             ))}
              <div className="absolute inset-0 flex items-center justify-center text-7xl select-none">
                 <motion.div animate={{ y: [0, -10, 0] }} transition={{ repeat: Infinity, duration: 4 }}>
-                  {tree.growthStage === '시즌종료' ? '🍎' : '🌳'}
+                  {design.displayIcon}
                 </motion.div>
              </div>
-             <div className="absolute bottom-3 right-3 bg-white/80 backdrop-blur-md px-3 py-1 rounded-full border border-stone-100 flex items-center gap-1.5 shadow-sm text-stone-800">
+             <div className={cn('absolute bottom-3 right-3 backdrop-blur-md px-3 py-1 rounded-full border flex items-center gap-1.5 shadow-sm', design.miniClass)}>
                <TrendingUp size={12} className="text-apple-red" />
                <span className="text-[10px] font-black">{tree.growthStage}</span>
              </div>
-             <div className="absolute top-3 left-3 bg-stone-800 text-white px-2 py-0.5 rounded flex items-center gap-1">
+             <div className={cn('absolute top-3 left-3 px-2 py-0.5 rounded-lg flex items-center gap-1 border shadow-sm', design.chipClass)}>
                <span className="text-[8px] font-black italic">DAY</span>
                <span className="text-xs font-black">{tree.currentDay}</span>
              </div>
@@ -77,11 +77,11 @@ export const TreeOwnershipCard: React.FC<TreeOwnershipCardProps> = ({ tree, owne
 
           <div className="w-full space-y-4 z-10">
             <div className="grid grid-cols-2 gap-2">
-              <div className="bg-white/30 backdrop-blur-sm p-3 rounded-2xl border border-white/50">
+              <div className={cn('backdrop-blur-sm p-3 rounded-2xl border', design.miniClass)}>
                 <p className="text-[8px] font-black opacity-60 uppercase mb-1">Variety</p>
                 <p className="text-xs font-black truncate">{tree.variety}</p>
               </div>
-              <div className="bg-white/30 backdrop-blur-sm p-3 rounded-2xl border border-white/50">
+              <div className={cn('backdrop-blur-sm p-3 rounded-2xl border', design.miniClass)}>
                 <p className="text-[8px] font-black opacity-60 uppercase mb-1">ID</p>
                 <p className="text-xs font-black italic">#{tree.id.slice(-4).toUpperCase()}</p>
               </div>
@@ -101,9 +101,11 @@ export const TreeOwnershipCard: React.FC<TreeOwnershipCardProps> = ({ tree, owne
 
         {/* Back Side */}
         <div className={cn(
-          "absolute w-full h-full backface-hidden rounded-[2.5rem] border-[6px] shadow-2xl p-6 flex flex-col justify-between rotate-y-180 transition-colors",
-          themeStyles[theme as keyof typeof themeStyles] || themeStyles.classic
+          'absolute w-full h-full backface-hidden overflow-hidden rounded-[2.5rem] border-[6px] shadow-2xl p-6 flex flex-col justify-between rotate-y-180 transition-colors',
+          design.frameClass,
         )}>
+          <div className={cn('absolute -right-16 -top-16 h-40 w-40 rounded-full blur-2xl', design.glowClass)} />
+          <div className={cn('absolute -bottom-20 -left-14 h-44 w-44 rounded-full blur-2xl', design.glowClass)} />
           <div className="space-y-6">
             <div className="flex justify-between items-center">
               <h3 className="text-sm font-black uppercase tracking-widest">Ownership Details</h3>

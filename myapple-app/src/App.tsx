@@ -16,7 +16,7 @@ import { MyPage } from './components/MyPage';
 import { AdminDashboard } from './components/AdminDashboard';
 import { UserProfile, Farm, AppleVariety, TreeState, Course, AppNotification, ItemId, ChatConversation, DeliveryInfo, MissionReview } from './types';
 import { VISIT_MISSIONS, FARMS, PLACES } from './constants';
-import { calculateDailyGrowth, calculateHarvestAmount, getPestEvent, getWeatherEvent, canTransitionToNextSeason, getGrowthStageLabel, getDailyStatusMessage, daysSince } from './services/growthService';
+import { calculateDailyGrowth, calculateHarvestAmount, getPestEvent, getWeatherEvent, canTransitionToNextSeason, getGrowthStageLabel, getDailyStatusMessage } from './services/growthService';
 import { FloatingChatbot } from './components/FloatingChatbot';
 import { RoleSelectionView } from './components/RoleSelectionView';
 import { UserRole } from './types';
@@ -33,6 +33,7 @@ import {
   getHarvestDeliveryRewardById,
   HARVEST_DELIVERY_MIN_APPLES,
 } from './rewardRules';
+import { createRandomTreeCardConfig } from './treeCardDesign';
 
 const MISSION_STATUS_RANK = {
   none: 0,
@@ -307,21 +308,6 @@ export default function App() {
       showAlert('나무 이름을 먼저 입력해주세요.\n이름을 지어야 씨앗 심기를 완료할 수 있어요.', '🌱', 'warning');
       return;
     }
-    
-    // Check for cooldown (3 days)
-    const treesInCurrentFarm = user.trees.filter(t => t.farmId === farm.id);
-    const slotIdx = treesInCurrentFarm.length;
-    const cooldownKey = `${farm.id}_${slotIdx}`;
-    
-    if (user.slotCooldowns?.[cooldownKey]) {
-      const lockedUntil = new Date(user.slotCooldowns[cooldownKey].lockedUntil);
-      if (lockedUntil > new Date()) {
-        const daysLeft = Math.ceil((lockedUntil.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-        showAlert(`이 자리는 나무 제거 후 3일 휴지기입니다.\n${daysLeft}일 후에 다시 씨앗을 심을 수 있어요.`, '⏳', 'warning');
-        return;
-      }
-    }
-
     const seedId = `seed_${farm.id}`;
     const hasSeed = user.items.some(i => i.id === seedId);
 
@@ -344,9 +330,11 @@ export default function App() {
       shieldActive: false,
       growthStage: '발아기',
       plantedAt: new Date().toISOString(),
-      lastWatered: new Date().toISOString(),
+      lastWatered: '',
+      lastWateredDay: undefined,
       personality,
-      isGolden: Math.random() < 0.05
+      isGolden: Math.random() < 0.05,
+      cardConfig: createRandomTreeCardConfig(),
     };
 
     setUser(prev => {
@@ -373,16 +361,11 @@ export default function App() {
         }
       }
 
-      // Clear cooldown if used
-      const updatedCooldowns = { ...(prev.slotCooldowns || {}) };
-      delete updatedCooldowns[cooldownKey];
-
       return {
         ...prev,
         items: updatedItems,
         trees: [...prev.trees, newTree],
         adoptedFarmIds: updatedAdopted,
-        slotCooldowns: updatedCooldowns
       };
     });
     setActiveTab('tree');
@@ -391,7 +374,7 @@ export default function App() {
   const handleDeleteTree = async (treeId: string) => {
     if (!user) return;
     const confirmed = await showConfirm({
-      message: '정말로 이 사과나무를 제거하시겠습니까?\n수확 전에 제거하면 3일간 해당 자리에 심을 수 없습니다.',
+      message: '정말로 이 사과나무를 제거하시겠습니까?\n제거 후에도 바로 새 씨앗을 심을 수 있어요.',
       emoji: '🪓',
       type: 'warning',
       confirmText: '제거하기',
@@ -401,28 +384,11 @@ export default function App() {
 
     setUser(prev => {
       if (!prev) return prev;
-      const treeToRemove = prev.trees.find(t => t.id === treeId);
-      if (!treeToRemove) return prev;
-
-      const farmId = treeToRemove.farmId;
-      const treesInFarm = prev.trees.filter(t => t.farmId === farmId);
-      const slotIdx = treesInFarm.findIndex(t => t.id === treeId);
-      const cooldownKey = `${farmId}_${slotIdx}`;
-
-      const lockedUntil = new Date();
-      lockedUntil.setDate(lockedUntil.getDate() + 3);
-
-      const updatedCooldowns = {
-        ...(prev.slotCooldowns || {}),
-        [cooldownKey]: { farmId, lockedUntil: lockedUntil.toISOString() }
-      };
-
-      addNotification("🪓 나무 제거 완료", "나무를 제거했습니다. 해당 자리는 3일간 휴지기를 가집니다.", 'info');
+      addNotification("🪓 나무 제거 완료", "나무를 제거했습니다. 바로 새 씨앗을 심을 수 있어요.", 'info');
 
       return {
         ...prev,
         trees: prev.trees.filter(t => t.id !== treeId),
-        slotCooldowns: updatedCooldowns
       };
     });
   };
@@ -443,14 +409,14 @@ export default function App() {
       const updatedItems = [...prev.items];
 
       if (action === 'water') {
-        const today = new Date().toDateString();
-        if (new Date(tree.lastWatered).toDateString() === today) {
-          showAlert('오늘은 이미 물을 주었어요!\n내일 다시 와주세요 🌤️', '💧', 'info');
+        if (tree.lastWateredDay === tree.currentDay) {
+          showAlert(`오늘 물주기 완료!\nDay ${tree.currentDay}에는 이미 물을 줬어요. 내일 다시 물 줄 수 있어요.`, '💧', 'info');
           return prev;
         }
         tree.water = Math.min(100, tree.water + 20);
         tree.lastWatered = new Date().toISOString();
-        addNotification("💧 물주기 완료", `${tree.nickname}이 시원해합니다!`, 'info');
+        tree.lastWateredDay = tree.currentDay;
+        addNotification("💧 오늘 물주기 완료", `${tree.nickname}이 시원해합니다. 내일 다시 물을 줄 수 있어요.`, 'info');
       } else if (action === 'nutrient') {
         const itemIdx = updatedItems.findIndex(i => i.id === 'nutrient');
         if (itemIdx === -1 || updatedItems[itemIdx].count <= 0) {
@@ -504,7 +470,7 @@ export default function App() {
         if ((prev.storedFarmIds || []).includes(tree.farmId)) return tree;
         if (tree.growthStage === '시즌종료') return tree;
 
-        const isWatered = new Date(tree.lastWatered).toDateString() === new Date().toDateString();
+        const isWatered = tree.lastWateredDay === tree.currentDay;
         const weatherEvent = getWeatherEvent(tree.currentDay);
         
         // Progress growth rate
@@ -530,7 +496,10 @@ export default function App() {
         }
 
         // Pest logic (Pass nutrient use info)
-        const lastWateredDays = daysSince(tree.lastWatered);
+        const lastWateredDays =
+          typeof tree.lastWateredDay === 'number'
+            ? Math.max(0, newTree.currentDay - tree.lastWateredDay)
+            : Number.POSITIVE_INFINITY;
         const pest = getPestEvent(newTree.currentDay, lastWateredDays, newTree.nutrientsUsed > 0);
         if (pest !== 'none' && !newTree.shieldActive && newTree.pestStatus === 'none') {
           newTree.pestStatus = pest;
@@ -1038,7 +1007,8 @@ export default function App() {
           growthRate: canUseFertilizer ? 10 : 0,
           health: 100,
           water: 50,
-          lastWatered: new Date().toISOString(),
+          lastWatered: '',
+          lastWateredDay: undefined,
           nutrientsUsed: 0,
           pestStatus: 'none',
           shieldActive: false,
@@ -1164,7 +1134,6 @@ export default function App() {
                 onAdopt={handleAdoptTree} 
                 adoptedFarmIds={user.adoptedFarmIds || []}
                 storedFarmIds={user.storedFarmIds || []}
-                slotCooldowns={user.slotCooldowns || {}}
                 onStoreFarm={handleStoreFarm}
                 onUnstoreFarm={handleUnstoreFarm}
                 trees={user.trees}

@@ -63,10 +63,11 @@ export const calculateDailyGrowth = (
 
   const maxDaily = weatherEvent?.maxDailyGrowth ?? getMaxDailyGrowth(weatherEvent?.type);
   dailyGrowth = Math.max(-10, Math.min(maxDaily, dailyGrowth));
+  const hasWeatherMoistureBonus = weatherEvent?.type === 'spring_rain' || weatherEvent?.type === 'monsoon';
 
   return {
     growthRate: Math.min(100, Math.max(0, tree.growthRate + dailyGrowth)),
-    water: Math.max(0, Math.min(100, tree.water - (isWateredToday ? 0 : 10))),
+    water: Math.max(0, Math.min(100, tree.water - (isWateredToday || hasWeatherMoistureBonus ? 0 : 10))),
     shieldActive: weatherEvent?.type === 'heatwave' ? false : tree.shieldActive,
   };
 };
@@ -166,8 +167,8 @@ export const getWeatherEvent = (day: number): GrowthWeatherEvent | null => {
       type: 'spring_rain',
       effectModifier: 3,
       maxDailyGrowth: 12,
-      message: `영주 ${seasonLabel}비 이벤트예요. ${weather.monthBasis}월 강수 패턴을 반영해 토양 수분이 좋아졌어요.`,
-      userMessage: '봄비 덕분에 물주기 효과가 자동 적용됐어요.',
+      message: `영주에 비가 와서 나무가 촉촉해졌어요. ${weather.monthBasis}월 강수 패턴을 반영한 자동 수분 보너스가 적용돼요.`,
+      userMessage: '영주 봄비 덕분에 자동 수분 보너스가 적용됐어요. 직접 물주기는 별도로 한 번 가능해요.',
       seasonLabel,
       monthBasis: weather.monthBasis,
       climate,
@@ -190,8 +191,8 @@ export const getWeatherEvent = (day: number): GrowthWeatherEvent | null => {
       type: 'monsoon',
       effectModifier: 2,
       maxDailyGrowth: 10,
-      message: `영주 여름 장마 패턴이에요. ${weather.monthBasis}월 강수량과 습도를 반영해 병충해 위험이 올라갑니다.`,
-      userMessage: '장마 보너스가 적용됐지만 병충해 위험도 커졌어요.',
+      message: `영주 장마 패턴이에요. ${weather.monthBasis}월 강수량과 습도를 반영한 자동 수분 보너스가 적용되지만 병충해 위험도 올라갑니다.`,
+      userMessage: '영주에 비가 자주 와서 촉촉해졌어요. 습도가 높아 병충해도 함께 조심해야 해요.',
       seasonLabel,
       monthBasis: weather.monthBasis,
       climate,

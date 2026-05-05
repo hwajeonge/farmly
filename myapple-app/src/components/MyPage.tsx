@@ -7,6 +7,7 @@ import { TreeOwnershipCard } from './TreeOwnershipCard';
 import { SERVICE_NAME } from '../brand';
 import { showConfirm } from '../lib/confirmEmitter';
 import { showAlert } from '../lib/alertEmitter';
+import { getTreeCardDesign, getTreeCardStickerIcon } from '../treeCardDesign';
 import {
   getEligibleHarvestDeliveryRewards,
   getNextHarvestDeliveryReward,
@@ -37,6 +38,8 @@ const MENU_TABS = [
 
 const MAX_PROFILE_IMAGE_BYTES = 5 * 1024 * 1024;
 const PROFILE_IMAGE_SIZE = 360;
+const NICKNAME_MIN_LENGTH = 2;
+const NICKNAME_MAX_LENGTH = 12;
 
 const resizeProfileImage = (file: File): Promise<string> =>
   new Promise((resolve, reject) => {
@@ -91,6 +94,8 @@ export const MyPage: React.FC<MyPageProps> = ({
   const [selectedTree, setSelectedTree] = useState<TreeState | null>(null);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [isUpdatingPhoto, setIsUpdatingPhoto] = useState(false);
+  const [isEditingNickname, setIsEditingNickname] = useState(false);
+  const [nicknameDraft, setNicknameDraft] = useState(user.nickname || user.name);
   const profileImageInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -98,6 +103,12 @@ export const MyPage: React.FC<MyPageProps> = ({
     setActiveTab(requestedTab);
     onRequestedTabHandled?.();
   }, [requestedTab, onRequestedTabHandled]);
+
+  useEffect(() => {
+    if (!isEditingNickname) {
+      setNicknameDraft(user.nickname || user.name);
+    }
+  }, [isEditingNickname, user.name, user.nickname]);
 
   const handleDeleteAccountClick = async () => {
     const confirmed = await showConfirm({
@@ -154,6 +165,40 @@ export const MyPage: React.FC<MyPageProps> = ({
     }
   };
 
+  const startNicknameEdit = () => {
+    setNicknameDraft(user.nickname || user.name);
+    setIsEditingNickname(true);
+  };
+
+  const cancelNicknameEdit = () => {
+    setNicknameDraft(user.nickname || user.name);
+    setIsEditingNickname(false);
+  };
+
+  const saveNickname = () => {
+    const nextNickname = nicknameDraft.trim();
+
+    if (!nextNickname) {
+      showAlert('닉네임을 입력해주세요.\n공백만으로는 저장할 수 없어요.', '✏️', 'warning');
+      return;
+    }
+
+    if (nextNickname.length < NICKNAME_MIN_LENGTH) {
+      showAlert(`닉네임은 최소 ${NICKNAME_MIN_LENGTH}자 이상 입력해주세요.`, '✏️', 'warning');
+      return;
+    }
+
+    if (nextNickname.length > NICKNAME_MAX_LENGTH) {
+      showAlert(`닉네임은 최대 ${NICKNAME_MAX_LENGTH}자까지 저장할 수 있어요.`, '✏️', 'warning');
+      return;
+    }
+
+    setUser(prev => prev ? { ...prev, nickname: nextNickname } : prev);
+    setNicknameDraft(nextNickname);
+    setIsEditingNickname(false);
+    showAlert('닉네임이 변경되었어요.', '✏️', 'success');
+  };
+
   return (
     <div className="pb-24 pt-2">
       <div className="mb-5 flex justify-between px-1">
@@ -200,7 +245,55 @@ export const MyPage: React.FC<MyPageProps> = ({
           </button>
         </div>
 
-        <h2 className="mb-1 text-2xl font-black text-stone-800">{user.nickname || user.name}</h2>
+        {isEditingNickname ? (
+          <div className="mb-2 w-full max-w-[260px]">
+            <div className="flex items-center gap-2 rounded-2xl border-2 border-apple-red/20 bg-white p-1.5 shadow-sm">
+              <input
+                value={nicknameDraft}
+                onChange={(event) => setNicknameDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') saveNickname();
+                  if (event.key === 'Escape') cancelNicknameEdit();
+                }}
+                maxLength={NICKNAME_MAX_LENGTH}
+                autoFocus
+                className="min-w-0 flex-1 rounded-xl bg-red-50/50 px-3 py-2 text-center text-sm font-black text-stone-800 outline-none placeholder:text-stone-300 focus:bg-white"
+                placeholder="닉네임 입력"
+              />
+              <button
+                type="button"
+                onClick={saveNickname}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-apple-red text-white shadow-sm transition-all active:scale-90"
+                aria-label="닉네임 저장"
+              >
+                <Save size={15} />
+              </button>
+              <button
+                type="button"
+                onClick={cancelNicknameEdit}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-stone-100 text-stone-500 transition-all active:scale-90"
+                aria-label="닉네임 수정 취소"
+              >
+                <X size={15} />
+              </button>
+            </div>
+            <p className="mt-1.5 text-center text-[10px] font-bold text-stone-400">
+              2~12자 · 공백만 저장 불가
+            </p>
+          </div>
+        ) : (
+          <div className="mb-1 flex max-w-full items-center justify-center gap-2 px-4">
+            <h2 className="min-w-0 truncate text-2xl font-black text-stone-800">{user.nickname || user.name}</h2>
+            <button
+              type="button"
+              onClick={startNicknameEdit}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border-2 border-stone-100 bg-white text-stone-400 shadow-sm transition-all active:scale-90"
+              aria-label="닉네임 수정"
+            >
+              <Edit3 size={14} />
+            </button>
+          </div>
+        )}
         <span className="rounded-full bg-apple-red/10 px-3 py-1 text-[10px] font-black text-apple-red">
           {SERVICE_NAME} Farmer
         </span>
@@ -298,7 +391,7 @@ const ProfileView = ({ user, onOpenHarvestModal }: { user: UserProfile; onOpenHa
   const canRequestDelivery = accumulatedApples >= HARVEST_DELIVERY_MIN_APPLES;
   const eligibleDeliveryRewards = getEligibleHarvestDeliveryRewards(accumulatedApples);
   const nextDeliveryReward = getNextHarvestDeliveryReward(accumulatedApples);
-  const activeDeliveryLabel = eligibleDeliveryRewards.at(-1)?.title ?? null;
+  const activeDeliveryLabel = eligibleDeliveryRewards[eligibleDeliveryRewards.length - 1]?.title ?? null;
 
   return (
     <div className="space-y-5">
@@ -690,60 +783,80 @@ const CardsView = ({ trees, user, onSelect }: { trees: TreeState[]; user: UserPr
   );
 };
 
-const TreeGridItem = ({ tree, onSelect }: { tree: TreeState; onSelect: (tree: TreeState) => void }) => (
-  <motion.button
-    type="button"
-    whileHover={{ y: -4 }}
-    whileTap={{ scale: 0.97 }}
-    onClick={() => onSelect(tree)}
-    className="group block w-full cursor-pointer text-left"
-  >
-    <div className="relative aspect-[2/3] overflow-hidden rounded-[1.5rem] border-2 border-stone-200 bg-stone-100 shadow-sm transition-all group-hover:shadow-lg">
-      <div className="absolute inset-0 flex flex-col items-center justify-center px-3 text-center">
-        <span className="mb-2 text-4xl">{tree.growthStage === '시즌종료' ? '🍎' : '🌳'}</span>
-        <p className="w-full truncate text-[10px] font-black text-stone-800">{tree.nickname}</p>
-        <span className="text-[8px] font-bold text-stone-400">#{tree.id.slice(-4).toUpperCase()}</span>
-      </div>
-      <div className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-white/80 text-[10px] font-black text-stone-700 backdrop-blur">
-        {tree.currentDay}d
-      </div>
-      <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-2/5 bg-linear-to-t from-stone-900/60 to-transparent" />
-      <div className="absolute bottom-3 left-3 right-3 text-white">
-        <div className="mb-1 h-1 w-full overflow-hidden rounded-full bg-white/20">
-          <div className="h-full bg-apple-green" style={{ width: `${tree.growthRate}%` }} />
-        </div>
-        <p className="text-[7px] font-black uppercase opacity-60">Growth: {tree.growthRate}%</p>
-      </div>
-    </div>
-  </motion.button>
-);
+const TreeGridItem = ({ tree, onSelect }: { tree: TreeState; onSelect: (tree: TreeState) => void }) => {
+  const design = getTreeCardDesign(tree);
 
-const TreeListItem = ({ tree, onSelect }: { tree: TreeState; onSelect: (tree: TreeState) => void }) => (
-  <motion.button
-    type="button"
-    whileTap={{ scale: 0.98 }}
-    onClick={() => onSelect(tree)}
-    className="flex w-full items-center gap-3 rounded-[1.5rem] border-2 border-stone-100 bg-white p-3 text-left shadow-sm transition-all hover:border-apple-red/30 hover:shadow-md"
-  >
-    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-stone-100 text-3xl">
-      {tree.growthStage === '시즌종료' ? '🍎' : '🌳'}
-    </div>
-    <div className="min-w-0 flex-1">
-      <div className="mb-1 flex items-center gap-2">
-        <p className="truncate text-sm font-black text-stone-800">{tree.nickname}</p>
-        <span className="shrink-0 rounded-full bg-stone-100 px-2 py-0.5 text-[8px] font-black text-stone-500">
-          {tree.currentDay}일차
-        </span>
-      </div>
-      <p className="mb-2 truncate text-[10px] font-bold text-warm-gray">
-        {tree.variety} · {tree.growthStage} · #{tree.id.slice(-4).toUpperCase()}
-      </p>
-      <div className="flex items-center gap-2">
-        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-stone-100">
-          <div className="h-full bg-apple-green" style={{ width: `${tree.growthRate}%` }} />
+  return (
+    <motion.button
+      type="button"
+      whileHover={{ y: -4 }}
+      whileTap={{ scale: 0.97 }}
+      onClick={() => onSelect(tree)}
+      className="group block w-full cursor-pointer text-left"
+    >
+      <div className={cn('relative aspect-[2/3] overflow-hidden rounded-[1.5rem] border-2 shadow-sm transition-all group-hover:shadow-lg', design.frameClass)}>
+        <div className={cn('absolute -right-10 -top-10 h-28 w-28 rounded-full blur-xl', design.glowClass)} />
+        <div className={cn('absolute -bottom-12 -left-10 h-32 w-32 rounded-full blur-xl', design.glowClass)} />
+        {design.stickers.slice(0, 2).map((sticker) => (
+          <span
+            key={sticker.id}
+            className="pointer-events-none absolute text-sm opacity-50"
+            style={{ left: `${sticker.x}%`, top: `${sticker.y}%` }}
+          >
+            {getTreeCardStickerIcon(sticker.type)}
+          </span>
+        ))}
+        <div className="absolute inset-0 flex flex-col items-center justify-center px-3 text-center">
+          <span className="mb-2 text-5xl drop-shadow-sm">{design.displayIcon}</span>
+          <p className={cn('w-full truncate text-[10px] font-black', design.textClass)}>{tree.nickname}</p>
+          <span className={cn('text-[8px] font-bold', design.mutedTextClass)}>#{tree.id.slice(-4).toUpperCase()}</span>
         </div>
-        <span className="text-[9px] font-black text-stone-500">{tree.growthRate}%</span>
+        <div className={cn('absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full border text-[10px] font-black backdrop-blur', design.miniClass)}>
+          {tree.currentDay}d
+        </div>
+        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-2/5 bg-linear-to-t from-stone-900/55 to-transparent" />
+        <div className="absolute bottom-3 left-3 right-3 text-white">
+          <div className="mb-1 h-1 w-full overflow-hidden rounded-full bg-white/25">
+            <div className={cn('h-full', design.progressClass)} style={{ width: `${tree.growthRate}%` }} />
+          </div>
+          <p className="text-[7px] font-black uppercase opacity-70">Growth: {tree.growthRate}%</p>
+        </div>
       </div>
-    </div>
-  </motion.button>
-);
+    </motion.button>
+  );
+};
+
+const TreeListItem = ({ tree, onSelect }: { tree: TreeState; onSelect: (tree: TreeState) => void }) => {
+  const design = getTreeCardDesign(tree);
+
+  return (
+    <motion.button
+      type="button"
+      whileTap={{ scale: 0.98 }}
+      onClick={() => onSelect(tree)}
+      className={cn('flex w-full items-center gap-3 rounded-[1.5rem] border-2 p-3 text-left shadow-sm transition-all hover:shadow-md', design.frameClass)}
+    >
+      <div className={cn('relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border text-3xl', design.artClass)}>
+        <span className={cn('absolute -right-4 -top-4 h-12 w-12 rounded-full blur-lg', design.glowClass)} />
+        <span className="relative">{design.displayIcon}</span>
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="mb-1 flex items-center gap-2">
+          <p className={cn('truncate text-sm font-black', design.textClass)}>{tree.nickname}</p>
+          <span className={cn('shrink-0 rounded-full border px-2 py-0.5 text-[8px] font-black', design.chipClass)}>
+            {tree.currentDay}일차
+          </span>
+        </div>
+        <p className={cn('mb-2 truncate text-[10px] font-bold', design.mutedTextClass)}>
+          {tree.variety} · {tree.growthStage} · #{tree.id.slice(-4).toUpperCase()}
+        </p>
+        <div className="flex items-center gap-2">
+          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/30">
+            <div className={cn('h-full', design.progressClass)} style={{ width: `${tree.growthRate}%` }} />
+          </div>
+          <span className={cn('text-[9px] font-black', design.mutedTextClass)}>{tree.growthRate}%</span>
+        </div>
+      </div>
+    </motion.button>
+  );
+};
