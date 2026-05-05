@@ -5,6 +5,7 @@ import { PestType, TreeState } from '../types';
 import { getTreeMessage } from '../services/geminiService';
 import { cn } from '../lib/utils';
 import { getDailyStatusMessage, getGrowthWeatherSummary, getWeatherEvent } from '../services/growthService';
+import { getNextHarvestDeliveryReward, HARVEST_DELIVERY_MIN_APPLES } from '../rewardRules';
 
 interface TreeManagementProps {
   tree: TreeState;
@@ -12,6 +13,7 @@ interface TreeManagementProps {
   onAdvanceDay?: () => void;
   onDeleteTree?: () => void;
   inventory: { id: string; count: number }[];
+  accumulatedApples: number;
   onGoToStore: () => void;
   onOpenHarvestModal: () => void;
   onPlantNextTree: () => void;
@@ -49,6 +51,7 @@ export const TreeManagement: React.FC<TreeManagementProps> = ({
   onAdvanceDay,
   onDeleteTree,
   inventory,
+  accumulatedApples,
   onGoToStore,
   onOpenHarvestModal,
   onPlantNextTree,
@@ -265,6 +268,7 @@ export const TreeManagement: React.FC<TreeManagementProps> = ({
         <SeasonEndPanel
           harvestedApples={tree.harvestedApples ?? 0}
           seedCount={seedCount}
+          accumulatedApples={accumulatedApples}
           onOpenHarvestModal={onOpenHarvestModal}
           onGoToStore={onGoToStore}
           onPlantNextTree={onPlantNextTree}
@@ -312,6 +316,7 @@ export const TreeManagement: React.FC<TreeManagementProps> = ({
 const SeasonEndPanel = ({
   harvestedApples,
   seedCount,
+  accumulatedApples,
   onOpenHarvestModal,
   onGoToStore,
   onPlantNextTree,
@@ -319,11 +324,16 @@ const SeasonEndPanel = ({
 }: {
   harvestedApples: number;
   seedCount: number;
+  accumulatedApples: number;
   onOpenHarvestModal: () => void;
   onGoToStore: () => void;
   onPlantNextTree: () => void;
   onViewTreeCards: () => void;
-}) => (
+}) => {
+  const canRequestDelivery = accumulatedApples >= HARVEST_DELIVERY_MIN_APPLES;
+  const nextDeliveryReward = getNextHarvestDeliveryReward(accumulatedApples);
+
+  return (
   <section className="rounded-[2rem] border-4 border-white bg-stone-800 p-5 text-white shadow-xl">
     <div className="mb-4 flex items-start gap-3">
       <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-yeoju-gold text-2xl shadow-lg">
@@ -363,10 +373,13 @@ const SeasonEndPanel = ({
       </button>
       <button
         onClick={onOpenHarvestModal}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-white py-3.5 text-sm font-black text-stone-900 transition-all active:scale-95"
+        disabled={!canRequestDelivery}
+        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-white py-3.5 text-sm font-black text-stone-900 transition-all active:scale-95 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/45"
       >
         <PackageOpen size={16} />
-        수확 보상 배송 신청
+        {canRequestDelivery
+          ? '수확 보상 배송 신청'
+          : `누적 사과 ${nextDeliveryReward?.applesNeeded ?? HARVEST_DELIVERY_MIN_APPLES}개부터 배송 신청`}
       </button>
       <button
         onClick={onViewTreeCards}
@@ -377,7 +390,8 @@ const SeasonEndPanel = ({
       </button>
     </div>
   </section>
-);
+  );
+};
 
 const StatusCard = ({
   icon,

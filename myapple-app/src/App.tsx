@@ -29,6 +29,10 @@ import { showConfirm } from './lib/confirmEmitter';
 import { AlertModal } from './components/AlertModal';
 import { ConfirmModal } from './components/ConfirmModal';
 import { GameIntroModal } from './components/GameIntroModal';
+import {
+  getHarvestDeliveryRewardById,
+  HARVEST_DELIVERY_MIN_APPLES,
+} from './rewardRules';
 
 const MISSION_STATUS_RANK = {
   none: 0,
@@ -293,6 +297,11 @@ export default function App() {
   const handleAdoptTree = (farm: Farm, variety: AppleVariety, nickname: string, personality: string) => {
     if (!user || !firebaseUser) return;
     const treeNickname = nickname.trim();
+
+    if (!(user.adoptedFarmIds || []).includes(farm.id)) {
+      showAlert('아직 열리지 않은 농가에는 씨앗을 심을 수 없어요.\n현재 열린 농가에서 나무 3그루를 먼저 키워주세요.', '🔒', 'warning');
+      return;
+    }
 
     if (!treeNickname) {
       showAlert('나무 이름을 먼저 입력해주세요.\n이름을 지어야 씨앗 심기를 완료할 수 있어요.', '🌱', 'warning');
@@ -566,7 +575,7 @@ export default function App() {
 
       // Milestone logic
       if (!newClaimedMilestones.includes(10) && harvestedApplesTotal >= 10) {
-        addNotification("🎖️ 첫 수확 축하!", "사과 10개를 처음으로 수확하여 '실물 사과 1kg 교환권'이 지급되었습니다!", 'reward');
+        addNotification('🍎 첫 수확 축하!', '누적 사과 10개를 달성했어요. 100개를 모으면 실물 사과 1kg 배송 신청이 열려요.', 'reward');
         newClaimedMilestones.push(10);
       }
       if (!newClaimedMilestones.includes(30) && harvestedApplesTotal >= 30) {
@@ -581,19 +590,19 @@ export default function App() {
         newClaimedMilestones.push(60);
       }
       if (!newClaimedMilestones.includes(100) && harvestedApplesTotal >= 100) {
-        addNotification("🎫 실물 사과 교환권!", "축하합니다! 누적 사과 100개 달성으로 '실물 사과 1kg 교환권'이 지급되었습니다!", 'reward');
+        addNotification('🎁 실물 사과 1kg 배송 가능', '축하합니다! 누적 사과 100개 달성으로 실물 사과 1kg 배송 신청이 열렸어요.', 'reward');
         newClaimedMilestones.push(100);
       }
-      if (!newClaimedMilestones.includes(220) && harvestedApplesTotal >= 220) {
-        addNotification("🎫 VIP 사과 교환권!", "대농장주님! 누적 사과 220개 달성으로 '실물 사과 2kg 교환권'이 지급되었습니다.", 'reward');
+      if (!newClaimedMilestones.includes(200) && harvestedApplesTotal >= 200) {
+        addNotification('🎁 실물 사과 2kg 배송 가능', '대단해요! 누적 사과 200개 달성으로 실물 사과 2kg 배송 신청이 열렸어요.', 'reward');
         giveItem('fertilizer', 1);
-        newClaimedMilestones.push(220);
+        newClaimedMilestones.push(200);
       }
 
       if (newHarvests > 0) {
         addNotification("🍎 수확 성공", `${newHarvests}개의 사과가 누적되었습니다!`, 'reward', undefined, 'profile');
-        if (harvestedApplesTotal >= 10) {
-          addNotification("📦 배송 신청 가능", "실물 사과 배송을 신청할 수 있어요. 받을 주소를 입력해 신청을 완료해주세요.", 'reward', undefined, 'profile');
+        if (harvestedApplesTotal >= HARVEST_DELIVERY_MIN_APPLES) {
+          addNotification('📦 배송 신청 가능', '누적 사과 100개를 달성해 실물 사과 배송 신청을 할 수 있어요.', 'reward', undefined, 'profile');
           window.setTimeout(() => setIsHarvestModalOpen(true), 0);
         }
       }
@@ -611,6 +620,13 @@ export default function App() {
 
   const handleBuyItem = (itemId: string, price: number): boolean => {
     if (!user || !firebaseUser) return false;
+    if (itemId.startsWith('seed_')) {
+      const farmId = itemId.replace(/^seed_/, '');
+      if (!(user.adoptedFarmIds || []).includes(farmId)) {
+        showAlert('아직 열리지 않은 농가의 씨앗은 구매할 수 없어요.\n열린 농가에 나무 3그루를 심으면 다음 농가가 열립니다.', '🔒', 'warning');
+        return false;
+      }
+    }
     if (user.points < price) {
       showAlert('보유한 포인트가 부족해요.\n미션을 완료해서 포인트를 모아보세요.', '🪙', 'warning');
       return false;
@@ -626,7 +642,15 @@ export default function App() {
   };
 
   const handleBuyWithApples = (itemId: string, applePrice: number): boolean => {
-    if (!user || !firebaseUser || user.apples < applePrice) {
+    if (!user || !firebaseUser) return false;
+    if (itemId.startsWith('seed_')) {
+      const farmId = itemId.replace(/^seed_/, '');
+      if (!(user.adoptedFarmIds || []).includes(farmId)) {
+        showAlert('아직 열리지 않은 농가의 씨앗은 구매할 수 없어요.\n열린 농가에 나무 3그루를 심으면 다음 농가가 열립니다.', '🔒', 'warning');
+        return false;
+      }
+    }
+    if (user.apples < applePrice) {
       showAlert('보유한 사과가 부족해요!\n나무를 키워 사과를 수확해보세요.', '🍎', 'warning');
       return false;
     }
@@ -665,6 +689,11 @@ export default function App() {
 
     if (!targetFarm) {
       showAlert('씨앗과 연결된 농가를 찾지 못했어요.\n다른 씨앗을 선택해주세요.', '🌱', 'warning');
+      return;
+    }
+
+    if (!(user.adoptedFarmIds || []).includes(farmId)) {
+      showAlert('아직 열리지 않은 농가 씨앗은 심을 수 없어요.\n현재 열린 농가에 나무 3그루를 심으면 다음 농가가 열립니다.', '🔒', 'warning');
       return;
     }
 
@@ -707,7 +736,38 @@ export default function App() {
     });
   };
 
+  const handleOpenHarvestModal = () => {
+    if (!user) return;
+
+    if ((user.accumulatedApples ?? 0) < HARVEST_DELIVERY_MIN_APPLES) {
+      showAlert(
+        `누적 사과 ${HARVEST_DELIVERY_MIN_APPLES}개가 되어야 실물 사과 1kg 배송 신청이 열려요.\n현재 누적 사과는 ${(user.accumulatedApples ?? 0).toLocaleString()}개예요.`,
+        '🍎',
+        'warning',
+      );
+      return;
+    }
+
+    setIsHarvestModalOpen(true);
+  };
+
   const handleDeliverySubmit = (data: DeliveryInfo) => {
+    const selectedReward = getHarvestDeliveryRewardById(data.selectedOptionId);
+
+    if (!selectedReward) {
+      showAlert('선택한 배송 보상을 확인할 수 없어요. 다시 선택해주세요.', '📦', 'warning');
+      return;
+    }
+
+    if (!user || (user.accumulatedApples ?? 0) < selectedReward.applesNeeded) {
+      showAlert(
+        `누적 사과 ${selectedReward.applesNeeded}개가 되어야 ${selectedReward.title}을 신청할 수 있어요.`,
+        '🍎',
+        'warning',
+      );
+      return;
+    }
+
     setUser(prev => {
       if (!prev) return prev;
       return {
@@ -716,7 +776,7 @@ export default function App() {
       };
     });
     setIsHarvestModalOpen(false);
-    addNotification("📦 배송 신청 완료", "영주 사과가 곧 출발합니다!", 'reward');
+    addNotification('📦 배송 신청 완료', `${selectedReward.title} 신청이 완료됐어요.`, 'reward');
   };
 
   const handleUnstoreFarm = (farmId: string) => {
@@ -1074,8 +1134,9 @@ export default function App() {
                   onAdvanceDay={handleAdvanceDay}
                   onDeleteTree={() => handleDeleteTree(managedTree.id)}
                   inventory={user.items}
+                  accumulatedApples={user.accumulatedApples ?? 0}
                   onGoToStore={() => { setPreviousTab(activeTab); setStoreSeedFarmId(null); setActiveTab('store'); }}
-                  onOpenHarvestModal={() => setIsHarvestModalOpen(true)}
+                  onOpenHarvestModal={handleOpenHarvestModal}
                   onPlantNextTree={() => { setPreviousTab('tree'); setActiveTab('map'); }}
                   onViewTreeCards={() => { setProfileRequestedTab('cards'); setPreviousTab('tree'); setActiveTab('profile'); }}
                 />
@@ -1157,6 +1218,7 @@ export default function App() {
                 ownedItems={user.items}
                 onPlantSeed={handlePlantSeedFromStore}
                 requestedSeedFarmId={storeSeedFarmId}
+                unlockedFarmIds={user.adoptedFarmIds || []}
               />
             </motion.div>
           )}
@@ -1168,7 +1230,7 @@ export default function App() {
                 setUser={setUser} 
                 handleLogout={authService.logout}
                 onDeleteAccount={handleDeleteAccount}
-                onOpenHarvestModal={() => setIsHarvestModalOpen(true)}
+                onOpenHarvestModal={handleOpenHarvestModal}
                 onGoToStore={() => { setPreviousTab(activeTab); setStoreSeedFarmId(null); setActiveTab('store'); }}
                 requestedTab={profileRequestedTab}
                 onRequestedTabHandled={() => setProfileRequestedTab(null)}

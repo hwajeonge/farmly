@@ -1,9 +1,14 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { showAlert } from '../lib/alertEmitter';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Check, Gift, Info, Mail, Truck, X } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { DeliveryInfo } from '../types';
+import {
+  getEligibleHarvestDeliveryRewards,
+  getNextHarvestDeliveryReward,
+  HARVEST_DELIVERY_REWARDS,
+} from '../rewardRules';
 
 interface HarvestDeliveryModalProps {
   onClose: () => void;
@@ -11,20 +16,23 @@ interface HarvestDeliveryModalProps {
   accumulatedApples: number;
 }
 
-const DELIVERY_OPTIONS = [
-  {
-    id: 'free_1kg',
-    title: '실물 사과 1kg 배송',
-    extra: '기본 보상',
-    price: '무료',
-    desc: '누적 수확 사과 10개 이상 달성 시 신청할 수 있어요.',
-    icon: '🍎',
-  },
-];
-
-export const HarvestDeliveryModal: React.FC<HarvestDeliveryModalProps> = ({ onClose, onSubmit, accumulatedApples }) => {
+export const HarvestDeliveryModal: React.FC<HarvestDeliveryModalProps> = ({
+  onClose,
+  onSubmit,
+  accumulatedApples,
+}) => {
+  const eligibleOptions = useMemo(
+    () => getEligibleHarvestDeliveryRewards(accumulatedApples),
+    [accumulatedApples],
+  );
+  const nextReward = useMemo(
+    () => getNextHarvestDeliveryReward(accumulatedApples),
+    [accumulatedApples],
+  );
   const [step, setStep] = useState<'options' | 'address' | 'thanks'>('options');
-  const [selectedOption, setSelectedOption] = useState<string>('free_1kg');
+  const [selectedOption, setSelectedOption] = useState<string>(
+    eligibleOptions[eligibleOptions.length - 1]?.id ?? '',
+  );
   const [formData, setFormData] = useState({
     recipientName: '',
     phoneNumber: '',
@@ -32,10 +40,37 @@ export const HarvestDeliveryModal: React.FC<HarvestDeliveryModalProps> = ({ onCl
     memo: '',
   });
 
-  const selectedOptionLabel = DELIVERY_OPTIONS.find(option => option.id === selectedOption)?.title ?? '실물 사과 배송';
+  useEffect(() => {
+    if (eligibleOptions.length === 0) {
+      setSelectedOption('');
+      return;
+    }
+    if (!eligibleOptions.some((option) => option.id === selectedOption)) {
+      setSelectedOption(eligibleOptions[eligibleOptions.length - 1]?.id ?? '');
+    }
+  }, [eligibleOptions, selectedOption]);
+
+  const selectedOptionLabel =
+    HARVEST_DELIVERY_REWARDS.find((option) => option.id === selectedOption)?.title ?? '실물 사과 배송';
 
   const handleNext = () => {
+    if (eligibleOptions.length === 0) {
+      showAlert(
+        nextReward
+          ? `누적 사과 ${nextReward.applesNeeded}개가 되어야 ${nextReward.title}을 신청할 수 있어요.`
+          : '신청 가능한 배송 보상이 아직 없어요.',
+        '🍎',
+        'warning',
+      );
+      return;
+    }
+
     if (step === 'options') {
+      const selectedReward = HARVEST_DELIVERY_REWARDS.find((option) => option.id === selectedOption);
+      if (!selectedReward || accumulatedApples < selectedReward.applesNeeded) {
+        showAlert('아직 조건을 달성하지 않은 배송 보상이에요.', '🍎', 'warning');
+        return;
+      }
       setStep('address');
       return;
     }
@@ -97,46 +132,70 @@ export const HarvestDeliveryModal: React.FC<HarvestDeliveryModalProps> = ({ onCl
                   <p className="text-[10px] font-black uppercase tracking-[0.18em] text-apple-red">Harvest Reward</p>
                   <h3 className="mt-1 text-xl font-black text-stone-900">수확 보상 배송 신청</h3>
                   <p className="mt-1 text-xs font-bold text-stone-400">
-                    누적 수확 {accumulatedApples}개를 달성했어요.
+                    현재 누적 사과 {accumulatedApples.toLocaleString()}개
                   </p>
                 </div>
 
+                {eligibleOptions.length === 0 && nextReward && (
+                  <div className="rounded-2xl border-2 border-dashed border-stone-200 bg-stone-50 p-4 text-center">
+                    <p className="text-sm font-black text-stone-700">
+                      배송 신청까지 {Math.max(0, nextReward.applesNeeded - accumulatedApples).toLocaleString()}개 남았어요
+                    </p>
+                    <p className="mt-1 text-[11px] font-bold leading-relaxed text-stone-400">
+                      누적 사과 {nextReward.applesNeeded}개를 달성하면 {nextReward.title}을 신청할 수 있어요.
+                    </p>
+                  </div>
+                )}
+
                 <div className="space-y-3">
-                  {DELIVERY_OPTIONS.map((option) => (
-                    <button
-                      key={option.id}
-                      onClick={() => setSelectedOption(option.id)}
-                      className={cn(
-                        'relative w-full overflow-hidden rounded-2xl border-2 p-4 text-left transition-all',
-                        selectedOption === option.id
-                          ? 'border-apple-red bg-apple-red/5 ring-4 ring-apple-red/10'
-                          : 'border-stone-100 bg-white',
-                      )}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-stone-300">
-                            {option.extra}
+                  {HARVEST_DELIVERY_REWARDS.map((option) => {
+                    const isEligible = accumulatedApples >= option.applesNeeded;
+
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        disabled={!isEligible}
+                        onClick={() => isEligible && setSelectedOption(option.id)}
+                        className={cn(
+                          'relative w-full overflow-hidden rounded-2xl border-2 p-4 text-left transition-all',
+                          !isEligible && 'cursor-not-allowed opacity-60',
+                          selectedOption === option.id && isEligible
+                            ? 'border-apple-red bg-apple-red/5 ring-4 ring-apple-red/10'
+                            : 'border-stone-100 bg-white',
+                        )}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-stone-300">
+                              {option.extra}
+                            </p>
+                            <h4 className="text-sm font-black text-stone-800">{option.title}</h4>
+                            <p className="mt-0.5 text-[10px] font-bold leading-relaxed text-stone-500">
+                              {isEligible
+                                ? option.desc
+                                : `누적 사과 ${option.applesNeeded}개부터 신청 가능해요.`}
+                            </p>
+                          </div>
+                          <p className="shrink-0 text-sm font-black text-apple-red">
+                            {isEligible ? option.price : '잠김'}
                           </p>
-                          <h4 className="text-sm font-black text-stone-800">{option.title}</h4>
-                          <p className="mt-0.5 text-[10px] font-bold leading-relaxed text-stone-500">{option.desc}</p>
                         </div>
-                        <p className="shrink-0 text-sm font-black text-apple-red">{option.price}</p>
-                      </div>
-                      {selectedOption === option.id && (
-                        <div className="absolute -bottom-2 -right-2 text-4xl opacity-10">
-                          {option.icon}
-                        </div>
-                      )}
-                    </button>
-                  ))}
+                        {selectedOption === option.id && isEligible && (
+                          <div className="absolute -bottom-2 -right-2 text-4xl opacity-10">
+                            {option.icon}
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
 
                 <div className="rounded-2xl border border-stone-100 bg-stone-50 p-4">
                   <div className="flex gap-2 text-stone-500">
                     <Info size={14} className="mt-0.5 shrink-0" />
                     <p className="text-[10px] font-medium leading-relaxed">
-                      배송 정보는 신청 내역에 저장됩니다. 신청 후 마이페이지에서 배송 기록을 확인할 수 있어요.
+                      배송 보상은 누적 사과 기준으로 열려요. 100개 달성 시 1kg, 200개 달성 시 2kg 배송을 신청할 수 있어요.
                     </p>
                   </div>
                 </div>
@@ -156,14 +215,16 @@ export const HarvestDeliveryModal: React.FC<HarvestDeliveryModalProps> = ({ onCl
                     <Truck size={32} />
                   </div>
                   <h3 className="text-xl font-black text-stone-900">배송 정보 입력</h3>
-                  <p className="mt-1 text-xs font-bold text-stone-400">{selectedOptionLabel}을 받을 정보를 입력해주세요.</p>
+                  <p className="mt-1 text-xs font-bold text-stone-400">
+                    {selectedOptionLabel}을 받을 정보를 입력해주세요.
+                  </p>
                 </div>
 
                 <div className="space-y-3">
                   <Input label="받는 분" placeholder="이름을 입력해주세요" value={formData.recipientName} onChange={v => setFormData(prev => ({ ...prev, recipientName: v }))} />
                   <Input label="연락처" placeholder="010-0000-0000" value={formData.phoneNumber} onChange={v => setFormData(prev => ({ ...prev, phoneNumber: v }))} />
                   <Input label="주소" placeholder="배송지를 입력해주세요" value={formData.address} onChange={v => setFormData(prev => ({ ...prev, address: v }))} isTextArea />
-                  <Input label="배송 메모" placeholder="경비실에 맡겨주세요" value={formData.memo} onChange={v => setFormData(prev => ({ ...prev, memo: v }))} />
+                  <Input label="배송 메모" placeholder="배송 기사님께 전달할 내용을 적어주세요" value={formData.memo} onChange={v => setFormData(prev => ({ ...prev, memo: v }))} />
                 </div>
               </motion.div>
             )}
@@ -176,7 +237,7 @@ export const HarvestDeliveryModal: React.FC<HarvestDeliveryModalProps> = ({ onCl
                 className="space-y-6 text-center"
               >
                 <div className="mx-auto flex h-28 w-28 -rotate-3 items-center justify-center rounded-[2rem] border-4 border-white bg-stone-50 text-6xl shadow-xl">
-                  🍎
+                  📦
                 </div>
 
                 <div>
@@ -184,7 +245,7 @@ export const HarvestDeliveryModal: React.FC<HarvestDeliveryModalProps> = ({ onCl
                   <div className="relative rounded-[2rem] border-2 border-stone-100 bg-stone-50 p-5 text-left">
                     <Mail size={24} className="absolute -right-3 -top-3 rotate-12 text-yeoju-gold" />
                     <p className="text-xs font-bold leading-relaxed text-stone-600">
-                      30일 동안 키운 사과나무의 수확 보상이 배송 신청 내역으로 저장됩니다. 신청을 완료하면 마이페이지에서 배송 기록을 확인할 수 있어요.
+                      신청 내용이 배송 기록으로 저장돼요. 마이페이지에서 신청 내역을 확인할 수 있어요.
                     </p>
                   </div>
                 </div>
@@ -201,7 +262,13 @@ export const HarvestDeliveryModal: React.FC<HarvestDeliveryModalProps> = ({ onCl
             onClick={handleNext}
             className="mt-8 w-full rounded-3xl bg-stone-800 py-4 text-base font-black text-white shadow-xl shadow-stone-200 transition-all active:scale-95"
           >
-            {step === 'options' ? '다음 단계로' : step === 'address' ? '신청 내용 확인' : '신청 완료'}
+            {eligibleOptions.length === 0
+              ? '확인'
+              : step === 'options'
+                ? '다음 단계로'
+                : step === 'address'
+                  ? '신청 내용 확인'
+                  : '신청 완료'}
           </button>
         </div>
       </motion.div>

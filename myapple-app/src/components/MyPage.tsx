@@ -7,6 +7,13 @@ import { TreeOwnershipCard } from './TreeOwnershipCard';
 import { SERVICE_NAME } from '../brand';
 import { showConfirm } from '../lib/confirmEmitter';
 import { showAlert } from '../lib/alertEmitter';
+import {
+  getEligibleHarvestDeliveryRewards,
+  getNextHarvestDeliveryReward,
+  HARVEST_DELIVERY_MAX_TARGET_APPLES,
+  HARVEST_DELIVERY_MIN_APPLES,
+  HARVEST_REWARD_MILESTONES,
+} from '../rewardRules';
 
 interface MyPageProps {
   user: UserProfile;
@@ -27,13 +34,6 @@ const MENU_TABS = [
   { id: 'reviews', icon: MessageSquare, label: '후기 관리' },
   { id: 'cards', icon: Sprout, label: '나무 카드' },
 ] as const;
-
-const REWARD_MILESTONES = [
-  { apples: 10, label: '1kg 배송' },
-  { apples: 30, label: '영양제' },
-  { apples: 60, label: '보호 세트' },
-  { apples: 100, label: '교환권' },
-];
 
 const MAX_PROFILE_IMAGE_BYTES = 5 * 1024 * 1024;
 const PROFILE_IMAGE_SIZE = 360;
@@ -295,7 +295,10 @@ export const MyPage: React.FC<MyPageProps> = ({
 
 const ProfileView = ({ user, onOpenHarvestModal }: { user: UserProfile; onOpenHarvestModal: () => void }) => {
   const accumulatedApples = user.accumulatedApples ?? 0;
-  const canRequestDelivery = accumulatedApples >= 10 || (user.claimedMilestones || []).includes(10);
+  const canRequestDelivery = accumulatedApples >= HARVEST_DELIVERY_MIN_APPLES;
+  const eligibleDeliveryRewards = getEligibleHarvestDeliveryRewards(accumulatedApples);
+  const nextDeliveryReward = getNextHarvestDeliveryReward(accumulatedApples);
+  const activeDeliveryLabel = eligibleDeliveryRewards.at(-1)?.title ?? null;
 
   return (
     <div className="space-y-5">
@@ -321,18 +324,20 @@ const ProfileView = ({ user, onOpenHarvestModal }: { user: UserProfile; onOpenHa
       <section className="cute-card p-5">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-sm font-black text-stone-700">수확 보상 마일스톤</h3>
-          <span className="text-[10px] font-black text-apple-red">{accumulatedApples} / 100개</span>
+          <span className="text-[10px] font-black text-apple-red">
+            {accumulatedApples} / {HARVEST_DELIVERY_MAX_TARGET_APPLES}개
+          </span>
         </div>
         <div className="progress-track mb-5 h-3">
           <motion.div
             initial={{ width: 0 }}
-            animate={{ width: `${Math.min(100, (accumulatedApples / 100) * 100)}%` }}
+            animate={{ width: `${Math.min(100, (accumulatedApples / HARVEST_DELIVERY_MAX_TARGET_APPLES) * 100)}%` }}
             transition={{ duration: 0.8, ease: 'easeOut' }}
             className="progress-gold h-full"
           />
         </div>
-        <div className="grid grid-cols-4 gap-2">
-          {REWARD_MILESTONES.map((item) => (
+        <div className="grid grid-cols-5 gap-2">
+          {HARVEST_REWARD_MILESTONES.map((item) => (
             <div key={item.apples} className="text-center">
               <div
                 className={cn(
@@ -358,7 +363,7 @@ const ProfileView = ({ user, onOpenHarvestModal }: { user: UserProfile; onOpenHa
             </div>
             <div>
               <h3 className="text-base font-black">실물 사과 배송 신청</h3>
-              <p className="text-[10px] font-bold opacity-60">누적 수확 10개 이상부터 신청 가능</p>
+              <p className="text-[10px] font-bold opacity-60">100개는 1kg, 200개는 2kg 배송 신청 가능</p>
             </div>
           </div>
           <button
@@ -366,7 +371,9 @@ const ProfileView = ({ user, onOpenHarvestModal }: { user: UserProfile; onOpenHa
             disabled={!canRequestDelivery}
             className="w-full rounded-2xl bg-white py-3.5 text-sm font-black text-stone-800 shadow-xl shadow-black/20 transition-all active:scale-95 disabled:bg-stone-700 disabled:text-stone-500"
           >
-            {canRequestDelivery ? '수확 보상 배송 신청하기' : `사과 10개 수확 후 오픈 (${accumulatedApples}/10)`}
+            {canRequestDelivery
+              ? `${activeDeliveryLabel ?? '수확 보상'} 신청하기`
+              : `사과 ${nextDeliveryReward?.applesNeeded ?? HARVEST_DELIVERY_MIN_APPLES}개 수확 후 오픈 (${accumulatedApples}/${nextDeliveryReward?.applesNeeded ?? HARVEST_DELIVERY_MIN_APPLES})`}
           </button>
         </div>
         <Apple className="absolute -bottom-5 -right-5 h-28 w-28 -rotate-12 opacity-[0.07]" />

@@ -14,6 +14,7 @@ interface StoreProps {
   ownedItems?: { id: string; count: number }[];
   onPlantSeed?: (seedId?: string) => void;
   requestedSeedFarmId?: string | null;
+  unlockedFarmIds?: string[];
 }
 
 const ITEM_COPY: Record<string, { name: string; desc: string; icon: string; tag: string; bg: string }> = {
@@ -118,14 +119,17 @@ export const StoreView: React.FC<StoreProps> = ({
   ownedItems = [],
   onPlantSeed,
   requestedSeedFarmId,
+  unlockedFarmIds = [],
 }) => {
   const [recentSeedId, setRecentSeedId] = useState<string | null>(null);
   const recentSeedCopy = recentSeedId ? getCopy(recentSeedId) : null;
+  const unlockedFarmSet = React.useMemo(() => new Set(unlockedFarmIds), [unlockedFarmIds]);
   const requestedSeedId = requestedSeedFarmId ? `seed_${requestedSeedFarmId}` : null;
   const requestedSeedItem = requestedSeedId ? SHOP_ITEMS.find(item => item.id === requestedSeedId) : undefined;
   const requestedFarm = requestedSeedFarmId ? FARMS.find(farm => farm.id === requestedSeedFarmId) : undefined;
   const requestedSeedCopy = requestedSeedItem ? getCopy(requestedSeedItem.id) : null;
   const requestedOwnedCount = requestedSeedItem ? ownedItems.find(item => item.id === requestedSeedItem.id)?.count ?? 0 : 0;
+  const isRequestedSeedUnlocked = requestedSeedFarmId ? unlockedFarmSet.has(requestedSeedFarmId) : true;
   const orderedShopItems = requestedSeedId
     ? [...SHOP_ITEMS].sort((a, b) => Number(b.id === requestedSeedId) - Number(a.id === requestedSeedId))
     : SHOP_ITEMS;
@@ -207,7 +211,14 @@ export const StoreView: React.FC<StoreProps> = ({
             </div>
           </div>
 
-          {requestedOwnedCount > 0 ? (
+          {!isRequestedSeedUnlocked ? (
+            <div className="rounded-2xl border-2 border-stone-100 bg-stone-50 p-3 text-center">
+              <p className="text-xs font-black text-stone-600">아직 열리지 않은 농가예요</p>
+              <p className="mt-1 text-[11px] font-bold leading-relaxed text-stone-400">
+                현재 열린 농가에 나무 3그루를 심으면 다음 농가 씨앗을 구매할 수 있어요.
+              </p>
+            </div>
+          ) : requestedOwnedCount > 0 ? (
             <button
               onClick={() => onPlantSeed(requestedSeedItem.id)}
               className="flex w-full items-center justify-center gap-2 rounded-2xl bg-apple-green py-3.5 text-sm font-black text-white shadow-[0_4px_0_0_#2d7a2d] transition-all active:translate-y-0.5 active:shadow-none"
@@ -282,9 +293,11 @@ export const StoreView: React.FC<StoreProps> = ({
           {orderedShopItems.map((item) => {
             const copy = getCopy(item.id);
             const applePrice = getApplePrice(item);
-            const canBuyWithPoints = points >= item.price;
-            const canBuyWithApples = apples >= applePrice;
             const isSeed = item.id.startsWith('seed_');
+            const seedFarmId = isSeed ? item.id.replace(/^seed_/, '') : null;
+            const isSeedLocked = Boolean(seedFarmId && !unlockedFarmSet.has(seedFarmId));
+            const canBuyWithPoints = !isSeedLocked && points >= item.price;
+            const canBuyWithApples = !isSeedLocked && apples >= applePrice;
             const ownedCount = ownedItems.find(i => i.id === item.id)?.count ?? 0;
             const isRecentSeed = recentSeedId === item.id;
             const isRequestedSeed = requestedSeedId === item.id;
@@ -293,7 +306,11 @@ export const StoreView: React.FC<StoreProps> = ({
               <motion.div
                 key={item.id}
                 whileTap={{ scale: 0.98 }}
-                className={cn('cute-card p-4', isRequestedSeed && 'border-apple-green/40 ring-4 ring-apple-green/10')}
+                className={cn(
+                  'cute-card p-4',
+                  isRequestedSeed && 'border-apple-green/40 ring-4 ring-apple-green/10',
+                  isSeedLocked && 'opacity-75',
+                )}
               >
                 <div className="flex items-center gap-4">
                   <div className={cn('flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border-2 text-3xl', copy.bg)}>
@@ -320,9 +337,19 @@ export const StoreView: React.FC<StoreProps> = ({
                           선택한 농가
                         </span>
                       )}
+                      {isSeedLocked && (
+                        <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[9px] font-black text-stone-400">
+                          잠긴 농가
+                        </span>
+                      )}
                     </div>
                     <h4 className="text-sm font-black text-stone-900">{copy.name}</h4>
                     <p className="mt-0.5 text-[11px] font-bold leading-snug text-warm-gray">{copy.desc}</p>
+                    {isSeedLocked && (
+                      <p className="mt-1.5 text-[10px] font-black text-stone-400">
+                        열린 농가에 나무 3그루를 심으면 구매할 수 있어요.
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -337,7 +364,7 @@ export const StoreView: React.FC<StoreProps> = ({
                         : 'cursor-not-allowed bg-stone-100 text-stone-300',
                     )}
                   >
-                    {item.price.toLocaleString()} P
+                    {isSeedLocked ? '농가 오픈 필요' : `${item.price.toLocaleString()} P`}
                   </button>
                   <button
                     onClick={() => handleAppleBuy(item.id, applePrice, isSeed)}
@@ -349,11 +376,11 @@ export const StoreView: React.FC<StoreProps> = ({
                         : 'cursor-not-allowed bg-stone-100 text-stone-300',
                     )}
                   >
-                    사과 {applePrice}개
+                    {isSeedLocked ? '구매 잠김' : `사과 ${applePrice}개`}
                   </button>
                 </div>
 
-                {isSeed && (ownedCount > 0 || isRecentSeed) && onPlantSeed && (
+                {isSeed && !isSeedLocked && (ownedCount > 0 || isRecentSeed) && onPlantSeed && (
                   <button
                     onClick={() => onPlantSeed(item.id)}
                     className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-apple-green py-2.5 text-xs font-black text-white shadow-[0_3px_0_0_#2d7a2d] transition-all active:translate-y-0.5 active:shadow-none"
