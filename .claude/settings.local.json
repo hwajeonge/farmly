@@ -12,7 +12,9 @@
       "Bash(npm install *)",
       "Bash(npm i *)",
       "Bash(cp \"c:/Users/HwaJeong/Desktop/myapple/myapple-app/public/farmly-logo.png\" \"c:/Users/HwaJeong/Desktop/myapple/myapple-app/public/logo.png\")",
-      "Bash(cp \"c:/Users/HwaJeong/Desktop/myapple/myapple-app/src/assets/farmly-logo.png\" \"c:/Users/HwaJeong/Desktop/myapple/myapple-app/src/assets/logo.png\")"
+      "Bash(cp \"c:/Users/HwaJeong/Desktop/myapple/myapple-app/src/assets/farmly-logo.png\" \"c:/Users/HwaJeong/Desktop/myapple/myapple-app/src/assets/logo.png\")",
+      "PowerShell(Get-ChildItem \"$env:TEMP\" | Where-Object { $_.Extension -match '\\\\.\\(jpg|jpeg|png|webp\\)' } | Sort-Object LastWriteTime -Descending | Select-Object -First 10 | Format-Table Name, LastWriteTime)",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\HwaJeong\\\\Desktop\" | Where-Object { $_.Extension -match '\\\\.\\(jpg|jpeg|png|webp\\)' } | Sort-Object LastWriteTime -Descending | Select-Object -First 10 | Format-Table Name, LastWriteTime)"
     ]
   }
 }

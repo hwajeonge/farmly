@@ -30,6 +30,8 @@ interface ActivityViewProps {
   onNavigate?: (tab: string, subTab?: string) => void;
   requestedSubTab?: string | null;
   onSubTabChange?: (tab: string | null) => void;
+  claimedLinkMissions?: string[];
+  onClaimLinkMission?: (id: string, points: number) => void;
 }
 
 const SUB_TABS = [

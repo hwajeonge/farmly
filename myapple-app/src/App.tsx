@@ -106,6 +106,7 @@ export default function App() {
           }
           if (!migProfile.storedFarmIds) migProfile.storedFarmIds = [];
           if (!migProfile.claimedMilestones) migProfile.claimedMilestones = [];
+          if (!migProfile.claimedLinkMissions) migProfile.claimedLinkMissions = [];
           if (!migProfile.items) migProfile.items = [];
           if (!migProfile.badges) migProfile.badges = [];
           if (!migProfile.trees) migProfile.trees = [];
@@ -855,6 +856,17 @@ export default function App() {
     setUser(prev => prev ? { ...prev, chatConversations: conversations } : null);
   };
 
+  const handleClaimLinkMission = (id: string, points: number) => {
+    setUser(prev => {
+      if (!prev || prev.claimedLinkMissions?.includes(id)) return prev;
+      return {
+        ...prev,
+        claimedLinkMissions: [...(prev.claimedLinkMissions || []), id],
+        points: prev.points + points,
+      };
+    });
+  };
+
   const handleDeleteAccount = async () => {
     if (!firebaseUser) {
       showAlert('로그인 정보를 확인할 수 없어요.\n다시 로그인한 뒤 시도해주세요.', '⚠️', 'warning');
@@ -1175,6 +1187,8 @@ export default function App() {
                 conversations={user.chatConversations || []}
                 onUpdateConversations={handleUpdateConversations}
                 userName={user.name}
+                claimedLinkMissions={user.claimedLinkMissions || []}
+                onClaimLinkMission={handleClaimLinkMission}
                 visitHistory={user.visitedHistory || []}
                 favoritePlaceIds={user.favoritePlaceIds || []}
                 favoritePlaces={favoritePlaceNames}

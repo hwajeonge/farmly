@@ -201,6 +201,7 @@ export interface UserProfile {
   accumulatedApples: number;
   deliveryRequests: DeliveryInfo[];
   claimedMilestones: number[]; // Array of applesNeeded that were claimed
+  claimedLinkMissions?: string[];
   isHonoraryCitizen: boolean;
   trees: TreeState[];
   items: { id: string; count: number }[];

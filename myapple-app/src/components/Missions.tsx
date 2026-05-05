@@ -1,11 +1,11 @@
 import React, { useRef, useState } from 'react';
 import { showAlert } from '../lib/alertEmitter';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Play, Info, X, Trophy, Star, MapPin, Camera, 
-  ChevronRight, CheckCircle2, Clock, CloudSun, 
+import {
+  Play, Info, X, Trophy, Star, MapPin, Camera,
+  ChevronRight, CheckCircle2, Clock, CloudSun,
   Navigation, MessageSquare, Heart, ShieldAlert,
-  Search, Gamepad2, Gift, Sparkles, Plus, Upload, Trash2
+  Search, Gamepad2, Gift, Sparkles, Plus, Upload, Trash2, ExternalLink
 } from 'lucide-react';
 import { CatchAppleGame } from './CatchAppleGame';
 import { FindGinsengGame } from './FindGinsengGame';
@@ -27,6 +27,8 @@ interface MissionsViewProps {
   favoritePlaceIds?: string[];
   onAIAction?: (name: string, args: any) => void;
   onNavigate?: (tab: string, subTab?: string) => void;
+  claimedLinkMissions?: string[];
+  onClaimLinkMission?: (id: string, points: number) => void;
 }
 
 type RecommendationReason = 'lunch' | 'dinner' | 'cafe' | 'nearby';
@@ -45,14 +47,14 @@ const IMAGE_FALLBACKS: Record<string, string[]> = {
   m3: ['https://tong.visitkorea.or.kr/cms/resource/71/132671_image2_1.jpg'],
   p3: ['https://tong.visitkorea.or.kr/cms/resource/71/132671_image2_1.jpg'],
   m5: [
+    'https://tong.visitkorea.or.kr/cms/resource/05/2820505_image2_1.jpg',
     'https://tong.visitkorea.or.kr/cms/resource/06/2820506_image2_1.jpg',
-    'https://tong.visitkorea.or.kr/cms/resource/67/2725167_image2_1.jpg',
-    'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?auto=format&fit=crop&w=1200&q=80'
+    'https://tong.visitkorea.or.kr/cms/resource/67/2725167_image2_1.jpg'
   ],
   p11: [
+    'https://tong.visitkorea.or.kr/cms/resource/05/2820505_image2_1.jpg',
     'https://tong.visitkorea.or.kr/cms/resource/06/2820506_image2_1.jpg',
-    'https://tong.visitkorea.or.kr/cms/resource/67/2725167_image2_1.jpg',
-    'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?auto=format&fit=crop&w=1200&q=80'
+    'https://tong.visitkorea.or.kr/cms/resource/67/2725167_image2_1.jpg'
   ]
 };
 
@@ -265,6 +267,8 @@ export const MissionsView: React.FC<MissionsViewProps> = ({
   favoritePlaceIds = [],
   onAIAction,
   onNavigate,
+  claimedLinkMissions = [],
+  onClaimLinkMission,
 }) => {
   const [showCatchGame, setShowCatchGame] = useState(false);
   const [showGinsengGame, setShowGinsengGame] = useState(false);
@@ -519,6 +523,60 @@ export const MissionsView: React.FC<MissionsViewProps> = ({
             </div>
           ))}
         </div>
+      </section>
+
+      {/* Link Missions Section */}
+      <section>
+        <h3 className="text-xs font-black text-stone-400 uppercase tracking-widest flex items-center gap-2 mb-4">
+          <ExternalLink size={14} className="text-yeoju-gold" />
+          온라인 체험
+        </h3>
+        {(() => {
+          const claimed = claimedLinkMissions.includes('vr_panorama');
+          return (
+            <div className="farm-card p-4 sm:p-5 flex items-center gap-3 sm:gap-5">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-stone-50 rounded-2xl sm:rounded-[1.5rem] flex items-center justify-center text-2xl sm:text-4xl shrink-0">
+                🥽
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-0.5 sm:mb-1">
+                  <h4 className="font-black text-base sm:text-lg truncate">영주시 VR 파노라마 체험</h4>
+                  <span className="px-1.5 sm:px-2 py-0.5 bg-yeoju-gold/10 text-yeoju-gold text-[8px] sm:text-[10px] font-black rounded-lg whitespace-nowrap">
+                    +100P
+                  </span>
+                </div>
+                <p className="text-[10px] sm:text-xs text-stone-400 font-medium truncate">영주시 누리집 VR 파노라마로 영주를 미리 만나보세요!</p>
+              </div>
+              <button
+                disabled={claimed}
+                onClick={() => {
+                  window.open('https://www.yeongju.go.kr/open_content/tour/page.do?mnu_uid=3400&', '_blank', 'noopener,noreferrer');
+                  if (!claimed) {
+                    onClaimLinkMission?.('vr_panorama', 100);
+                    showAlert('VR 파노라마 체험 완료! +100P 획득!', '🥽', 'success');
+                  }
+                }}
+                className={`shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-2xl font-black text-xs transition-all ${
+                  claimed
+                    ? 'bg-stone-100 text-stone-400 cursor-not-allowed'
+                    : 'bg-yeoju-gold text-white shadow-[0_3px_0_0_#b07a00] active:shadow-none active:translate-y-0.5'
+                }`}
+              >
+                {claimed ? (
+                  <>
+                    <CheckCircle2 size={14} />
+                    완료
+                  </>
+                ) : (
+                  <>
+                    <ExternalLink size={14} />
+                    체험하기
+                  </>
+                )}
+              </button>
+            </div>
+          );
+        })()}
       </section>
 
       {/* Visit Missions Section */}
