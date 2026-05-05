@@ -42,8 +42,6 @@ interface SmartRecommendation {
 }
 
 const IMAGE_FALLBACKS: Record<string, string[]> = {
-  m1: ['https://commons.wikimedia.org/wiki/Special:FilePath/Korail_Yeongju_Station.JPG?width=1200'],
-  p0: ['https://commons.wikimedia.org/wiki/Special:FilePath/Korail_Yeongju_Station.JPG?width=1200'],
   m3: ['https://tong.visitkorea.or.kr/cms/resource/71/132671_image2_1.jpg'],
   p3: ['https://tong.visitkorea.or.kr/cms/resource/71/132671_image2_1.jpg'],
   m5: [
@@ -517,7 +515,7 @@ export const MissionsView: React.FC<MissionsViewProps> = ({
                       : 'bg-stone-200 text-stone-400'
                   }`}
                 >
-                  <Play size={18} className="sm:w-[20px] sm:h-[20px]" fill="currentColor" />
+                  <Play size={18} className="gsm:w-[20px] sm:h-[20px]" fill="currentColor" />
                 </div>
               </div>
             </div>
@@ -540,7 +538,7 @@ export const MissionsView: React.FC<MissionsViewProps> = ({
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-0.5 sm:mb-1">
-                  <h4 className="font-black text-base sm:text-lg truncate">영주시 VR 파노라마 체험</h4>
+                  <h4 className="font-black text-sm sm:text-base truncate">영주시 VR 파노라마 체험</h4>
                   <span className="px-1.5 sm:px-2 py-0.5 bg-yeoju-gold/10 text-yeoju-gold text-[8px] sm:text-[10px] font-black rounded-lg whitespace-nowrap">
                     +100P
                   </span>
