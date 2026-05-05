@@ -537,8 +537,8 @@ export const MissionsView: React.FC<MissionsViewProps> = ({
                 🥽
               </div>
               <div className="flex-1 min-w-0">
-                <h4 className="font-black text-base sm:text-lg mb-0.5 sm:mb-1">영주시 VR 파노라마 체험</h4>
-                <p className="text-[10px] sm:text-xs text-stone-400 font-medium">영주시 누리집 VR 파노라마로 영주를 미리 만나보세요!</p>
+                <h4 className="font-black text-sm sm:text-base mb-0.5 sm:mb-1 whitespace-nowrap">영주시 VR 파노라마 체험</h4>
+                <p className="text-[10px] sm:text-xs text-stone-400 font-medium">영주시 누리집 VR 파노라마로<br />영주를 미리 만나보세요!</p>
               </div>
               <div className="shrink-0 flex flex-col items-center gap-2">
                 <span className="px-1.5 sm:px-2 py-0.5 bg-yeoju-gold/10 text-yeoju-gold text-[8px] sm:text-[10px] font-black rounded-lg whitespace-nowrap">
