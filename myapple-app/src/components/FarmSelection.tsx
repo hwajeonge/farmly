@@ -355,7 +355,7 @@ export const FarmSelection: React.FC<FarmSelectionProps> = ({
                           key={place.id}
                           type="button"
                           onClick={() => showAlert(`${place.name}\n${place.description}`, '📍', 'info')}
-                          className="group absolute z-20 -translate-x-1/2 -translate-y-1/2"
+                          className="group absolute z-20 -translate-x-1/2 -translate-y-1/2 hover:z-[90] focus-visible:z-[90]"
                           style={{ left: `${marker.x}%`, top: `${marker.y}%` }}
                           aria-label={`${place.name}: ${place.description}`}
                         >
@@ -367,7 +367,7 @@ export const FarmSelection: React.FC<FarmSelectionProps> = ({
                           >
                             {getPlaceMarkerIcon(marker.kind)}
                           </span>
-                          <span className={cn('pointer-events-none absolute z-40 w-40 rounded-[1.15rem] border-2 border-white bg-white/95 px-3 py-2 text-left opacity-0 shadow-[0_10px_22px_rgba(90,62,43,0.18)] backdrop-blur transition-all group-hover:opacity-100 group-focus-visible:opacity-100', tooltipPlacement)}>
+                          <span className={cn('pointer-events-none absolute z-[100] w-40 rounded-[1.15rem] border-2 border-white bg-white/95 px-3 py-2 text-left opacity-0 shadow-[0_10px_22px_rgba(90,62,43,0.18)] backdrop-blur transition-all group-hover:opacity-100 group-focus-visible:opacity-100', tooltipPlacement)}>
                             <span className="block text-[11px] font-black text-stone-800">{place.name}</span>
                             <span className="mt-1 block text-[10px] font-bold leading-relaxed text-stone-500">
                               {getShortPlaceDescription(place)}
@@ -386,7 +386,7 @@ export const FarmSelection: React.FC<FarmSelectionProps> = ({
                           key={farm.id}
                           whileHover={{ scale: 1.06, y: -3 }}
                           onClick={() => handleFarmSelect(farm)}
-                          className={cn('group absolute z-30 -translate-x-1/2 -translate-y-full', (!isUnlocked || isStored) && 'grayscale')}
+                          className={cn('group absolute z-30 -translate-x-1/2 -translate-y-full hover:z-[95] focus-visible:z-[95]', (!isUnlocked || isStored) && 'grayscale')}
                           style={{ left: `${farm.coords.x}%`, top: `${farm.coords.y}%` }}
                           aria-label={`${farm.name} 선택`}
                         >
@@ -405,7 +405,7 @@ export const FarmSelection: React.FC<FarmSelectionProps> = ({
                                 <Lock size={15} />
                               )}
                             </span>
-                            <span className={cn('pointer-events-none absolute z-40 w-max rounded-[1.1rem] border-2 border-white bg-white/95 px-3 py-1.5 text-[11px] font-black text-stone-800 opacity-0 shadow-[0_10px_22px_rgba(90,62,43,0.18)] backdrop-blur transition-all group-hover:opacity-100 group-focus-visible:opacity-100', tooltipPlacement)}>
+                            <span className={cn('pointer-events-none absolute z-[100] w-max rounded-[1.1rem] border-2 border-white bg-white/95 px-3 py-1.5 text-[11px] font-black text-stone-800 opacity-0 shadow-[0_10px_22px_rgba(90,62,43,0.18)] backdrop-blur transition-all group-hover:opacity-100 group-focus-visible:opacity-100', tooltipPlacement)}>
                               {farm.name}
                             </span>
                           </div>
