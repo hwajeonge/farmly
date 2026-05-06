@@ -16,7 +16,16 @@ import { MyPage } from './components/MyPage';
 import { AdminDashboard } from './components/AdminDashboard';
 import { UserProfile, Farm, AppleVariety, TreeState, Course, AppNotification, ItemId, ChatConversation, DeliveryInfo, MissionReview } from './types';
 import { VISIT_MISSIONS, FARMS, PLACES } from './constants';
-import { calculateDailyGrowth, calculateHarvestAmount, getPestEvent, getWeatherEvent, canTransitionToNextSeason, getGrowthStageLabel, getDailyStatusMessage } from './services/growthService';
+import {
+  calculateDailyGrowth,
+  calculateHarvestAmount,
+  canTransitionToNextSeason,
+  daysSince,
+  getDailyStatusMessage,
+  getGrowthStageLabel,
+  getPestEvent,
+  getWeatherEvent,
+} from './services/growthService';
 import { FloatingChatbot } from './components/FloatingChatbot';
 import { RoleSelectionView } from './components/RoleSelectionView';
 import { UserRole } from './types';
@@ -45,6 +54,72 @@ const MISSION_STATUS_RANK = {
 
 const MINI_GAME_MAX_LIVES = 5;
 const HEART_RECHARGE_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
+type QueuedNotification = {
+  title: string;
+  message: string;
+  type?: AppNotification['type'];
+  targetTab?: AppNotification['targetTab'];
+};
+
+const advanceTreeOneDay = (tree: TreeState) => {
+  const isWatered = tree.lastWateredDay === tree.currentDay;
+  const weatherEvent = getWeatherEvent(tree.currentDay);
+  const growth = calculateDailyGrowth(tree, isWatered, weatherEvent ?? undefined);
+  const nextTree: TreeState = { ...tree, ...growth };
+  const notifications: QueuedNotification[] = [];
+
+  const currentStage = nextTree.growthStage;
+  const currentDay = nextTree.currentDay;
+
+  let canTransition = true;
+  if (currentDay >= 7 && currentStage === '발아기') canTransition = canTransitionToNextSeason(nextTree);
+  if (currentDay >= 14 && currentStage === '개화기') canTransition = canTransitionToNextSeason(nextTree);
+  if (currentDay >= 23 && (currentStage === '착과기' || currentStage === '착색기')) canTransition = canTransitionToNextSeason(nextTree);
+
+  nextTree.currentDay = Math.min(30, nextTree.currentDay + 1);
+  if (canTransition) {
+    nextTree.growthStage = getGrowthStageLabel(nextTree.currentDay);
+  } else {
+    notifications.push({
+      title: '⚠️ 성장 지연',
+      message: `${nextTree.nickname}의 성장이 지연되어 계절 전환이 연기되었습니다. 성장률과 병충해를 확인해주세요.`,
+      type: 'info',
+    });
+  }
+
+  const lastWateredDays =
+    typeof tree.lastWateredDay === 'number'
+      ? Math.max(0, nextTree.currentDay - tree.lastWateredDay)
+      : Number.POSITIVE_INFINITY;
+  const pest = getPestEvent(nextTree.currentDay, lastWateredDays, nextTree.nutrientsUsed > 0);
+  if (pest !== 'none' && !nextTree.shieldActive && nextTree.pestStatus === 'none') {
+    nextTree.pestStatus = pest;
+    notifications.push({
+      title: '🚨 병충해 발생!',
+      message: `${nextTree.nickname}에게 병충해가 생겼어요! 빨리 치료해주세요.`,
+      type: 'info',
+    });
+  }
+
+  if (weatherEvent) {
+    notifications.push({ title: '☀️ 기상 이벤트', message: weatherEvent.message, type: 'info' });
+    notifications.push({
+      title: `🌳 ${nextTree.nickname}의 한마디`,
+      message: weatherEvent.userMessage,
+      type: 'info',
+      targetTab: 'tree',
+    });
+  }
+
+  if (nextTree.currentDay >= 30 && nextTree.growthStage !== '시즌종료') {
+    const appleAmount = calculateHarvestAmount(nextTree.growthRate, nextTree.pestStatus);
+    nextTree.harvestedApples = appleAmount;
+    nextTree.growthStage = '시즌종료';
+  }
+
+  return { tree: nextTree, notifications };
+};
 
 export default function App() {
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
@@ -302,6 +377,127 @@ export default function App() {
     setIsNotificationOpen(false);
   };
 
+  useEffect(() => {
+    if (!user || !firebaseUser) return;
+
+    const storedFarmIds = new Set(user.storedFarmIds || []);
+    const queuedNotifications: QueuedNotification[] = [];
+    let hasGrowthUpdate = false;
+
+    const updatedTrees = user.trees.map((tree) => {
+      if (storedFarmIds.has(tree.farmId) || tree.growthStage === '시즌종료') return tree;
+
+      const targetDay = Math.min(30, Math.max(1, daysSince(tree.plantedAt) + 1));
+      if (targetDay <= tree.currentDay) return tree;
+
+      let nextTree = { ...tree };
+      while (nextTree.growthStage !== '시즌종료' && nextTree.currentDay < targetDay) {
+        const result = advanceTreeOneDay(nextTree);
+        nextTree = result.tree;
+        queuedNotifications.push(...result.notifications);
+      }
+
+      hasGrowthUpdate = true;
+      return nextTree;
+    });
+
+    if (!hasGrowthUpdate) return;
+
+    const newHarvests = updatedTrees.reduce((acc, tree, index) => {
+      if (tree.growthStage === '시즌종료' && user.trees[index].growthStage !== '시즌종료') {
+        return acc + (tree.harvestedApples || 0);
+      }
+      return acc;
+    }, 0);
+
+    const harvestedApplesTotal = (user.accumulatedApples ?? 0) + newHarvests;
+    const currentAppleBalance = (user.apples ?? 0) + newHarvests;
+    const newClaimedMilestones = [...(user.claimedMilestones || [])];
+    const updatedItems = [...(user.items || [])];
+
+    const giveItem = (id: ItemId, count: number = 1) => {
+      const idx = updatedItems.findIndex(item => item.id === id);
+      if (idx !== -1) updatedItems[idx].count += count;
+      else updatedItems.push({ id, count });
+    };
+
+    if (!newClaimedMilestones.includes(10) && harvestedApplesTotal >= 10) {
+      queuedNotifications.push({
+        title: '🍎 첫 수확 축하!',
+        message: '누적 사과 10개를 달성했어요. 100개를 모으면 실물 사과 1kg 배송 신청이 열려요.',
+        type: 'reward',
+      });
+      newClaimedMilestones.push(10);
+    }
+    if (!newClaimedMilestones.includes(30) && harvestedApplesTotal >= 30) {
+      queuedNotifications.push({
+        title: '🎖️ 마일스톤 달성!',
+        message: '누적 사과 30개 달성! 보상으로 영양제가 지급되었습니다.',
+        type: 'reward',
+      });
+      giveItem('nutrient', 2);
+      newClaimedMilestones.push(30);
+    }
+    if (!newClaimedMilestones.includes(60) && harvestedApplesTotal >= 60) {
+      queuedNotifications.push({
+        title: '🎖️ 마일스톤 달성!',
+        message: '누적 사과 60개 달성! 폭염 방풍막과 약을 획득했습니다.',
+        type: 'reward',
+      });
+      giveItem('shield', 1);
+      giveItem('medicine', 1);
+      newClaimedMilestones.push(60);
+    }
+    if (!newClaimedMilestones.includes(100) && harvestedApplesTotal >= 100) {
+      queuedNotifications.push({
+        title: '🎁 실물 사과 1kg 배송 가능',
+        message: '축하합니다! 누적 사과 100개 달성으로 실물 사과 1kg 배송 신청이 열렸어요.',
+        type: 'reward',
+      });
+      newClaimedMilestones.push(100);
+    }
+    if (!newClaimedMilestones.includes(200) && harvestedApplesTotal >= 200) {
+      queuedNotifications.push({
+        title: '🎁 실물 사과 2kg 배송 가능',
+        message: '대단해요! 누적 사과 200개 달성으로 실물 사과 2kg 배송 신청이 열렸어요.',
+        type: 'reward',
+      });
+      giveItem('fertilizer', 1);
+      newClaimedMilestones.push(200);
+    }
+
+    if (newHarvests > 0) {
+      queuedNotifications.push({
+        title: '🍎 수확 성공',
+        message: `${newHarvests}개의 사과가 누적되었습니다!`,
+        type: 'reward',
+        targetTab: 'profile',
+      });
+      if (harvestedApplesTotal >= HARVEST_DELIVERY_MIN_APPLES) {
+        queuedNotifications.push({
+          title: '📦 배송 신청 가능',
+          message: '누적 사과 100개를 달성해 실물 사과 배송 신청을 할 수 있어요.',
+          type: 'reward',
+          targetTab: 'profile',
+        });
+        window.setTimeout(() => setIsHarvestModalOpen(true), 0);
+      }
+    }
+
+    setUser({
+      ...user,
+      trees: updatedTrees,
+      accumulatedApples: harvestedApplesTotal,
+      apples: currentAppleBalance,
+      claimedMilestones: newClaimedMilestones,
+      items: updatedItems,
+    });
+
+    queuedNotifications.forEach(notification => {
+      addNotification(notification.title, notification.message, notification.type, undefined, notification.targetTab);
+    });
+  }, [firebaseUser, user]);
+
   const handleAdoptTree = (farm: Farm, variety: AppleVariety, nickname: string, personality: string) => {
     if (!user || !firebaseUser) return;
     const treeNickname = nickname.trim();
@@ -464,133 +660,6 @@ export default function App() {
 
       updatedTrees[treeIndex] = tree;
       return { ...prev, trees: updatedTrees, items: updatedItems.filter(i => i.count >= 0) };
-    });
-  };
-
-  const handleAdvanceDay = () => {
-    if (!user || user.trees.length === 0) return;
-
-    setUser(prev => {
-      if (!prev) return prev;
-      const updatedTrees = prev.trees.map(tree => {
-        // Skip stored farms (FARM05_STORE03)
-        if ((prev.storedFarmIds || []).includes(tree.farmId)) return tree;
-        if (tree.growthStage === '시즌종료') return tree;
-
-        const isWatered = tree.lastWateredDay === tree.currentDay;
-        const weatherEvent = getWeatherEvent(tree.currentDay);
-        
-        // Progress growth rate
-        const growth = calculateDailyGrowth(tree, isWatered, weatherEvent ?? undefined);
-        let newTree = { ...tree, ...growth };
-
-        // Season Transition Logic (GROW01_COND)
-        const currentStage = newTree.growthStage;
-        const currentDay = newTree.currentDay;
-        
-        let canTransition = true;
-        if (currentDay >= 7 && currentStage === '발아기') canTransition = canTransitionToNextSeason(newTree);
-        if (currentDay >= 14 && currentStage === '개화기') canTransition = canTransitionToNextSeason(newTree);
-        if (currentDay >= 23 && (currentStage === '착과기' || currentStage === '착색기')) canTransition = canTransitionToNextSeason(newTree);
-
-        if (canTransition) {
-          newTree.currentDay += 1;
-          newTree.growthStage = getGrowthStageLabel(newTree.currentDay);
-        } else {
-          // Delay transition (GROW01_COND04)
-          newTree.currentDay += 1; // Increment day but don't change stage
-          addNotification("⚠️ 성장 지연", `${newTree.nickname}의 성장이 지연되어 계절 전환이 연기되었습니다. 성장률과 병충해를 확인해주세요.`, 'info');
-        }
-
-        // Pest logic (Pass nutrient use info)
-        const lastWateredDays =
-          typeof tree.lastWateredDay === 'number'
-            ? Math.max(0, newTree.currentDay - tree.lastWateredDay)
-            : Number.POSITIVE_INFINITY;
-        const pest = getPestEvent(newTree.currentDay, lastWateredDays, newTree.nutrientsUsed > 0);
-        if (pest !== 'none' && !newTree.shieldActive && newTree.pestStatus === 'none') {
-          newTree.pestStatus = pest;
-          addNotification("🚨 병충해 발생!", `${newTree.nickname}에게 병충해가 생겼어요! 빨리 치료해주세요.`, 'info');
-        }
-
-        // Notification for weather
-        if (weatherEvent) {
-          addNotification("☀️ 기상 이벤트", weatherEvent.message, 'info');
-          addNotification(`🌳 ${newTree.nickname}의 한마디`, weatherEvent.userMessage, 'info', undefined, 'tree');
-        }
-
-        // Harvest logic
-        if (newTree.currentDay >= 30) {
-          const appleAmount = calculateHarvestAmount(newTree.growthRate, newTree.pestStatus);
-          newTree.harvestedApples = appleAmount;
-          newTree.growthStage = '시즌종료';
-        }
-
-        return newTree;
-      });
-
-      // Calculate total shift in harvest
-      const newHarvests = updatedTrees.reduce((acc, t, i) => {
-        if (t.growthStage === '시즌종료' && prev.trees[i].growthStage !== '시즌종료') {
-           return acc + (t.harvestedApples || 0);
-        }
-        return acc;
-      }, 0);
-
-      const harvestedApplesTotal = prev.accumulatedApples + newHarvests;
-      const currentAppleBalance = prev.apples + newHarvests;
-      
-      const newClaimedMilestones = [...(prev.claimedMilestones || [])];
-      const updatedItems = [...(prev.items || [])];
-
-      const giveItem = (id: string, count: number = 1) => {
-        const idx = updatedItems.findIndex(i => i.id === id);
-        if (idx !== -1) updatedItems[idx].count += count;
-        else updatedItems.push({ id, count });
-      }
-
-      // Milestone logic
-      if (!newClaimedMilestones.includes(10) && harvestedApplesTotal >= 10) {
-        addNotification('🍎 첫 수확 축하!', '누적 사과 10개를 달성했어요. 100개를 모으면 실물 사과 1kg 배송 신청이 열려요.', 'reward');
-        newClaimedMilestones.push(10);
-      }
-      if (!newClaimedMilestones.includes(30) && harvestedApplesTotal >= 30) {
-        addNotification("🎖️ 마일스톤 달성!", "누적 사과 30개 달성! 보상으로 영양제가 지급되었습니다.", 'reward');
-        giveItem('nutrient', 2);
-        newClaimedMilestones.push(30);
-      }
-      if (!newClaimedMilestones.includes(60) && harvestedApplesTotal >= 60) {
-        addNotification("🎖️ 마일스톤 달성!", "누적 사과 60개 달성! 폭염 방풍막과 약을 획득했습니다.", 'reward');
-        giveItem('shield', 1);
-        giveItem('medicine', 1);
-        newClaimedMilestones.push(60);
-      }
-      if (!newClaimedMilestones.includes(100) && harvestedApplesTotal >= 100) {
-        addNotification('🎁 실물 사과 1kg 배송 가능', '축하합니다! 누적 사과 100개 달성으로 실물 사과 1kg 배송 신청이 열렸어요.', 'reward');
-        newClaimedMilestones.push(100);
-      }
-      if (!newClaimedMilestones.includes(200) && harvestedApplesTotal >= 200) {
-        addNotification('🎁 실물 사과 2kg 배송 가능', '대단해요! 누적 사과 200개 달성으로 실물 사과 2kg 배송 신청이 열렸어요.', 'reward');
-        giveItem('fertilizer', 1);
-        newClaimedMilestones.push(200);
-      }
-
-      if (newHarvests > 0) {
-        addNotification("🍎 수확 성공", `${newHarvests}개의 사과가 누적되었습니다!`, 'reward', undefined, 'profile');
-        if (harvestedApplesTotal >= HARVEST_DELIVERY_MIN_APPLES) {
-          addNotification('📦 배송 신청 가능', '누적 사과 100개를 달성해 실물 사과 배송 신청을 할 수 있어요.', 'reward', undefined, 'profile');
-          window.setTimeout(() => setIsHarvestModalOpen(true), 0);
-        }
-      }
-
-      return {
-        ...prev,
-        trees: updatedTrees,
-        accumulatedApples: harvestedApplesTotal,
-        apples: currentAppleBalance,
-        claimedMilestones: newClaimedMilestones,
-        items: updatedItems
-      };
     });
   };
 
@@ -1127,7 +1196,6 @@ export default function App() {
                 <TreeManagement 
                   tree={managedTree} 
                   onAction={handleTreeAction} 
-                  onAdvanceDay={handleAdvanceDay}
                   onDeleteTree={() => handleDeleteTree(managedTree.id)}
                   inventory={user.items}
                   accumulatedApples={user.accumulatedApples ?? 0}

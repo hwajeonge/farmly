@@ -74,6 +74,43 @@ const LUNCH_START = 11 * 60 + 20;
 const LUNCH_END = 13 * 60 + 30;
 const DINNER_START = 17 * 60 + 30;
 const DINNER_END = 19 * 60 + 30;
+const GPS_CHECK_RADIUS_METERS = 500;
+
+type GeoPoint = {
+  lat: number;
+  lng: number;
+};
+
+const getDistanceMeters = (a: GeoPoint, b: GeoPoint) => {
+  const earthRadiusMeters = 6371000;
+  const toRad = (value: number) => (value * Math.PI) / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return earthRadiusMeters * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+};
+
+const formatDistanceMeters = (meters: number) => {
+  if (meters >= 1000) return `${(meters / 1000).toFixed(1)}km`;
+  return `${Math.round(meters)}m`;
+};
+
+const getCurrentPosition = () => new Promise<GeolocationPosition>((resolve, reject) => {
+  if (!navigator.geolocation) {
+    reject(new Error('unsupported'));
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(resolve, reject, {
+    enableHighAccuracy: true,
+    timeout: 12000,
+    maximumAge: 0,
+  });
+});
 
 const parseTimeToMinutes = (time?: string) => {
   const match = time?.match(/(\d{1,2}):(\d{2})/);
@@ -281,6 +318,7 @@ export const MissionsView: React.FC<MissionsViewProps> = ({
   const [rating, setRating] = useState(0);
   const [review, setReview] = useState('');
   const [localProgress, setLocalProgress] = useState<Record<string, MissionStatus>>({});
+  const [checkingArrivalMissionId, setCheckingArrivalMissionId] = useState<string | null>(null);
   const stageRewardLocks = useRef<Set<string>>(new Set());
   const livesRef = useRef(lives);
   const gameStartLockedRef = useRef(false);
@@ -304,6 +342,59 @@ export const MissionsView: React.FC<MissionsViewProps> = ({
     onUpdateProgress(mission.id, nextStatus);
     if (stage?.reward) onAddPoints(stage.reward);
     return true;
+  };
+
+  const verifyArrivalByGps = async (mission: VisitMission) => {
+    const place = PLACES.find(item => item.id === mission.placeId);
+    if (!place) {
+      showAlert('방문지 정보를 찾을 수 없어요.\n잠시 후 다시 시도해주세요.', '📍', 'warning');
+      return false;
+    }
+
+    setCheckingArrivalMissionId(mission.id);
+    try {
+      const position = await getCurrentPosition();
+      const currentPoint = {
+        lat: position.coords.latitude,
+        lng: position.coords.longitude,
+      };
+      const placePoint = {
+        lat: place.lat,
+        lng: place.lng,
+      };
+      const distanceMeters = getDistanceMeters(currentPoint, placePoint);
+
+      if (distanceMeters > GPS_CHECK_RADIUS_METERS) {
+        showAlert(
+          `${place.name} 근처에서만 도착 인증할 수 있어요.\n현재 약 ${formatDistanceMeters(distanceMeters)} 떨어져 있습니다.\n${GPS_CHECK_RADIUS_METERS}m 이내에서 다시 시도해주세요.`,
+          '📍',
+          'warning',
+        );
+        return false;
+      }
+
+      showAlert(
+        `${place.name} 도착이 확인됐어요!\n현재 거리 약 ${formatDistanceMeters(distanceMeters)}입니다.`,
+        '📍',
+        'success',
+      );
+      return true;
+    } catch (error) {
+      const geolocationError = error as GeolocationPositionError;
+      const message =
+        geolocationError.code === 1
+          ? '위치 권한이 필요해요.\n브라우저 설정에서 위치 접근을 허용한 뒤 다시 시도해주세요.'
+          : geolocationError.code === 2
+            ? '현재 위치를 확인하지 못했어요.\nGPS 신호가 잘 잡히는 곳에서 다시 시도해주세요.'
+            : geolocationError.message === 'unsupported'
+              ? '이 브라우저에서는 위치 인증을 사용할 수 없어요.'
+              : '위치 확인 시간이 초과됐어요.\n잠시 후 다시 시도해주세요.';
+
+      showAlert(message, '📍', 'warning');
+      return false;
+    } finally {
+      setCheckingArrivalMissionId(null);
+    }
   };
 
   const consumeLifeForMiniGame = () => {
@@ -338,12 +429,14 @@ export const MissionsView: React.FC<MissionsViewProps> = ({
     handleCloseMiniGame();
   };
 
-  const handleMissionAction = (mission: VisitMission) => {
+  const handleMissionAction = async (mission: VisitMission) => {
     const currentStatus = getEffectiveStatus(mission.id);
     
     if (currentStatus === 'none') {
       setSelectedPrepareMission(mission);
     } else if (currentStatus === 'prepare') {
+      const isNearPlace = await verifyArrivalByGps(mission);
+      if (!isNearPlace) return;
       claimStageReward(mission, 'arrival', 'arrival', 'prepare');
     } else if (currentStatus === 'arrival') {
       setSelectedMission(mission);
@@ -593,6 +686,7 @@ export const MissionsView: React.FC<MissionsViewProps> = ({
             const status = getEffectiveStatus(mission.id);
             const place = PLACES.find(p => p.id === mission.placeId);
             const prepareLocked = stageRewardLocks.current.has(`${mission.id}:prepare`);
+            const isCheckingArrival = checkingArrivalMissionId === mission.id;
 
             return (
               <div key={mission.id} className="farm-card overflow-hidden">
@@ -664,6 +758,11 @@ export const MissionsView: React.FC<MissionsViewProps> = ({
                                 💡 Tip: 관광 정책 및 이동수단 자동 확인됨
                               </div>
                             )}
+                            {isCurrent && stage.id === 'arrival' && (
+                              <div className="mt-2 text-[9px] font-bold text-blue-500 bg-white/70 p-1.5 rounded-lg border border-blue-100">
+                                GPS 기준 {GPS_CHECK_RADIUS_METERS}m 이내에서 도착 인증할 수 있어요
+                              </div>
+                            )}
                           </div>
                         </div>
                       );
@@ -673,7 +772,7 @@ export const MissionsView: React.FC<MissionsViewProps> = ({
                   {status !== 'completed' && (
                     <button 
                       onClick={() => handleMissionAction(mission)}
-                      disabled={prepareLocked && status === 'none'}
+                      disabled={(prepareLocked && status === 'none') || isCheckingArrival}
                       className={`w-full py-4 rounded-2xl font-black flex items-center justify-center gap-2 transition-all ${
                         status === 'none' ? 'bg-white border-4 border-stone-100 text-stone-600' :
                         status === 'prepare' ? 'bg-blue-500 text-white shadow-[0_4px_0_0_#2b6cb0]' :
@@ -682,7 +781,12 @@ export const MissionsView: React.FC<MissionsViewProps> = ({
                       }`}
                     >
                       {status === 'none' && <><Info size={18} /> 여행 전 정보 및 정책 확인</>}
-                      {status === 'prepare' && <><Navigation size={18} /> 목적지 도착 (체크인)</>}
+                      {status === 'prepare' && (
+                        <>
+                          <Navigation size={18} />
+                          {isCheckingArrival ? 'GPS 위치 확인 중...' : '목적지 도착 (GPS 체크인)'}
+                        </>
+                      )}
                       {status === 'arrival' && <><Camera size={18} /> 미션 수행 (행동 인증)</>}
                       {status === 'action' && <><MessageSquare size={18} /> 방문 후기 등록</>}
                     </button>
@@ -841,7 +945,7 @@ export const MissionsView: React.FC<MissionsViewProps> = ({
                     <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-apple-green-dark">Mission Policy</p>
                     <ul className="space-y-2 text-[11px] font-bold leading-relaxed text-stone-600">
                       <li>방문 전 단계는 장소 정보와 정책을 확인하면 1회만 보상됩니다.</li>
-                      <li>도착 체크인은 실제 장소 근처에서 진행하는 단계로 분리됩니다.</li>
+                      <li>도착 체크인은 실제 장소 {GPS_CHECK_RADIUS_METERS}m 이내에서 GPS로 인증됩니다.</li>
                       <li>사진 인증과 후기는 현장 방문 후 순서대로 완료할 수 있어요.</li>
                       {prepareStage && <li>이번 준비 미션: {prepareStage.task}</li>}
                     </ul>

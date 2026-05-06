@@ -10,7 +10,6 @@ import { getNextHarvestDeliveryReward, HARVEST_DELIVERY_MIN_APPLES } from '../re
 interface TreeManagementProps {
   tree: TreeState;
   onAction: (action: 'water' | 'nutrient' | 'medicine' | 'shield') => void;
-  onAdvanceDay?: () => void;
   onDeleteTree?: () => void;
   inventory: { id: string; count: number }[];
   accumulatedApples: number;
@@ -48,7 +47,6 @@ const clampPercent = (value: number) => Math.max(0, Math.min(100, Math.round(val
 export const TreeManagement: React.FC<TreeManagementProps> = ({
   tree,
   onAction,
-  onAdvanceDay,
   onDeleteTree,
   inventory,
   accumulatedApples,
@@ -365,15 +363,6 @@ export const TreeManagement: React.FC<TreeManagementProps> = ({
             </div>
           </section>
 
-          {onAdvanceDay && (
-            <button
-              onClick={onAdvanceDay}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-stone-800 py-3.5 text-sm font-black text-white shadow-[0_4px_0_0_#1c1c1c] transition-all active:translate-y-1 active:shadow-none"
-            >
-              <Calendar size={16} />
-              다음 날로 진행
-            </button>
-          )}
         </>
       )}
     </div>
