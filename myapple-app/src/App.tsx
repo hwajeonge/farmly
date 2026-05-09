@@ -62,6 +62,46 @@ type QueuedNotification = {
   targetTab?: AppNotification['targetTab'];
 };
 
+const GUEST_SESSION_STORAGE_KEY = 'yeongju_guest_session_v1';
+
+type GuestSession = {
+  user: UserProfile;
+  activeTab: string;
+  previousTab: string;
+  notifications: AppNotification[];
+};
+
+const readGuestSession = (): GuestSession | null => {
+  if (typeof window === 'undefined') return null;
+
+  try {
+    const raw = window.localStorage.getItem(GUEST_SESSION_STORAGE_KEY);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as GuestSession;
+    if (!parsed?.user?.isGuest) return null;
+    return {
+      user: parsed.user,
+      activeTab: parsed.activeTab || 'tree',
+      previousTab: parsed.previousTab || 'tree',
+      notifications: Array.isArray(parsed.notifications) ? parsed.notifications : [],
+    };
+  } catch {
+    window.localStorage.removeItem(GUEST_SESSION_STORAGE_KEY);
+    return null;
+  }
+};
+
+const writeGuestSession = (session: GuestSession) => {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(GUEST_SESSION_STORAGE_KEY, JSON.stringify(session));
+};
+
+const clearGuestSession = () => {
+  if (typeof window === 'undefined') return;
+  window.localStorage.removeItem(GUEST_SESSION_STORAGE_KEY);
+};
+
 const createGuestTree = (
   id: string,
   farmId: string,
@@ -327,26 +367,27 @@ const advanceTreeOneDay = (tree: TreeState) => {
 };
 
 export default function App() {
+  const [restoredGuestSession] = useState<GuestSession | null>(() => readGuestSession());
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
-  const [isGuestMode, setIsGuestModeState] = useState(false);
+  const [isGuestMode, setIsGuestModeState] = useState(() => Boolean(restoredGuestSession));
   const [guestRolePending, setGuestRolePending] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('tree');
-  const [previousTab, setPreviousTab] = useState('tree');
+  const [activeTab, setActiveTab] = useState(restoredGuestSession?.activeTab ?? 'tree');
+  const [previousTab, setPreviousTab] = useState(restoredGuestSession?.previousTab ?? 'tree');
   const [activitySubTab, setActivitySubTab] = useState<string | null>(null);
   const [isHarvestModalOpen, setIsHarvestModalOpen] = useState(false);
-  const [user, setUser] = useState<UserProfile | null>(null);
+  const [user, setUser] = useState<UserProfile | null>(restoredGuestSession?.user ?? null);
   const [activeCourseId, setActiveCourseId] = useState<string | null>(null);
   const [profileRequestedTab, setProfileRequestedTab] = useState<'profile' | 'travel' | 'cards' | null>(null);
   const [requestedSeedFarmId, setRequestedSeedFarmId] = useState<string | null>(null);
   const [storeSeedFarmId, setStoreSeedFarmId] = useState<string | null>(null);
-  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [notifications, setNotifications] = useState<AppNotification[]>(restoredGuestSession?.notifications ?? []);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [weather, setWeather] = useState('맑음');
 
   const [profilePending, setProfilePending] = useState(false);
   const fromFirebase = useRef(false);
-  const isGuestModeRef = useRef(false);
+  const isGuestModeRef = useRef(Boolean(restoredGuestSession));
   const deletionPendingRef = useRef(false);
   const [alertState, setAlertState] = useState<{ message: string; emoji: string; type: AlertType } | null>(null);
 
@@ -378,6 +419,7 @@ export default function App() {
         }
       } else {
         setGuestMode(false);
+        clearGuestSession();
         setAlertState(null);
       }
     });
@@ -450,6 +492,21 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [user, firebaseUser, isGuestMode]);
 
+  useEffect(() => {
+    if (!isGuestMode || !user?.isGuest) return;
+
+    const timer = window.setTimeout(() => {
+      writeGuestSession({
+        user,
+        activeTab,
+        previousTab,
+        notifications,
+      });
+    }, 200);
+
+    return () => window.clearTimeout(timer);
+  }, [isGuestMode, user, activeTab, previousTab, notifications]);
+
   const handleRoleSelect = async (role: UserRole) => {
     if (!firebaseUser) return;
     setAuthLoading(true);
@@ -463,6 +520,7 @@ export default function App() {
   };
 
   const handleGuestStart = () => {
+    clearGuestSession();
     setGuestRolePending(true);
     setGuestMode(false);
     setUser(null);
@@ -487,23 +545,33 @@ export default function App() {
         : role === 'gov_admin' ? '지자체 관리자'
           : '일반 회원';
 
-    setNotifications([
+    const guestProfile = createGuestProfile(role);
+    const guestNotifications: AppNotification[] = [
       {
         id: 'guest-welcome',
         type: 'info',
         title: `🌱 게스트 ${roleTitle} 체험 시작`,
-        message: `${roleTitle} 더미 데이터로 시작했어요. 데이터는 계정에 저장되지 않습니다.`,
+        message: `${roleTitle} 더미 데이터로 시작했어요. 새로고침해도 이어지며, 로그아웃하면 삭제됩니다.`,
         timestamp: new Date().toISOString(),
         isRead: false,
         targetTab: startTab as AppNotification['targetTab'],
       },
-    ]);
-    setUser(createGuestProfile(role));
+    ];
+
+    writeGuestSession({
+      user: guestProfile,
+      activeTab: startTab,
+      previousTab: startTab,
+      notifications: guestNotifications,
+    });
+    setNotifications(guestNotifications);
+    setUser(guestProfile);
     setPreviousTab(startTab);
     setActiveTab(startTab);
   };
 
   const handleExitGuestRoleSelection = () => {
+    clearGuestSession();
     setGuestRolePending(false);
     setGuestMode(false);
     setUser(null);
@@ -513,6 +581,7 @@ export default function App() {
 
   const handleLogout = () => {
     if (isGuestMode) {
+      clearGuestSession();
       setGuestMode(false);
       setGuestRolePending(false);
       setUser(null);

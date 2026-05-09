@@ -137,7 +137,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onGuestStart }) => {
               게스트로 시작하기
             </button>
             <p className="mt-2 text-[10px] font-bold leading-relaxed text-stone-400">
-              아이디 없이 사용 가능하며, 진행 과정이 저장되지 않아요.
+              아이디 없이 사용하며, 진행 과정은 이 브라우저에 임시 저장돼요.
             </p>
           </div>
 

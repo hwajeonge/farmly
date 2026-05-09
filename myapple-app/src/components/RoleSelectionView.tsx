@@ -115,7 +115,7 @@ export const RoleSelectionView: React.FC<RoleSelectionViewProps> = ({
         {isGuest && (
           <div className="mt-5 rounded-3xl border-2 border-amber-100 bg-amber-50 px-4 py-3 text-center">
             <p className="text-[11px] font-bold leading-relaxed text-amber-700">
-              게스트 데이터는 체험용 더미 데이터예요. 로그아웃하면 저장되지 않고,
+              게스트 데이터는 체험용 더미 데이터예요. 새로고침해도 이어지지만 로그아웃하면 삭제되고,
               실물 사과 배송 신청은 Google 로그인 후 사용할 수 있어요.
             </p>
           </div>
