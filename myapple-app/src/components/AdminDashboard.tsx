@@ -32,7 +32,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ role, user }) =>
             관광 유입, 농가 성과, 소비 전환, 정책 운영 데이터를 관리합니다.
           </p>
         </div>
-        <GovAdminDashboard />
+        <GovAdminDashboard user={user} />
       </div>
     );
   }

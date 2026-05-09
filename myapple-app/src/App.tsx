@@ -62,63 +62,207 @@ type QueuedNotification = {
   targetTab?: AppNotification['targetTab'];
 };
 
-const createGuestProfile = (): UserProfile => {
+const createGuestTree = (
+  id: string,
+  farmId: string,
+  nickname: string,
+  currentDay: number,
+  growthRate: number,
+  harvestedApples?: number,
+): TreeState => {
   const now = new Date().toISOString();
 
   return {
-    role: 'general',
-    name: '게스트 농부',
-    nickname: '게스트 농부',
-    points: 12000,
-    apples: 35,
+    id,
+    farmId,
+    variety: '홍로' as AppleVariety,
+    nickname,
+    currentDay,
+    growthRate,
+    health: 100,
+    water: currentDay > 1 ? 70 : 45,
+    lastWatered: '',
+    lastWateredDay: undefined,
+    nutrientsUsed: currentDay > 12 ? 1 : 0,
+    pestStatus: 'none',
+    shieldActive: false,
+    growthStage: getGrowthStageLabel(Math.min(currentDay, 30)),
+    plantedAt: now,
+    personality: '씩씩한',
+    isGolden: false,
+    harvestedApples,
+    cardConfig: createRandomTreeCardConfig(),
+  };
+};
+
+const createDemoUserProfile = (
+  role: UserRole,
+  name: string,
+  options: Partial<UserProfile> = {},
+): UserProfile => {
+  const now = new Date().toISOString();
+  const trees = options.trees ?? [
+    createGuestTree(`${role}-tree-1`, 'f1', `${name}의 홍로`, 12, 56),
+  ];
+
+  return {
+    role,
+    name,
+    nickname: name,
+    isGuest: true,
+    points: options.points ?? 12000,
+    apples: options.apples ?? 35,
     lives: MINI_GAME_MAX_LIVES,
-    accumulatedApples: 35,
-    deliveryRequests: [],
-    claimedMilestones: [10, 30],
-    claimedLinkMissions: [],
-    isHonoraryCitizen: false,
-    trees: [
-      {
-        id: 'guest-tree-1',
-        farmId: 'f1',
-        variety: '홍로',
-        nickname: '체험 사과나무',
-        currentDay: 6,
-        growthRate: 28,
-        health: 100,
-        water: 70,
-        lastWatered: '',
-        lastWateredDay: undefined,
-        nutrientsUsed: 0,
-        pestStatus: 'none',
-        shieldActive: false,
-        growthStage: '발아기',
-        plantedAt: now,
-        personality: '씩씩한',
-        isGolden: false,
-        cardConfig: createRandomTreeCardConfig(),
-      },
-    ],
-    items: [
+    accumulatedApples: options.accumulatedApples ?? 35,
+    deliveryRequests: options.deliveryRequests ?? [],
+    claimedMilestones: options.claimedMilestones ?? [10, 30],
+    claimedLinkMissions: options.claimedLinkMissions ?? [],
+    isHonoraryCitizen: options.isHonoraryCitizen ?? false,
+    trees,
+    items: options.items ?? [
       { id: 'seed_f1', count: 1 },
       { id: 'nutrient', count: 2 },
       { id: 'medicine', count: 1 },
       { id: 'shield', count: 1 },
     ],
+    badges: options.badges ?? [
+      { id: 'guest', title: '체험 농부', icon: '🌱', dateEarned: now },
+    ],
+    adoptedFarmIds: options.adoptedFarmIds ?? ['f1'],
+    storedFarmIds: options.storedFarmIds ?? [],
+    visitMissionProgress: options.visitMissionProgress ?? {},
+    chatHistory: options.chatHistory ?? [],
+    chatConversations: options.chatConversations ?? [],
+    onboardingSeen: options.onboardingSeen ?? true,
+    courses: options.courses ?? [],
+    visitedHistory: options.visitedHistory ?? [],
+    missionReviews: options.missionReviews ?? [],
+    favoritePlaceIds: options.favoritePlaceIds ?? ['p1', 'p4'],
+    preferences: options.preferences,
+    adminDemoUsers: options.adminDemoUsers,
+  };
+};
+
+const createGovGuestDemoUsers = (): UserProfile[] => [
+  createDemoUserProfile('general', '김소백', {
+    points: 18400,
+    apples: 68,
+    accumulatedApples: 126,
+    trees: [
+      createGuestTree('demo-general-1', 'f1', '소백 홍로', 30, 100, 10),
+      createGuestTree('demo-general-2', 'f2', '부석 부사', 18, 82),
+    ],
+    deliveryRequests: [{
+      recipientName: '김소백',
+      phoneNumber: '010-0000-0001',
+      address: '경북 영주시 체험로 1',
+      selectedOptionId: 'apple_1kg',
+      requestDate: new Date().toISOString(),
+    }],
+    claimedMilestones: [10, 30, 100],
+    isHonoraryCitizen: true,
+    adoptedFarmIds: ['f1', 'f2'],
+    visitMissionProgress: { m1: 'completed', m2: 'completed', m4: 'completed' },
+    courses: [{ id: 'demo-course-1', name: '부석사와 사과 체험 코스', items: [], createdAt: new Date().toISOString() }],
+    favoritePlaceIds: ['p1', 'p2', 'p4'],
+  }),
+  createDemoUserProfile('general', '이무섬', {
+    points: 9300,
+    apples: 44,
+    accumulatedApples: 72,
+    trees: [createGuestTree('demo-general-3', 'f3', '무섬 사과나무', 24, 93)],
+    adoptedFarmIds: ['f3'],
+    visitMissionProgress: { m2: 'completed', m3: 'completed' },
+    courses: [{ id: 'demo-course-2', name: '무섬마을 산책 코스', items: [], createdAt: new Date().toISOString() }],
+    favoritePlaceIds: ['p3', 'p5'],
+  }),
+  createDemoUserProfile('farm_owner', '영주 소백팜', {
+    points: 26000,
+    apples: 18,
+    accumulatedApples: 210,
+    trees: [
+      createGuestTree('demo-farm-1', 'f1', '분양 홍로 1호', 30, 98, 9),
+      createGuestTree('demo-farm-2', 'f1', '분양 홍로 2호', 21, 87),
+      createGuestTree('demo-farm-3', 'f1', '분양 부사 1호', 9, 44),
+    ],
+    adoptedFarmIds: ['f1'],
+    visitMissionProgress: { m1: 'completed' },
+  }),
+  createDemoUserProfile('general', '박풍기', {
+    points: 6200,
+    apples: 21,
+    accumulatedApples: 38,
+    trees: [createGuestTree('demo-general-4', 'f2', '풍기 새싹', 7, 32)],
+    adoptedFarmIds: ['f2'],
+    visitMissionProgress: { m4: 'completed' },
+  }),
+];
+
+const createGuestProfile = (role: UserRole): UserProfile => {
+  const now = new Date().toISOString();
+  const baseName =
+    role === 'farm_owner' ? '게스트 농가 관리자'
+      : role === 'gov_admin' ? '게스트 지자체 관리자'
+        : '게스트 농부';
+
+  if (role === 'farm_owner') {
+    return createDemoUserProfile(role, baseName, {
+      points: 32000,
+      apples: 58,
+      accumulatedApples: 186,
+      trees: [
+        createGuestTree('guest-farm-tree-1', 'f1', '소백 홍로 1호', 30, 100, 10),
+        createGuestTree('guest-farm-tree-2', 'f1', '소백 홍로 2호', 22, 91),
+        createGuestTree('guest-farm-tree-3', 'f1', '소백 부사 1호', 14, 64),
+        createGuestTree('guest-farm-tree-4', 'f2', '풍기 감홍 1호', 5, 24),
+      ],
+      deliveryRequests: [{
+        recipientName: '체험 고객',
+        phoneNumber: '010-0000-0000',
+        address: '경북 영주시 체험로 10',
+        memo: '게스트 농가 관리자 더미 주문',
+        selectedOptionId: 'apple_1kg',
+        requestDate: now,
+      }],
+      claimedMilestones: [10, 30, 100],
+      adoptedFarmIds: ['f1', 'f2'],
+      badges: [
+        { id: 'guest-farm-owner', title: '농가 관리자 체험', icon: '🚜', dateEarned: now },
+      ],
+      visitMissionProgress: { m1: 'completed', m4: 'completed' },
+      courses: [{ id: 'guest-farm-course', name: '농가 체험 운영 코스', items: [], createdAt: now }],
+      favoritePlaceIds: ['p1', 'p4'],
+    });
+  }
+
+  if (role === 'gov_admin') {
+    return createDemoUserProfile(role, baseName, {
+      points: 50000,
+      apples: 0,
+      accumulatedApples: 0,
+      trees: [],
+      items: [],
+      claimedMilestones: [],
+      badges: [
+        { id: 'guest-gov-admin', title: '지자체 관리자 체험', icon: '🏛️', dateEarned: now },
+      ],
+      adoptedFarmIds: [],
+      favoritePlaceIds: [],
+      adminDemoUsers: createGovGuestDemoUsers(),
+    });
+  }
+
+  return createDemoUserProfile(role, baseName, {
+    points: 12000,
+    apples: 35,
+    accumulatedApples: 35,
+    trees: [createGuestTree('guest-tree-1', 'f1', '체험 사과나무', 6, 28)],
+    adoptedFarmIds: ['f1'],
+    favoritePlaceIds: ['p1', 'p4'],
     badges: [
       { id: 'guest', title: '체험 농부', icon: '🌱', dateEarned: now },
     ],
-    adoptedFarmIds: ['f1'],
-    storedFarmIds: [],
-    visitMissionProgress: {},
-    chatHistory: [],
-    chatConversations: [],
-    onboardingSeen: true,
-    courses: [],
-    visitedHistory: [],
-    missionReviews: [],
-    favoritePlaceIds: ['p1', 'p4'],
-  };
+  });
 };
 
 const advanceTreeOneDay = (tree: TreeState) => {
@@ -183,6 +327,7 @@ const advanceTreeOneDay = (tree: TreeState) => {
 export default function App() {
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
   const [isGuestMode, setIsGuestModeState] = useState(false);
+  const [guestRolePending, setGuestRolePending] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('tree');
   const [previousTab, setPreviousTab] = useState('tree');
@@ -316,7 +461,17 @@ export default function App() {
   };
 
   const handleGuestStart = () => {
+    setGuestRolePending(true);
+    setGuestMode(false);
+    setUser(null);
+    setFirebaseUser(null);
+    setProfilePending(false);
+    setNotifications([]);
+  };
+
+  const handleGuestRoleSelect = (role: UserRole) => {
     setGuestMode(true);
+    setGuestRolePending(false);
     setFirebaseUser(null);
     setProfilePending(false);
     setActivitySubTab(null);
@@ -324,25 +479,40 @@ export default function App() {
     setRequestedSeedFarmId(null);
     setStoreSeedFarmId(null);
     setActiveCourseId(null);
+    const startTab = role === 'general' ? 'tree' : 'admin';
+    const roleTitle =
+      role === 'farm_owner' ? '농가 관리자'
+        : role === 'gov_admin' ? '지자체 관리자'
+          : '일반 회원';
+
     setNotifications([
       {
         id: 'guest-welcome',
         type: 'info',
-        title: '🌱 게스트 체험 시작',
-        message: '아이디 없이 체험용 더미 데이터로 시작했어요. 데이터는 계정에 저장되지 않습니다.',
+        title: `🌱 게스트 ${roleTitle} 체험 시작`,
+        message: `${roleTitle} 더미 데이터로 시작했어요. 데이터는 계정에 저장되지 않습니다.`,
         timestamp: new Date().toISOString(),
         isRead: false,
-        targetTab: 'tree',
+        targetTab: startTab as AppNotification['targetTab'],
       },
     ]);
-    setUser(createGuestProfile());
-    setPreviousTab('tree');
+    setUser(createGuestProfile(role));
+    setPreviousTab(startTab);
+    setActiveTab(startTab);
+  };
+
+  const handleExitGuestRoleSelection = () => {
+    setGuestRolePending(false);
+    setGuestMode(false);
+    setUser(null);
+    setNotifications([]);
     setActiveTab('tree');
   };
 
   const handleLogout = () => {
     if (isGuestMode) {
       setGuestMode(false);
+      setGuestRolePending(false);
       setUser(null);
       setNotifications([]);
       setActiveCourseId(null);
@@ -902,6 +1072,15 @@ export default function App() {
   const handleOpenHarvestModal = () => {
     if (!user) return;
 
+    if (isGuestMode || user.isGuest) {
+      showAlert(
+        '게스트 체험에서는 실물 사과 배송 신청을 할 수 없어요.\n실제 배송 신청은 Google 로그인 후 이용해주세요.',
+        '📦',
+        'info',
+      );
+      return;
+    }
+
     if ((user.accumulatedApples ?? 0) < HARVEST_DELIVERY_MIN_APPLES) {
       showAlert(
         `누적 사과 ${HARVEST_DELIVERY_MIN_APPLES}개가 되어야 실물 사과 1kg 배송 신청이 열려요.\n현재 누적 사과는 ${(user.accumulatedApples ?? 0).toLocaleString()}개예요.`,
@@ -1266,6 +1445,27 @@ export default function App() {
       <div className="min-h-screen flex items-center justify-center bg-stone-50">
         <div className="w-12 h-12 border-4 border-apple-red/30 border-t-apple-red rounded-full animate-spin" />
       </div>
+    );
+  }
+
+  if (guestRolePending && !firebaseUser && !isGuestMode) {
+    return (
+      <>
+        <RoleSelectionView
+          userName="게스트"
+          isGuest
+          onSelect={handleGuestRoleSelect}
+          onExit={handleExitGuestRoleSelection}
+        />
+        <AlertModal
+          open={!!alertState}
+          message={alertState?.message ?? ''}
+          emoji={alertState?.emoji ?? '🍎'}
+          type={alertState?.type ?? 'info'}
+          onClose={() => setAlertState(null)}
+        />
+        <ConfirmModal />
+      </>
     );
   }
 

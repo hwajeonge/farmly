@@ -56,6 +56,49 @@ const menuItems: Array<{ id: SubTab; label: string; icon: React.ElementType }> =
   { id: 'ai', label: '데이터/AI', icon: PieChart },
 ];
 
+const GuestFarmOwnerSummary = ({ user }: { user: UserProfile }) => {
+  const totalTrees = user.trees?.length ?? 0;
+  const harvestedTrees = user.trees?.filter(tree => tree.harvestedApples != null).length ?? 0;
+  const deliveryRequests = user.deliveryRequests?.length ?? 0;
+  const totalApples = user.accumulatedApples ?? 0;
+
+  return (
+    <section className="mb-5 rounded-[2rem] border-4 border-emerald-100 bg-emerald-50/80 p-5">
+      <div className="mb-4 flex items-start gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-apple-green">
+          <Store size={18} />
+        </div>
+        <div>
+          <p className="text-[11px] font-black uppercase tracking-[0.14em] text-apple-green">Guest Farm Data</p>
+          <h3 className="mt-1 text-base font-black text-stone-800">농가 관리자 체험 데이터</h3>
+          <p className="mt-1 text-[11px] font-bold leading-relaxed text-stone-500">
+            실제 연동 전 흐름 확인용 더미 데이터예요. 상품, 주문, 수확 현황이 관리자 탭에서 바로 보이도록 구성했어요.
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-2xl bg-white p-4">
+          <p className="text-[10px] font-black text-stone-400">분양 나무</p>
+          <p className="mt-1 text-2xl font-black text-stone-800">{totalTrees}그루</p>
+        </div>
+        <div className="rounded-2xl bg-white p-4">
+          <p className="text-[10px] font-black text-stone-400">수확 완료</p>
+          <p className="mt-1 text-2xl font-black text-stone-800">{harvestedTrees}그루</p>
+        </div>
+        <div className="rounded-2xl bg-white p-4">
+          <p className="text-[10px] font-black text-stone-400">배송 요청</p>
+          <p className="mt-1 text-2xl font-black text-stone-800">{deliveryRequests}건</p>
+        </div>
+        <div className="rounded-2xl bg-white p-4">
+          <p className="text-[10px] font-black text-stone-400">누적 사과</p>
+          <p className="mt-1 text-2xl font-black text-stone-800">{totalApples}개</p>
+        </div>
+      </div>
+    </section>
+  );
+};
+
 export const FarmAdminDashboard: React.FC<FarmAdminDashboardProps> = ({ user }) => {
   const [activeSubTab, setActiveSubTab] = useState<SubTab>('products');
 
@@ -83,6 +126,8 @@ export const FarmAdminDashboard: React.FC<FarmAdminDashboardProps> = ({ user }) 
         })}
       </div>
 
+      {user.isGuest && <GuestFarmOwnerSummary user={user} />}
+
       <AnimatePresence mode="wait">
         <motion.div
           key={activeSubTab}
@@ -95,7 +140,7 @@ export const FarmAdminDashboard: React.FC<FarmAdminDashboardProps> = ({ user }) 
           {activeSubTab === 'farm' && <FarmInfoSection />}
           {activeSubTab === 'orders' && <OrdersSection />}
           {activeSubTab === 'reviews' && <ReviewsSection user={user} />}
-          {activeSubTab === 'ai' && <AISection />}
+          {activeSubTab === 'ai' && <AISection demoUsers={user.isGuest ? [user] : undefined} />}
         </motion.div>
       </AnimatePresence>
     </div>
@@ -277,18 +322,24 @@ const ReviewsSection = ({ user }: { user: UserProfile }) => (
   </div>
 );
 
-const AISection = () => {
-  const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
-  const [loading, setLoading] = useState(true);
+const AISection = ({ demoUsers }: { demoUsers?: UserProfile[] }) => {
+  const [allUsers, setAllUsers] = useState<UserProfile[]>(demoUsers ?? []);
+  const [loading, setLoading] = useState(!demoUsers);
   const [insight, setInsight] = useState('');
   const [insightLoading, setInsightLoading] = useState(false);
 
   useEffect(() => {
+    if (demoUsers) {
+      setAllUsers(demoUsers);
+      setLoading(false);
+      return;
+    }
+
     getDocs(collection(db, 'users'))
       .then(snap => setAllUsers(snap.docs.map(d => d.data() as UserProfile)))
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, []);
+  }, [demoUsers]);
 
   const treeStats = useMemo(() => {
     const totalUsers = allUsers.length;

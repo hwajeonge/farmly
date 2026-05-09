@@ -50,6 +50,10 @@ interface GovStats {
   topFarms: { name: string; count: number }[];
 }
 
+interface GovAdminDashboardProps {
+  user?: UserProfile;
+}
+
 const toneClass = {
   blue: 'text-blue-500 bg-blue-50 border-blue-100',
   red: 'text-apple-red bg-red-50 border-red-100',
@@ -67,21 +71,27 @@ const menuItems: Array<{ id: SubTab; label: string; icon: React.ElementType }> =
   { id: 'ops',       label: '알림/운영', icon: Bell },
 ];
 
-export const GovAdminDashboard: React.FC = () => {
+export const GovAdminDashboard: React.FC<GovAdminDashboardProps> = ({ user }) => {
   const [activeSubTab, setActiveSubTab] = useState<SubTab>('overview');
-  const [users, setUsers] = useState<UserProfile[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [users, setUsers] = useState<UserProfile[]>(user?.isGuest ? user.adminDemoUsers ?? [] : []);
+  const [loading, setLoading] = useState(!user?.isGuest);
   const [insight, setInsight] = useState('');
   const [insightLoading, setInsightLoading] = useState(false);
 
   useEffect(() => {
+    if (user?.isGuest) {
+      setUsers(user.adminDemoUsers ?? []);
+      setLoading(false);
+      return;
+    }
+
     getDocs(collection(db, 'users'))
       .then(snap => {
         setUsers(snap.docs.map(d => d.data() as UserProfile));
       })
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, []);
+  }, [user]);
 
   const stats = useMemo<GovStats>(() => {
     const totalUsers = users.length;

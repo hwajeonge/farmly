@@ -388,6 +388,7 @@ export const MyPage: React.FC<MyPageProps> = ({
 
 const ProfileView = ({ user, onOpenHarvestModal }: { user: UserProfile; onOpenHarvestModal: () => void }) => {
   const accumulatedApples = user.accumulatedApples ?? 0;
+  const isGuest = Boolean(user.isGuest);
   const canRequestDelivery = accumulatedApples >= HARVEST_DELIVERY_MIN_APPLES;
   const eligibleDeliveryRewards = getEligibleHarvestDeliveryRewards(accumulatedApples);
   const nextDeliveryReward = getNextHarvestDeliveryReward(accumulatedApples);
@@ -456,15 +457,26 @@ const ProfileView = ({ user, onOpenHarvestModal }: { user: UserProfile; onOpenHa
             </div>
             <div>
               <h3 className="text-base font-black">실물 사과 배송 신청</h3>
-              <p className="text-[10px] font-bold opacity-60">100개는 1kg, 200개는 2kg 배송 신청 가능</p>
+              <p className="text-[10px] font-bold opacity-60">
+                {isGuest ? '게스트 체험에서는 실제 배송 신청이 제한돼요' : '100개는 1kg, 200개는 2kg 배송 신청 가능'}
+              </p>
             </div>
           </div>
+          {isGuest && (
+            <div className="mb-3 rounded-2xl border border-white/10 bg-white/10 p-3">
+              <p className="text-[11px] font-bold leading-relaxed text-white/75">
+                지금은 아이디 없이 둘러보는 체험 모드예요. 수확 흐름은 확인할 수 있지만, 실물 사과 배송 신청은 Google 로그인 후 사용할 수 있어요.
+              </p>
+            </div>
+          )}
           <button
             onClick={onOpenHarvestModal}
-            disabled={!canRequestDelivery}
+            disabled={isGuest || !canRequestDelivery}
             className="w-full rounded-2xl bg-white py-3.5 text-sm font-black text-stone-800 shadow-xl shadow-black/20 transition-all active:scale-95 disabled:bg-stone-700 disabled:text-stone-500"
           >
-            {canRequestDelivery
+            {isGuest
+              ? '게스트 체험은 배송 신청 불가'
+              : canRequestDelivery
               ? `${activeDeliveryLabel ?? '수확 보상'} 신청하기`
               : `사과 ${nextDeliveryReward?.applesNeeded ?? HARVEST_DELIVERY_MIN_APPLES}개 수확 후 오픈 (${accumulatedApples}/${nextDeliveryReward?.applesNeeded ?? HARVEST_DELIVERY_MIN_APPLES})`}
           </button>

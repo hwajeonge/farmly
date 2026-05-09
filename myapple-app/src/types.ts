@@ -194,6 +194,8 @@ export interface UserProfile {
   role: UserRole;
   name: string;
   nickname?: string;
+  isGuest?: boolean;
+  adminDemoUsers?: UserProfile[];
   profileImage?: string;
   points: number;
   apples: number; // Spendable currency
@@ -275,6 +277,6 @@ export interface AppNotification {
   isRead: boolean;
   link?: string;
   missionId?: string;
-  targetTab?: 'tree' | 'map' | 'activity' | 'store' | 'profile';
+  targetTab?: 'tree' | 'map' | 'activity' | 'store' | 'profile' | 'admin';
   targetSubTab?: string;
 }
