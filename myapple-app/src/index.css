@@ -35,6 +35,8 @@
 @layer base {
   body {
     @apply bg-warm-cream text-soft-brown font-sans;
+    overflow-x: hidden;
+    overflow-y: auto;
     background-image:
       radial-gradient(circle at 15% 15%, #ffefef40 0%, transparent 45%),
       radial-gradient(circle at 85% 85%, #eafff540 0%, transparent 45%),
@@ -43,8 +45,14 @@
   }
 
   html {
+    min-height: 100%;
     scroll-behavior: smooth;
     -webkit-tap-highlight-color: transparent;
+  }
+
+  body,
+  #root {
+    min-height: 100%;
   }
 
   * {

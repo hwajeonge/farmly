@@ -37,7 +37,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onGuestStart }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[500] mx-auto max-w-md overflow-hidden bg-[#fff1d6]">
+    <div className="fixed inset-0 z-[500] mx-auto max-w-md overflow-x-hidden overflow-y-auto bg-[#fff1d6]">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_18%,rgba(255,107,107,0.30),transparent_30%),radial-gradient(circle_at_82%_72%,rgba(82,196,138,0.24),transparent_30%)]" />
       <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.75)_1px,transparent_1px),linear-gradient(rgba(255,255,255,0.75)_1px,transparent_1px)] bg-[length:26px_26px] opacity-[0.35]" />
 
@@ -51,7 +51,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onGuestStart }) => {
         🧺
       </motion.div>
 
-      <div className="relative z-10 flex min-h-screen flex-col justify-center px-6 py-8">
+      <div className="relative z-10 flex min-h-dvh flex-col justify-center px-6 py-8">
         <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.45 }} className="text-center">
           <div className="relative mx-auto mb-4 h-44 w-44">
             <motion.div

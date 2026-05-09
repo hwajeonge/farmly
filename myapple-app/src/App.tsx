@@ -236,17 +236,19 @@ const createGuestProfile = (role: UserRole): UserProfile => {
   }
 
   if (role === 'gov_admin') {
+    const openFarmIds = FARMS.slice(0, 3).map(farm => farm.id);
+
     return createDemoUserProfile(role, baseName, {
       points: 50000,
       apples: 0,
       accumulatedApples: 0,
       trees: [],
-      items: [],
+      items: openFarmIds.map(farmId => ({ id: `seed_${farmId}`, count: 1 })),
       claimedMilestones: [],
       badges: [
         { id: 'guest-gov-admin', title: '지자체 관리자 체험', icon: '🏛️', dateEarned: now },
       ],
-      adoptedFarmIds: [],
+      adoptedFarmIds: openFarmIds,
       favoritePlaceIds: [],
       adminDemoUsers: createGovGuestDemoUsers(),
     });
@@ -1504,7 +1506,7 @@ export default function App() {
     .map(place => `${place!.name}(${place!.category})`);
 
   return (
-    <div className="min-h-dvh pb-24 max-w-md mx-auto grass-pattern overflow-x-hidden relative">
+    <div className="mx-auto h-dvh max-w-md overflow-x-hidden overflow-y-auto overscroll-contain grass-pattern pb-24 relative">
       <Header 
         userName={user.name} 
         points={user.points} 

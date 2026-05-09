@@ -57,7 +57,7 @@ export const RoleSelectionView: React.FC<RoleSelectionViewProps> = ({
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-stone-50 p-6">
+    <div className="flex min-h-dvh items-start justify-center overflow-x-hidden overflow-y-auto bg-stone-50 px-6 py-8 sm:items-center">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
