@@ -62,6 +62,65 @@ type QueuedNotification = {
   targetTab?: AppNotification['targetTab'];
 };
 
+const createGuestProfile = (): UserProfile => {
+  const now = new Date().toISOString();
+
+  return {
+    role: 'general',
+    name: '게스트 농부',
+    nickname: '게스트 농부',
+    points: 12000,
+    apples: 35,
+    lives: MINI_GAME_MAX_LIVES,
+    accumulatedApples: 35,
+    deliveryRequests: [],
+    claimedMilestones: [10, 30],
+    claimedLinkMissions: [],
+    isHonoraryCitizen: false,
+    trees: [
+      {
+        id: 'guest-tree-1',
+        farmId: 'f1',
+        variety: '홍로',
+        nickname: '체험 사과나무',
+        currentDay: 6,
+        growthRate: 28,
+        health: 100,
+        water: 70,
+        lastWatered: '',
+        lastWateredDay: undefined,
+        nutrientsUsed: 0,
+        pestStatus: 'none',
+        shieldActive: false,
+        growthStage: '발아기',
+        plantedAt: now,
+        personality: '씩씩한',
+        isGolden: false,
+        cardConfig: createRandomTreeCardConfig(),
+      },
+    ],
+    items: [
+      { id: 'seed_f1', count: 1 },
+      { id: 'nutrient', count: 2 },
+      { id: 'medicine', count: 1 },
+      { id: 'shield', count: 1 },
+    ],
+    badges: [
+      { id: 'guest', title: '체험 농부', icon: '🌱', dateEarned: now },
+    ],
+    adoptedFarmIds: ['f1'],
+    storedFarmIds: [],
+    visitMissionProgress: {},
+    chatHistory: [],
+    chatConversations: [],
+    onboardingSeen: true,
+    courses: [],
+    visitedHistory: [],
+    missionReviews: [],
+    favoritePlaceIds: ['p1', 'p4'],
+  };
+};
+
 const advanceTreeOneDay = (tree: TreeState) => {
   const isWatered = tree.lastWateredDay === tree.currentDay;
   const weatherEvent = getWeatherEvent(tree.currentDay);
@@ -123,6 +182,7 @@ const advanceTreeOneDay = (tree: TreeState) => {
 
 export default function App() {
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
+  const [isGuestMode, setIsGuestModeState] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('tree');
   const [previousTab, setPreviousTab] = useState('tree');
@@ -139,8 +199,14 @@ export default function App() {
 
   const [profilePending, setProfilePending] = useState(false);
   const fromFirebase = useRef(false);
+  const isGuestModeRef = useRef(false);
   const deletionPendingRef = useRef(false);
   const [alertState, setAlertState] = useState<{ message: string; emoji: string; type: AlertType } | null>(null);
+
+  const setGuestMode = (value: boolean) => {
+    isGuestModeRef.current = value;
+    setIsGuestModeState(value);
+  };
 
   useEffect(() => {
     alertEmitter.on((message, emoji, type) => setAlertState({ message, emoji, type }));
@@ -155,13 +221,16 @@ export default function App() {
       setFirebaseUser(u);
       if (!u) {
         setAuthLoading(false);
-        setUser(null);
-        setProfilePending(false);
+        if (!isGuestModeRef.current) {
+          setUser(null);
+          setProfilePending(false);
+        }
         if (deletionPendingRef.current) {
           deletionPendingRef.current = false;
           showAlert('회원 탈퇴가 완료되었습니다.', '👋', 'success');
         }
       } else {
+        setGuestMode(false);
         setAlertState(null);
       }
     });
@@ -170,7 +239,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (firebaseUser) {
+    if (firebaseUser && !isGuestMode) {
       setAuthLoading(true);
       const unsubscribeProfile = authService.getUserProfile(firebaseUser.uid, (profile) => {
         if (profile) {
@@ -218,7 +287,7 @@ export default function App() {
       });
       return () => unsubscribeProfile();
     }
-  }, [firebaseUser]);
+  }, [firebaseUser, isGuestMode]);
 
   // Auto-save: whenever user state changes locally, persist to Firestore.
   // fromFirebase flag prevents save loops (Firebase update → onSnapshot → setUser → save → loop).
@@ -227,12 +296,12 @@ export default function App() {
       fromFirebase.current = false;
       return;
     }
-    if (!user || !firebaseUser) return;
+    if (!user || !firebaseUser || isGuestMode) return;
     const timer = setTimeout(() => {
       authService.saveProfile(firebaseUser.uid, user).catch(console.error);
     }, 800);
     return () => clearTimeout(timer);
-  }, [user]);
+  }, [user, firebaseUser, isGuestMode]);
 
   const handleRoleSelect = async (role: UserRole) => {
     if (!firebaseUser) return;
@@ -246,8 +315,49 @@ export default function App() {
     }
   };
 
+  const handleGuestStart = () => {
+    setGuestMode(true);
+    setFirebaseUser(null);
+    setProfilePending(false);
+    setActivitySubTab(null);
+    setProfileRequestedTab(null);
+    setRequestedSeedFarmId(null);
+    setStoreSeedFarmId(null);
+    setActiveCourseId(null);
+    setNotifications([
+      {
+        id: 'guest-welcome',
+        type: 'info',
+        title: '🌱 게스트 체험 시작',
+        message: '아이디 없이 체험용 더미 데이터로 시작했어요. 데이터는 계정에 저장되지 않습니다.',
+        timestamp: new Date().toISOString(),
+        isRead: false,
+        targetTab: 'tree',
+      },
+    ]);
+    setUser(createGuestProfile());
+    setPreviousTab('tree');
+    setActiveTab('tree');
+  };
+
+  const handleLogout = () => {
+    if (isGuestMode) {
+      setGuestMode(false);
+      setUser(null);
+      setNotifications([]);
+      setActiveCourseId(null);
+      setActivitySubTab(null);
+      setProfileRequestedTab(null);
+      setPreviousTab('tree');
+      setActiveTab('tree');
+      return;
+    }
+
+    authService.logout();
+  };
+
   const handleUpdateMissionProgress = (missionId: string, status: 'none' | 'prepare' | 'arrival' | 'action' | 'completed') => {
-    if (!user || !firebaseUser) return;
+    if (!user) return;
     const mission = VISIT_MISSIONS.find(m => m.id === missionId);
 
     setUser(prev => {
@@ -345,7 +455,11 @@ export default function App() {
   };
 
   const handleAddPoints = async (amount: number) => {
-    if (!firebaseUser) return;
+    if (!user) return;
+    if (isGuestMode || !firebaseUser) {
+      setUser(prev => prev ? { ...prev, points: prev.points + amount } : prev);
+      return;
+    }
     try {
       await authService.addPoints(firebaseUser.uid, amount);
     } catch (error) {
@@ -378,7 +492,7 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (!user || !firebaseUser) return;
+    if (!user || (!firebaseUser && !isGuestMode)) return;
 
     const storedFarmIds = new Set(user.storedFarmIds || []);
     const queuedNotifications: QueuedNotification[] = [];
@@ -496,10 +610,10 @@ export default function App() {
     queuedNotifications.forEach(notification => {
       addNotification(notification.title, notification.message, notification.type, undefined, notification.targetTab);
     });
-  }, [firebaseUser, user]);
+  }, [firebaseUser, isGuestMode, user]);
 
   const handleAdoptTree = (farm: Farm, variety: AppleVariety, nickname: string, personality: string) => {
-    if (!user || !firebaseUser) return;
+    if (!user) return;
     const treeNickname = nickname.trim();
 
     if (!(user.adoptedFarmIds || []).includes(farm.id)) {
@@ -664,7 +778,7 @@ export default function App() {
   };
 
   const handleBuyItem = (itemId: string, price: number): boolean => {
-    if (!user || !firebaseUser) return false;
+    if (!user) return false;
     if (itemId.startsWith('seed_')) {
       const farmId = itemId.replace(/^seed_/, '');
       if (!(user.adoptedFarmIds || []).includes(farmId)) {
@@ -681,13 +795,15 @@ export default function App() {
     const newUser = { ...user, points: user.points - price, items: updatedItems };
     setUser(newUser);
     // 구매는 즉시 저장 — debounce 중 Firebase 스냅샷이 덮어쓰는 걸 방지
-    authService.saveProfile(firebaseUser.uid, newUser).catch(console.error);
+    if (firebaseUser && !isGuestMode) {
+      authService.saveProfile(firebaseUser.uid, newUser).catch(console.error);
+    }
     addNotification("🛍️ 구매 완료!", "아이템이 가방에 추가되었습니다.", 'info');
     return true;
   };
 
   const handleBuyWithApples = (itemId: string, applePrice: number): boolean => {
-    if (!user || !firebaseUser) return false;
+    if (!user) return false;
     if (itemId.startsWith('seed_')) {
       const farmId = itemId.replace(/^seed_/, '');
       if (!(user.adoptedFarmIds || []).includes(farmId)) {
@@ -706,7 +822,9 @@ export default function App() {
     const newUser = { ...user, apples: user.apples - applePrice, items: updatedItems };
     setUser(newUser);
     // 구매는 즉시 저장
-    authService.saveProfile(firebaseUser.uid, newUser).catch(console.error);
+    if (firebaseUser && !isGuestMode) {
+      authService.saveProfile(firebaseUser.uid, newUser).catch(console.error);
+    }
     addNotification("🛍️ 구매 완료!", "사과로 아이템을 교환했습니다.", 'info');
     return true;
   };
@@ -869,9 +987,10 @@ export default function App() {
 
   // Daily Heart Recharge & Inactivity Reminder
   useEffect(() => {
-    if (!user || !firebaseUser) return;
+    if (!user || (!firebaseUser && !isGuestMode)) return;
 
-    const rechargeKey = `last_heart_recharge_${firebaseUser.uid}`;
+    const sessionId = isGuestMode ? 'guest' : firebaseUser!.uid;
+    const rechargeKey = `last_heart_recharge_${sessionId}`;
     const legacyRecharge = localStorage.getItem('last_heart_recharge');
     const savedRecharge = localStorage.getItem(rechargeKey);
     const savedAt = Number(savedRecharge);
@@ -918,7 +1037,7 @@ export default function App() {
     return () => {
       if (rechargeTimer !== undefined) window.clearTimeout(rechargeTimer);
     };
-  }, [firebaseUser?.uid, Boolean(user)]);
+  }, [firebaseUser?.uid, isGuestMode, Boolean(user)]);
 
   const handleUpdateConversations = (conversations: ChatConversation[]) => {
     if (!user) return;
@@ -937,6 +1056,11 @@ export default function App() {
   };
 
   const handleDeleteAccount = async () => {
+    if (isGuestMode) {
+      showAlert('게스트 체험에는 삭제할 계정이 없어요.\n로그아웃하면 체험 데이터가 초기화됩니다.', '🌱', 'info');
+      return;
+    }
+
     if (!firebaseUser) {
       showAlert('로그인 정보를 확인할 수 없어요.\n다시 로그인한 뒤 시도해주세요.', '⚠️', 'warning');
       return;
@@ -1145,10 +1269,10 @@ export default function App() {
     );
   }
 
-  if (!firebaseUser) {
+  if (!firebaseUser && !isGuestMode) {
     return (
       <>
-        <LoginView onLoginSuccess={() => {}} />
+        <LoginView onLoginSuccess={() => {}} onGuestStart={handleGuestStart} />
         <AlertModal
           open={!!alertState}
           message={alertState?.message ?? ''}
@@ -1161,8 +1285,8 @@ export default function App() {
     );
   }
 
-  if (profilePending) {
-    return <RoleSelectionView userName={firebaseUser.displayName || '영주친구'} onSelect={handleRoleSelect} />;
+  if (!isGuestMode && profilePending) {
+    return <RoleSelectionView userName={firebaseUser?.displayName || '영주친구'} onSelect={handleRoleSelect} />;
   }
 
   if (!user) {
@@ -1293,7 +1417,7 @@ export default function App() {
               <MyPage 
                 user={user} 
                 setUser={setUser} 
-                handleLogout={authService.logout}
+                handleLogout={handleLogout}
                 onDeleteAccount={handleDeleteAccount}
                 onOpenHarvestModal={handleOpenHarvestModal}
                 onGoToStore={() => { setPreviousTab(activeTab); setStoreSeedFarmId(null); setActiveTab('store'); }}

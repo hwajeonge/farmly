@@ -7,7 +7,8 @@ import { AlertType } from '../lib/alertEmitter';
 import { APP_LOGO_ALT, APP_LOGO_SRC, SERVICE_NAME, SERVICE_TAGLINE } from '../brand';
 
 interface LoginViewProps {
-  onLoginSuccess: () => void;
+  onLoginSuccess?: () => void;
+  onGuestStart?: () => void;
 }
 
 const FEATURE_CHIPS = [
@@ -16,7 +17,7 @@ const FEATURE_CHIPS = [
   { icon: Gift, label: '실물 보상', color: 'text-rose-600 bg-rose-50 border-rose-100' },
 ];
 
-export const LoginView: React.FC<LoginViewProps> = () => {
+export const LoginView: React.FC<LoginViewProps> = ({ onGuestStart }) => {
   const [loading, setLoading] = useState(false);
   const [alertState, setAlertState] = useState<{ message: string; emoji: string; type: AlertType } | null>(null);
 
@@ -126,6 +127,18 @@ export const LoginView: React.FC<LoginViewProps> = () => {
                 </>
               )}
             </button>
+            <button
+              type="button"
+              onClick={onGuestStart}
+              disabled={loading}
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-apple-green py-4 text-sm font-black text-white shadow-[0_5px_0_0_#2d7a2d] transition-all active:translate-y-[5px] active:shadow-none disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Sprout size={18} />
+              게스트로 시작하기
+            </button>
+            <p className="mt-2 text-[10px] font-bold leading-relaxed text-stone-400">
+              체험용 더미 데이터로만 열리며 계정에는 저장되지 않아요.
+            </p>
           </div>
 
           <div className="mx-auto mt-4 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-yellow-400 to-orange-400 px-5 py-2.5 text-sm font-black text-white shadow-[0_8px_18px_rgba(249,199,79,0.40)]">
