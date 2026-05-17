@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, ArrowRight, LogOut, ShieldCheck, Store, User } from 'lucide-react';
+import { ArrowLeft, ArrowRight, LogOut, ShieldCheck, Store, User, X } from 'lucide-react';
 import { UserRole } from '../types';
 import { authService } from '../services/authService';
 
@@ -47,6 +47,8 @@ export const RoleSelectionView: React.FC<RoleSelectionViewProps> = ({
   isGuest = false,
   onExit,
 }) => {
+  const [showGuestNotice, setShowGuestNotice] = useState(isGuest);
+
   const handleExit = () => {
     if (onExit) {
       onExit();
@@ -58,6 +60,56 @@ export const RoleSelectionView: React.FC<RoleSelectionViewProps> = ({
 
   return (
     <div className="flex min-h-dvh items-start justify-center overflow-x-hidden overflow-y-auto bg-stone-50 px-6 py-8 sm:items-center">
+      {isGuest && showGuestNotice && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/30 px-5"
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 16, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            className="relative w-full max-w-sm rounded-3xl border-4 border-white bg-amber-50 p-6 shadow-2xl"
+          >
+            <button
+              type="button"
+              onClick={() => setShowGuestNotice(false)}
+              aria-label="게스트 안내 닫기"
+              className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full bg-white text-stone-400 shadow-sm transition-colors hover:text-stone-700"
+            >
+              <X size={16} strokeWidth={3} />
+            </button>
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-2xl shadow-sm">
+              🌱
+            </div>
+            <p className="mb-2 text-[11px] font-black uppercase tracking-[0.18em] text-amber-600">
+              Guest Notice
+            </p>
+            <h2 className="mb-3 pr-8 text-xl font-black text-stone-800">
+              게스트 체험 안내
+            </h2>
+            <ul className="space-y-2 text-sm font-bold leading-relaxed text-amber-800 [word-break:keep-all]">
+              <li className="flex gap-2">
+                <span className="mt-[1px] shrink-0">•</span>
+                <span>게스트 모드에서는 서비스 흐름을 미리 살펴볼 수 있도록 체험용 예시 데이터가 제공돼요.</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="mt-[1px] shrink-0">•</span>
+                <span>새로고침해도 이어지지만, 탈퇴가 아니라 로그아웃 버튼을 누르면 체험 기록이 삭제돼요.</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="mt-[1px] shrink-0">•</span>
+                <span>실제 서비스 이용과 실물 사과 배송 신청은 Google 로그인 후 진행해주세요.</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="mt-[1px] shrink-0">•</span>
+                <span>농가/지자체 회원도 예측 서비스를 체험할 수 있어요.</span>
+              </li>
+            </ul>
+          </motion.div>
+        </motion.div>
+      )}
+
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -111,15 +163,6 @@ export const RoleSelectionView: React.FC<RoleSelectionViewProps> = ({
             );
           })}
         </div>
-
-        {isGuest && (
-          <div className="mt-5 rounded-3xl border-2 border-amber-100 bg-amber-50 px-4 py-3 text-center">
-            <p className="text-[11px] font-bold leading-relaxed text-amber-700">
-              게스트 데이터는 체험용 더미 데이터예요. 새로고침해도 이어지지만 로그아웃하면 삭제되고,
-              실물 사과 배송 신청은 Google 로그인 후 사용할 수 있어요.
-            </p>
-          </div>
-        )}
 
         <button
           onClick={handleExit}

@@ -211,10 +211,11 @@ export const MyPage: React.FC<MyPageProps> = ({
         </button>
         <button
           onClick={handleLogout}
-          className="flex h-10 w-10 items-center justify-center rounded-2xl border-2 border-stone-100 bg-stone-50 text-stone-400 transition-all active:scale-90"
+          className="flex h-10 items-center justify-center gap-1.5 rounded-2xl border-2 border-stone-100 bg-stone-50 px-3 text-stone-400 transition-all active:scale-90"
           aria-label="로그아웃"
         >
           <LogOut size={18} />
+          <span className="text-[11px] font-black">로그아웃</span>
         </button>
       </div>
 

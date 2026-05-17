@@ -551,7 +551,7 @@ export default function App() {
         id: 'guest-welcome',
         type: 'info',
         title: `🌱 게스트 ${roleTitle} 체험 시작`,
-        message: `${roleTitle} 더미 데이터로 시작했어요. 새로고침해도 이어지며, 로그아웃하면 삭제됩니다.`,
+        message: `${roleTitle} 예시 데이터로 시작했어요. 새로고침해도 이어지며, 마이 화면에서 로그아웃하면 삭제됩니다.`,
         timestamp: new Date().toISOString(),
         isRead: false,
         targetTab: startTab as AppNotification['targetTab'],
@@ -568,6 +568,12 @@ export default function App() {
     setUser(guestProfile);
     setPreviousTab(startTab);
     setActiveTab(startTab);
+    setAlertState({
+      message:
+        '게스트 체험을 종료하려면\n하단 메뉴의 마이 화면에서\n로그아웃 버튼을 눌러주세요.\n\n로그아웃하면 체험 기록이 삭제돼요.',
+      emoji: '🌱',
+      type: 'info',
+    });
   };
 
   const handleExitGuestRoleSelection = () => {
@@ -1607,7 +1613,14 @@ export default function App() {
                   <h2 className="text-2xl font-black mb-2">아직 사과나무가 없어요</h2>
                   <p className="text-stone-500 text-sm font-medium mb-10">영주 농가 지도에서 첫 씨앗을 분양받고<br />30일 성장 퀘스트를 시작해보세요.</p>
                   <button 
-                    onClick={() => setActiveTab('map')}
+                    onClick={() => {
+                      setActiveTab('map');
+                      setAlertState({
+                        message: '지도에서 빨간 테두리로 표시된 농가를 선택해주세요.',
+                        emoji: '📍',
+                        type: 'info',
+                      });
+                    }}
                     className="px-10 py-4 bg-apple-red text-white rounded-2xl font-black shadow-[0_6px_0_0_#d32f2f] active:shadow-none active:translate-y-1 transition-all"
                   >
                     농가 지도에서 시작하기
