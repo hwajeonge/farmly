@@ -290,6 +290,7 @@ export const FarmSelection: React.FC<FarmSelectionProps> = ({
                       {MAP_PLACES.map((place) => {
                         const marker = PLACE_MARKERS[place.id];
                         if (!marker) return null;
+                        const isFood = place.category === '맛집' || place.category === '카페';
 
                         return (
                           <button
@@ -300,7 +301,17 @@ export const FarmSelection: React.FC<FarmSelectionProps> = ({
                             style={{ left: `${marker.x}%`, top: `${marker.y}%` }}
                             aria-label={`${place.name} 정보 보기`}
                           >
-                            <span className="sr-only">{place.name}</span>
+                             <span
+                              className={cn(
+                                'flex items-center gap-1 rounded-2xl border-2 border-white bg-white/95 px-2.5 py-1.5 text-[10px] font-black shadow-[0_8px_18px_rgba(90,62,43,0.14)] backdrop-blur',
+                                isFood ? 'text-orange-600' : 'text-sky-600',
+                              )}
+                            >
+                              <span className={cn('flex h-5 w-5 items-center justify-center rounded-full', getPlaceMarkerTone(place))}>
+                                {getPlaceMarkerIcon(marker.kind)}
+                              </span>
+                              <span className="max-w-[76px] truncate">{place.name}</span>
+                            </span>
                           </button>
                         );
                       })}
