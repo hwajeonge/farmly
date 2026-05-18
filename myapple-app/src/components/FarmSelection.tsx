@@ -291,26 +291,35 @@ export const FarmSelection: React.FC<FarmSelectionProps> = ({
                         const marker = PLACE_MARKERS[place.id];
                         if (!marker) return null;
                         const isFood = place.category === '맛집' || place.category === '카페';
+                        const labelPosition =
+                          marker.x < 18
+                            ? 'translate-x-0 -translate-y-1/2'
+                            : marker.x > 82
+                              ? '-translate-x-full -translate-y-1/2'
+                              : '-translate-x-1/2 -translate-y-1/2';
 
                         return (
                           <button
                             key={place.id}
                             type="button"
                             onClick={() => setSelectedPlace(place)}
-                            className="absolute z-30 h-12 w-12 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/0 transition-all hover:bg-white/15 active:scale-95"
+                            className={cn(
+                              'absolute z-30 rounded-full p-1 transition-all hover:scale-105 active:scale-95',
+                              labelPosition,
+                            )}
                             style={{ left: `${marker.x}%`, top: `${marker.y}%` }}
                             aria-label={`${place.name} 정보 보기`}
                           >
                              <span
                               className={cn(
-                                'flex items-center gap-1 rounded-2xl border-2 border-white bg-white/95 px-2.5 py-1.5 text-[10px] font-black shadow-[0_8px_18px_rgba(90,62,43,0.14)] backdrop-blur',
+                                'inline-flex items-center gap-1 whitespace-nowrap rounded-2xl border-2 border-white bg-white/95 px-2.5 py-1.5 text-[10px] font-black shadow-[0_8px_18px_rgba(90,62,43,0.14)] backdrop-blur',
                                 isFood ? 'text-orange-600' : 'text-sky-600',
                               )}
                             >
                               <span className={cn('flex h-5 w-5 items-center justify-center rounded-full', getPlaceMarkerTone(place))}>
                                 {getPlaceMarkerIcon(marker.kind)}
                               </span>
-                              <span className="max-w-[76px] truncate">{place.name}</span>
+                              <span className="max-w-[112px] truncate">{place.name}</span>
                             </span>
                           </button>
                         );
