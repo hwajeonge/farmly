@@ -204,10 +204,11 @@ export const MyPage: React.FC<MyPageProps> = ({
       <div className="mb-5 flex justify-between px-1">
         <button
           onClick={onGoToStore}
-          className="flex h-10 w-10 items-center justify-center rounded-2xl border-2 border-yellow-100 bg-yellow-50 text-yeoju-gold transition-all active:scale-90"
+          className="flex h-10 items-center justify-center gap-1.5 rounded-2xl border-2 border-yellow-100 bg-yellow-50 px-3 text-yeoju-gold transition-all active:scale-90"
           aria-label="상점으로 이동"
         >
           <ShoppingBag size={18} strokeWidth={2.5} />
+          <span className="text-[11px] font-black">상점</span>
         </button>
         <button
           onClick={handleLogout}
@@ -370,7 +371,8 @@ export const MyPage: React.FC<MyPageProps> = ({
           <div>
             <h3 className="text-sm font-black text-red-700">회원 탈퇴</h3>
             <p className="mt-1 text-[11px] font-bold leading-relaxed text-red-500">
-              계정과 저장된 농장 데이터를 삭제합니다. 탈퇴 후에는 복구할 수 없어요.
+              계정과 저장된 농장 데이터를 삭제합니다.<br />
+              탈퇴 후에는 복구할 수 없어요.
             </p>
           </div>
         </div>

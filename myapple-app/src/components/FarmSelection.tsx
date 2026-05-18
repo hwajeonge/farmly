@@ -55,17 +55,29 @@ const PERSONALITIES: { value: string; emoji: string; desc: string }[] = [
 
 type PlaceMarkerKind = 'station' | 'temple' | 'heritage' | 'market' | 'village' | 'food' | 'cafe';
 
+const MAP_BACKGROUND_SRC = '/images/yeongju-map-bg.png';
+
 const PLACE_MARKERS: Record<string, { x: number; y: number; kind: PlaceMarkerKind }> = {
-  p0: { x: 61, y: 57, kind: 'station' },
-  p1: { x: 69, y: 23, kind: 'temple' },
-  p2: { x: 39, y: 31, kind: 'heritage' },
-  p3: { x: 27, y: 32, kind: 'market' },
-  p4: { x: 41, y: 77, kind: 'village' },
-  p5: { x: 24, y: 38, kind: 'food' },
-  p6: { x: 58, y: 55, kind: 'food' },
-  p9: { x: 72, y: 29, kind: 'cafe' },
-  p12: { x: 44, y: 27, kind: 'heritage' },
+  p1: { x: 82, y: 15, kind: 'temple' },
+  p4: { x: 18, y: 78, kind: 'village' },
+  p5: { x: 10, y: 58, kind: 'food' },
+  p9: { x: 90, y: 33, kind: 'cafe' },
+  p12: { x: 39, y: 93, kind: 'heritage' },
 };
+
+const FARM_SLOT_POSITIONS = [
+  { x: 39, y: 31 },
+  { x: 50, y: 58 },
+  { x: 75, y: 62 },
+  { x: 18, y: 45 },
+  { x: 62, y: 44 },
+];
+
+const getFarmMapPosition = (farm: Farm, index: number) => {
+  const slot = FARM_SLOT_POSITIONS[index % FARM_SLOT_POSITIONS.length];
+  return slot ?? farm.coords;
+};
+
 
 const PLACE_MARKER_IDS = Object.keys(PLACE_MARKERS);
 const MAP_PLACES = PLACES.filter(place => PLACE_MARKER_IDS.includes(place.id));
@@ -96,15 +108,6 @@ const getPlaceMarkerTone = (place: Place) => {
   return 'border-sky-100 bg-sky-50 text-sky-600';
 };
 
-const getShortPlaceDescription = (place: Place) => {
-  if (place.description.length <= 42) return place.description;
-  return `${place.description.slice(0, 42)}...`;
-};
-
-const getMapTooltipPlacement = (x: number) =>
-  x > 50
-    ? 'right-full top-1/2 mr-2 translate-x-1 -translate-y-1/2 group-hover:translate-x-0 group-focus-visible:translate-x-0'
-    : 'left-full top-1/2 ml-2 -translate-x-1 -translate-y-1/2 group-hover:translate-x-0 group-focus-visible:translate-x-0';
 
 export const FarmSelection: React.FC<FarmSelectionProps> = ({
   onAdopt,
@@ -124,6 +127,7 @@ export const FarmSelection: React.FC<FarmSelectionProps> = ({
   const [surveyResult, setSurveyResult] = useState<AppleVariety | null>(null);
   const [selectedPersonality, setSelectedPersonality] = useState<string | null>(null);
   const [nickname, setNickname] = useState('');
+  const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
 
   const activeFarmCount = (adoptedFarmIds || []).filter(id => !(storedFarmIds || []).includes(id)).length;
   const nextFarmProgress = FARMS
@@ -255,173 +259,158 @@ export const FarmSelection: React.FC<FarmSelectionProps> = ({
 
             {viewMode === 'map' ? (
               <div className="relative">
-                <div className="map-container mb-4 overflow-hidden rounded-[2.25rem] border-4 border-white bg-white shadow-[0_14px_34px_rgba(90,62,43,0.12)]">
-                  <div className="map-surface relative aspect-square bg-gradient-to-br from-sky-50 via-apple-light-green/50 to-yellow-50">
+                <div className="map-container mb-4 overflow-hidden rounded-[2.25rem] border-4 border-white bg-white shadow-[0_18px_40px_rgba(90,62,43,0.14)]">
+                  <div className="map-surface relative h-[520px] overflow-hidden bg-[#EAF8F0]">
                     <div className="pointer-events-none absolute left-3 top-3 z-[80] flex items-center gap-1.5 rounded-full border border-red-100 bg-white/90 px-3 py-1.5 text-[10px] font-black text-apple-red shadow-sm backdrop-blur">
                       <Trees size={12} />
-                      빨간 테두리 = 농가
+                      빨간 테두리 = 내 농가
                     </div>
-                    <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full">
-                      <defs>
-                        <linearGradient id="yeongju-map-fill" x1="15" y1="10" x2="86" y2="94" gradientUnits="userSpaceOnUse">
-                          <stop stopColor="#DDF7C8" />
-                          <stop offset="0.55" stopColor="#BDEB9A" />
-                          <stop offset="1" stopColor="#8FD47D" />
-                        </linearGradient>
-                        <filter id="map-shadow" x="-20%" y="-20%" width="140%" height="140%">
-                          <feDropShadow dx="0" dy="4" stdDeviation="2.5" floodColor="#6FA15B" floodOpacity="0.25" />
-                        </filter>
-                        <pattern id="orchard-dots" x="0" y="0" width="8" height="8" patternUnits="userSpaceOnUse">
-                          <circle cx="2" cy="2" r="0.65" fill="#5EB86B" opacity="0.35" />
-                          <circle cx="6" cy="5" r="0.5" fill="#FF8A8A" opacity="0.28" />
-                        </pattern>
-                      </defs>
 
-                      <rect width="100" height="100" rx="14" fill="#EAF8FF" />
-                      <path d="M8 78 C24 70 31 77 44 68 C58 58 70 61 92 46" fill="none" stroke="#78CFF3" strokeWidth="8" strokeLinecap="round" opacity="0.55" />
-                      <path d="M8 78 C24 70 31 77 44 68 C58 58 70 61 92 46" fill="none" stroke="#F7FFFF" strokeWidth="2" strokeLinecap="round" opacity="0.75" />
+                    <div className="pointer-events-none absolute right-3 top-3 z-[80] rounded-full border border-white/80 bg-white/90 px-3 py-1.5 text-[10px] font-black text-stone-600 shadow-sm backdrop-blur">
+                      🌤 영주 22℃
+                    </div>
 
-                      <path
-                        d="M32 5 C47 4 57 12 69 10 C83 8 94 20 92 35 C90 47 98 56 88 68 C79 78 82 91 66 95 C53 98 45 89 33 91 C18 93 7 82 9 68 C11 55 2 47 9 34 C16 20 16 8 32 5 Z"
-                        fill="url(#yeongju-map-fill)"
-                        stroke="#FFFFFF"
-                        strokeWidth="3"
-                        filter="url(#map-shadow)"
-                      />
-                      <path
-                        d="M32 5 C47 4 57 12 69 10 C83 8 94 20 92 35 C90 47 98 56 88 68 C79 78 82 91 66 95 C53 98 45 89 33 91 C18 93 7 82 9 68 C11 55 2 47 9 34 C16 20 16 8 32 5 Z"
-                        fill="url(#orchard-dots)"
-                        opacity="0.7"
+                    <motion.div
+                      drag
+                      dragMomentum={false}
+                      dragElastic={0.08}
+                      dragConstraints={{ left: -310, right: 0, top: -40, bottom: 0 }}
+                      className="absolute left-0 top-0 h-[560px] w-[760px] cursor-grab active:cursor-grabbing"
+                    >
+                      <img
+                        src={MAP_BACKGROUND_SRC}
+                        alt="영주 사과밭 지도"
+                        className="absolute inset-0 h-full w-full select-none object-cover"
+                        draggable={false}
                       />
 
-                      <path d="M16 21 C25 27 31 32 39 36 C51 42 63 43 78 51" fill="none" stroke="#FFF4C2" strokeWidth="5" strokeLinecap="round" />
-                      <path d="M16 21 C25 27 31 32 39 36 C51 42 63 43 78 51" fill="none" stroke="#D9A441" strokeWidth="1.2" strokeDasharray="3 3" strokeLinecap="round" opacity="0.8" />
-                      <path d="M28 88 C34 75 40 67 49 59 C57 51 61 39 65 17" fill="none" stroke="#FFF4C2" strokeWidth="4.5" strokeLinecap="round" />
-                      <path d="M28 88 C34 75 40 67 49 59 C57 51 61 39 65 17" fill="none" stroke="#D9A441" strokeWidth="1.1" strokeDasharray="3 3" strokeLinecap="round" opacity="0.8" />
+                      {MAP_PLACES.map((place) => {
+                        const marker = PLACE_MARKERS[place.id];
+                        if (!marker) return null;
+                        const isFood = place.category === '맛집' || place.category === '카페';
 
-                      <g opacity="0.9">
-                        <path d="M13 22 L24 10 L34 22 Z" fill="#72B95E" />
-                        <path d="M22 22 L31 13 L40 22 Z" fill="#8FD47D" />
-                        <path d="M24 10 L28 16 L20 16 Z" fill="#EAF8FF" opacity="0.85" />
-                        <path d="M31 13 L34 17 L28 17 Z" fill="#EAF8FF" opacity="0.75" />
-                      </g>
-
-                      <g opacity="0.95">
-                        <rect x="51" y="47" width="19" height="13" rx="4" fill="#FFFFFF" opacity="0.86" />
-                        <rect x="56" y="42" width="9" height="18" rx="2" fill="#E9B96E" />
-                        <rect x="53" y="50" width="4" height="10" rx="1" fill="#FFD88C" />
-                        <rect x="65" y="50" width="3.5" height="10" rx="1" fill="#FFD88C" />
-                        <circle cx="60.5" cy="50" r="1.4" fill="#8C6A43" opacity="0.7" />
-                      </g>
-                      <g opacity="0.95">
-                        <path d="M23 26 H39 L36 21 H26 Z" fill="#FFFFFF" opacity="0.86" />
-                        <rect x="24" y="26" width="14" height="8" rx="2" fill="#E9B96E" />
-                        <path d="M24 26 H38" stroke="#7DBB62" strokeWidth="2" strokeLinecap="round" />
-                        <circle cx="28" cy="33" r="1" fill="#C0653C" />
-                        <circle cx="33" cy="33" r="1" fill="#C0653C" />
-                      </g>
-                      <g opacity="0.95">
-                        <path d="M59 24 H76 L67.5 17 Z" fill="#FFFFFF" opacity="0.86" />
-                        <path d="M62 24 H73 L67.5 19 Z" fill="#6FB95A" />
-                        <rect x="62" y="24" width="11" height="5" rx="1.5" fill="#8C6A43" opacity="0.65" />
-                      </g>
-                      <g opacity="0.95">
-                        <path d="M29 77 C34 72 42 72 47 77" fill="none" stroke="#FFFFFF" strokeWidth="4" strokeLinecap="round" opacity="0.86" />
-                        <path d="M31 76 L39 70 L47 76 Z" fill="#E9B96E" />
-                        <rect x="33" y="76" width="12" height="6" rx="2" fill="#8C6A43" opacity="0.62" />
-                      </g>
-
-                      <path d="M10 84 C14 80 18 88 22 84 C26 80 30 88 34 84" fill="none" stroke="#2583AD" strokeWidth="2" strokeLinecap="round" opacity="0.75" />
-                      <circle cx="78" cy="84" r="1.4" fill="#FFFFFF" opacity="0.72" />
-                      <circle cx="84" cy="88" r="1" fill="#FFFFFF" opacity="0.52" />
-                      <circle cx="88" cy="82" r="0.9" fill="#FFFFFF" opacity="0.5" />
-                    </svg>
-
-                    {MAP_PLACES.map((place) => {
-                      const marker = PLACE_MARKERS[place.id];
-                      const tooltipPlacement = getMapTooltipPlacement(marker.x);
-                      return (
-                        <button
-                          key={place.id}
-                          type="button"
-                          onClick={() => showAlert(`${place.name}\n${place.description}`, '📍', 'info')}
-                          className="group absolute z-10 -translate-x-1/2 -translate-y-1/2 hover:z-[90] focus-visible:z-[90]"
-                          style={{ left: `${marker.x}%`, top: `${marker.y}%` }}
-                          aria-label={`${place.name}: ${place.description}`}
-                        >
-                          <span
-                            className={cn(
-                              'flex h-6 w-6 items-center justify-center rounded-full border-2 bg-white text-[11px] opacity-85 shadow-[0_3px_8px_rgba(0,0,0,0.12)] ring-1 ring-white/60 transition-all group-hover:-translate-y-0.5 group-hover:scale-110 group-hover:opacity-100 group-focus-visible:-translate-y-0.5 group-focus-visible:scale-110 group-focus-visible:opacity-100',
-                              getPlaceMarkerTone(place),
-                            )}
+                        return (
+                          <button
+                            key={place.id}
+                            type="button"
+                            onClick={() => setSelectedPlace(place)}
+                            className="absolute z-30 -translate-x-1/2 -translate-y-1/2 transition-transform active:scale-95"
+                            style={{ left: `${marker.x}%`, top: `${marker.y}%` }}
+                            aria-label={`${place.name} 정보 보기`}
                           >
-                            {getPlaceMarkerIcon(marker.kind)}
-                          </span>
-                          <span className={cn('pointer-events-none absolute z-[100] w-40 rounded-[1.15rem] border-2 border-white bg-white/95 px-3 py-2 text-left opacity-0 shadow-[0_10px_22px_rgba(90,62,43,0.18)] backdrop-blur transition-all group-hover:opacity-100 group-focus-visible:opacity-100', tooltipPlacement)}>
-                            <span className="block text-[11px] font-black text-stone-800">{place.name}</span>
-                            <span className="mt-1 block text-[10px] font-bold leading-relaxed text-stone-500">
-                              {getShortPlaceDescription(place)}
+                            <span
+                              className={cn(
+                                'flex items-center gap-1 rounded-2xl border-2 border-white bg-white/94 px-2.5 py-1.5 text-[10px] font-black shadow-[0_8px_18px_rgba(90,62,43,0.14)] backdrop-blur',
+                                isFood ? 'text-orange-600' : 'text-sky-600',
+                              )}
+                            >
+                              <span className={cn('flex h-5 w-5 items-center justify-center rounded-full', getPlaceMarkerTone(place))}>
+                                {getPlaceMarkerIcon(marker.kind)}
+                              </span>
+                              <span className="max-w-[74px] truncate">{place.name}</span>
                             </span>
-                          </span>
-                        </button>
-                      );
-                    })}
+                          </button>
+                        );
+                      })}
 
-                    {FARMS.map((farm) => {
-                      const isUnlocked = (adoptedFarmIds || []).includes(farm.id);
-                      const isStored = (storedFarmIds || []).includes(farm.id);
-                      const hasFarmSeed = ownedItems.some(item => item.id === `seed_${farm.id}` && item.count > 0);
-                      const canEnterFarm = isUnlocked && !isStored;
-                      const farmStatusLabel = isStored ? '보관 중' : !isUnlocked ? '잠김' : hasFarmSeed ? '바로 심기' : '씨앗 구매';
-                      const farmShortcutNumber = selectableFarms.findIndex(item => item.id === farm.id) + 1;
-                      const tooltipPlacement = getMapTooltipPlacement(farm.coords.x);
-                      return (
-                        <motion.button
-                          key={farm.id}
-                          whileHover={{ scale: canEnterFarm ? 1.08 : 1.04, y: canEnterFarm ? -2 : -1 }}
-                          onClick={() => handleFarmSelect(farm)}
-                          className={cn('group absolute z-40 -translate-x-1/2 -translate-y-1/2 hover:z-[110] focus-visible:z-[110]', (!isUnlocked || isStored) && 'grayscale opacity-70')}
-                          style={{ left: `${farm.coords.x}%`, top: `${farm.coords.y}%` }}
-                          aria-label={`${farm.name} 선택`}
-                        >
-                          <div className="relative flex flex-col items-center">
-                            {canEnterFarm && (
-                              <span className="pointer-events-none absolute inset-[-5px] rounded-2xl border-2 border-apple-red/25 bg-white/45 shadow-[0_6px_16px_rgba(229,57,53,0.18)]" />
+                      {FARMS.map((farm, index) => {
+                        const isUnlocked = (adoptedFarmIds || []).includes(farm.id);
+                        const isStored = (storedFarmIds || []).includes(farm.id);
+                        const hasFarmSeed = ownedItems.some(item => item.id === `seed_${farm.id}` && item.count > 0);
+                        const canEnterFarm = isUnlocked && !isStored;
+                        const treesInFarm = trees.filter(tree => tree.farmId === farm.id).length;
+                        const farmStatusLabel = isStored ? '보관 중' : !isUnlocked ? '잠김' : hasFarmSeed ? '바로 심기' : '씨앗 구매';
+                        const farmShortcutNumber = selectableFarms.findIndex(item => item.id === farm.id) + 1;
+                        const position = getFarmMapPosition(farm, index);
+
+                        return (
+                          <motion.button
+                            key={farm.id}
+                            whileHover={{ scale: canEnterFarm ? 1.04 : 1.02, y: canEnterFarm ? -2 : -1 }}
+                            onClick={() => handleFarmSelect(farm)}
+                            className={cn(
+                              'absolute z-50 -translate-x-1/2 -translate-y-1/2 focus:outline-none',
+                              (!isUnlocked || isStored) && 'opacity-85',
                             )}
-                            <span
-                              className={cn(
-                                'relative flex items-center justify-center border-2 border-white shadow-[0_5px_12px_rgba(90,62,43,0.18)] transition-all group-hover:-translate-y-0.5 group-focus-visible:ring-4 group-focus-visible:ring-apple-red/25',
-                                canEnterFarm && 'h-9 w-9 rounded-2xl bg-white text-apple-red ring-2 ring-apple-red/35',
-                                isStored && 'h-8 w-8 rounded-full bg-stone-700 text-white ring-2 ring-white/50',
-                                !isUnlocked && 'h-7 w-7 rounded-full bg-stone-500 text-white opacity-75 ring-2 ring-white/40',
-                              )}
-                            >
-                              {canEnterFarm && (
-                                <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full border-2 border-white bg-apple-red text-[8px] font-black leading-none text-white shadow-sm">
-                                  {farmShortcutNumber}
+                            style={{ left: `${position.x}%`, top: `${position.y}%` }}
+                            aria-label={`${farm.name} 선택`}
+                          >
+                            {canEnterFarm ? (
+                              <div className="relative min-w-[132px] rounded-[1.35rem] border-2 border-apple-red/50 bg-white/95 p-2.5 text-left shadow-[0_12px_26px_rgba(229,57,53,0.18)] backdrop-blur">
+                                <span className="absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-apple-red text-[10px] font-black text-white shadow-sm">
+                                  {farmShortcutNumber > 0 ? farmShortcutNumber : '🍎'}
                                 </span>
-                              )}
-                              {isUnlocked ? (
-                                isStored ? <ShoppingBag size={13} /> : <Trees size={canEnterFarm ? 17 : 14} />
-                              ) : (
-                                <Lock size={12} />
-                              )}
-                            </span>
-                            <span
-                              className={cn(
-                                'pointer-events-none absolute left-1/2 top-full mt-1 flex max-w-[76px] -translate-x-1/2 items-center justify-center rounded-full border border-white px-2 py-0.5 text-[9px] font-black shadow-sm backdrop-blur transition-all',
-                                canEnterFarm ? 'bg-white/95 text-apple-red opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100' : 'bg-white/90 text-stone-500 opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100',
-                              )}
+                                <div className="flex items-center gap-2">
+                                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-red-50 text-xl shadow-inner">🍎</span>
+                                  <div className="min-w-0">
+                                    <p className="max-w-[82px] truncate text-[11px] font-black text-stone-800">{farm.name}</p>
+                                    <p className="mt-0.5 text-[9px] font-black text-apple-green">{treesInFarm}/5 나무</p>
+                                  </div>
+                                </div>
+                                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-stone-100">
+                                  <span className="block h-full rounded-full bg-apple-green" style={{ width: `${Math.min((treesInFarm / 5) * 100, 100)}%` }} />
+                                </div>
+                                <p className="mt-1 text-[9px] font-black text-apple-red">{farmStatusLabel}</p>
+                              </div>
+                            ) : (
+                              <div className="relative flex flex-col items-center">
+                                <span
+                                  className={cn(
+                                    'flex h-9 w-9 items-center justify-center rounded-full border-2 border-white shadow-[0_5px_12px_rgba(90,62,43,0.2)] ring-2 ring-white/60',
+                                    isStored ? 'bg-stone-700 text-white' : 'bg-stone-500 text-white',
+                                  )}
+                                >
+                                  {isStored ? <ShoppingBag size={14} /> : <Lock size={14} />}
+                                </span>
+                                <span className="mt-1 rounded-full bg-white/92 px-2 py-0.5 text-[9px] font-black text-stone-500 shadow-sm">
+                                  {farmStatusLabel}
+                                </span>
+                              </div>
+                            )}
+                          </motion.button>
+                        );
+                      })}
+                    </motion.div>
+
+                    <AnimatePresence>
+                      {selectedPlace && (
+                        <motion.div
+                          key={selectedPlace.id}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: 20 }}
+                          className="absolute bottom-3 left-3 right-3 z-[120] rounded-[1.5rem] border-2 border-white bg-white/96 p-4 shadow-[0_14px_30px_rgba(90,62,43,0.2)] backdrop-blur"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="mb-1 flex items-center gap-2">
+                                <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-full border', getPlaceMarkerTone(selectedPlace))}>
+                                  {getPlaceMarkerIcon(PLACE_MARKERS[selectedPlace.id]?.kind ?? 'heritage')}
+                                </span>
+                                <div className="min-w-0">
+                                  <p className="truncate text-sm font-black text-stone-900">{selectedPlace.name}</p>
+                                  <p className="text-[10px] font-black text-stone-400">{selectedPlace.category}</p>
+                                </div>
+                              </div>
+                              <p className="text-xs font-bold leading-relaxed text-stone-500 [word-break:keep-all]">
+                                {selectedPlace.description}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedPlace(null)}
+                              className="shrink-0 rounded-full bg-stone-100 px-3 py-1.5 text-[10px] font-black text-stone-500 active:scale-95"
                             >
-                              <span className="truncate">{farmStatusLabel}</span>
-                            </span>
-                            <span className={cn('pointer-events-none absolute z-[100] w-max rounded-[1.1rem] border-2 border-white bg-white/95 px-3 py-1.5 text-[11px] font-black text-stone-800 opacity-0 shadow-[0_10px_22px_rgba(90,62,43,0.18)] backdrop-blur transition-all group-hover:opacity-100 group-focus-visible:opacity-100', tooltipPlacement)}>
-                              {farm.name}
-                            </span>
+                              닫기
+                            </button>
                           </div>
-                        </motion.button>
-                      );
-                    })}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                    <div className="pointer-events-none absolute bottom-3 left-1/2 z-[80] -translate-x-1/2 rounded-full bg-white/85 px-3 py-1 text-[10px] font-black text-stone-400 shadow-sm backdrop-blur">
+                      지도를 드래그해서 이동해보세요
+                    </div>
                   </div>
                 </div>
 
