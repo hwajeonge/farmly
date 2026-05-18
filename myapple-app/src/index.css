@@ -217,13 +217,12 @@
   }
 
   .map-surface {
-    transform: rotateX(15deg) rotateZ(-2deg);
     transform-style: preserve-3d;
     transition: transform 0.5s ease-out;
   }
 
   .map-surface:hover {
-    transform: rotateX(5deg) rotateZ(0deg);
+    transform: none;
   }
 
   /* ═══════════════ 구분선 ═══════════════ */

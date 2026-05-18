@@ -58,6 +58,7 @@ type PlaceMarkerKind = 'station' | 'temple' | 'heritage' | 'market' | 'village' 
 const MAP_BACKGROUND_SRC = '/images/yeongju-map-bg.png';
 
 const PLACE_MARKERS: Record<string, { x: number; y: number; kind: PlaceMarkerKind }> = {
+  // 관광지/식당 이름은 지도 위에 표시하지 않고, 클릭 영역만 올립니다.
   p1: { x: 82, y: 15, kind: 'temple' },
   p4: { x: 18, y: 78, kind: 'village' },
   p5: { x: 10, y: 58, kind: 'food' },
@@ -66,11 +67,13 @@ const PLACE_MARKERS: Record<string, { x: number; y: number; kind: PlaceMarkerKin
 };
 
 const FARM_SLOT_POSITIONS = [
-  { x: 39, y: 31 },
-  { x: 50, y: 58 },
-  { x: 75, y: 62 },
-  { x: 18, y: 45 },
-  { x: 62, y: 44 },
+  // 새 배경 이미지 기준 위치입니다.
+  // 0번은 이미지에 이미 그려진 열린 '내 농장' 위치입니다.
+  { x: 50, y: 44 },
+  { x: 38, y: 28 },
+  { x: 49, y: 67 },
+  { x: 76, y: 68 },
+  { x: 17, y: 43 },
 ];
 
 const getFarmMapPosition = (farm: Farm, index: number) => {
@@ -263,7 +266,7 @@ export const FarmSelection: React.FC<FarmSelectionProps> = ({
                   <div className="map-surface relative h-[520px] overflow-hidden bg-[#EAF8F0]">
                     <div className="pointer-events-none absolute left-3 top-3 z-[80] flex items-center gap-1.5 rounded-full border border-red-100 bg-white/90 px-3 py-1.5 text-[10px] font-black text-apple-red shadow-sm backdrop-blur">
                       <Trees size={12} />
-                      빨간 테두리 = 내 농가
+                      🍎 표시 = 내 농가
                     </div>
 
                     <div className="pointer-events-none absolute right-3 top-3 z-[80] rounded-full border border-white/80 bg-white/90 px-3 py-1.5 text-[10px] font-black text-stone-600 shadow-sm backdrop-blur">
@@ -287,28 +290,17 @@ export const FarmSelection: React.FC<FarmSelectionProps> = ({
                       {MAP_PLACES.map((place) => {
                         const marker = PLACE_MARKERS[place.id];
                         if (!marker) return null;
-                        const isFood = place.category === '맛집' || place.category === '카페';
 
                         return (
                           <button
                             key={place.id}
                             type="button"
                             onClick={() => setSelectedPlace(place)}
-                            className="absolute z-30 -translate-x-1/2 -translate-y-1/2 transition-transform active:scale-95"
+                            className="absolute z-30 h-12 w-12 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/0 transition-all hover:bg-white/15 active:scale-95"
                             style={{ left: `${marker.x}%`, top: `${marker.y}%` }}
                             aria-label={`${place.name} 정보 보기`}
                           >
-                            <span
-                              className={cn(
-                                'flex items-center gap-1 rounded-2xl border-2 border-white bg-white/94 px-2.5 py-1.5 text-[10px] font-black shadow-[0_8px_18px_rgba(90,62,43,0.14)] backdrop-blur',
-                                isFood ? 'text-orange-600' : 'text-sky-600',
-                              )}
-                            >
-                              <span className={cn('flex h-5 w-5 items-center justify-center rounded-full', getPlaceMarkerTone(place))}>
-                                {getPlaceMarkerIcon(marker.kind)}
-                              </span>
-                              <span className="max-w-[74px] truncate">{place.name}</span>
-                            </span>
+                            <span className="sr-only">{place.name}</span>
                           </button>
                         );
                       })}
@@ -316,11 +308,8 @@ export const FarmSelection: React.FC<FarmSelectionProps> = ({
                       {FARMS.map((farm, index) => {
                         const isUnlocked = (adoptedFarmIds || []).includes(farm.id);
                         const isStored = (storedFarmIds || []).includes(farm.id);
-                        const hasFarmSeed = ownedItems.some(item => item.id === `seed_${farm.id}` && item.count > 0);
                         const canEnterFarm = isUnlocked && !isStored;
                         const treesInFarm = trees.filter(tree => tree.farmId === farm.id).length;
-                        const farmStatusLabel = isStored ? '보관 중' : !isUnlocked ? '잠김' : hasFarmSeed ? '바로 심기' : '씨앗 구매';
-                        const farmShortcutNumber = selectableFarms.findIndex(item => item.id === farm.id) + 1;
                         const position = getFarmMapPosition(farm, index);
 
                         return (
@@ -336,34 +325,27 @@ export const FarmSelection: React.FC<FarmSelectionProps> = ({
                             aria-label={`${farm.name} 선택`}
                           >
                             {canEnterFarm ? (
-                              <div className="relative min-w-[132px] rounded-[1.35rem] border-2 border-apple-red/50 bg-white/95 p-2.5 text-left shadow-[0_12px_26px_rgba(229,57,53,0.18)] backdrop-blur">
-                                <span className="absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-apple-red text-[10px] font-black text-white shadow-sm">
-                                  {farmShortcutNumber > 0 ? farmShortcutNumber : '🍎'}
+                              <div className="relative flex flex-col items-center">
+                                <span className="pointer-events-none absolute -inset-4 rounded-full bg-apple-red/25 blur-md" />
+                                <span className="relative flex h-11 w-11 items-center justify-center rounded-full border-4 border-white bg-apple-red text-lg text-white shadow-[0_8px_18px_rgba(229,57,53,0.35)]">
+                                  🍎
                                 </span>
-                                <div className="flex items-center gap-2">
-                                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-red-50 text-xl shadow-inner">🍎</span>
-                                  <div className="min-w-0">
-                                    <p className="max-w-[82px] truncate text-[11px] font-black text-stone-800">{farm.name}</p>
-                                    <p className="mt-0.5 text-[9px] font-black text-apple-green">{treesInFarm}/5 나무</p>
-                                  </div>
-                                </div>
-                                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-stone-100">
-                                  <span className="block h-full rounded-full bg-apple-green" style={{ width: `${Math.min((treesInFarm / 5) * 100, 100)}%` }} />
-                                </div>
-                                <p className="mt-1 text-[9px] font-black text-apple-red">{farmStatusLabel}</p>
+                                <span className="mt-1 rounded-full border border-red-100 bg-white/95 px-2.5 py-1 text-[10px] font-black text-apple-red shadow-sm backdrop-blur">
+                                  내 농가
+                                </span>
+                                <span className="mt-1 rounded-full bg-white/90 px-2 py-0.5 text-[9px] font-black text-apple-green shadow-sm">
+                                  {treesInFarm}/5 나무
+                                </span>
                               </div>
                             ) : (
                               <div className="relative flex flex-col items-center">
                                 <span
                                   className={cn(
-                                    'flex h-9 w-9 items-center justify-center rounded-full border-2 border-white shadow-[0_5px_12px_rgba(90,62,43,0.2)] ring-2 ring-white/60',
-                                    isStored ? 'bg-stone-700 text-white' : 'bg-stone-500 text-white',
+                                    'flex h-8 w-8 items-center justify-center rounded-full border-2 border-white shadow-[0_5px_12px_rgba(90,62,43,0.2)] ring-2 ring-white/60',
+                                    isStored ? 'bg-stone-700 text-white' : 'bg-stone-500/90 text-white',
                                   )}
                                 >
-                                  {isStored ? <ShoppingBag size={14} /> : <Lock size={14} />}
-                                </span>
-                                <span className="mt-1 rounded-full bg-white/92 px-2 py-0.5 text-[9px] font-black text-stone-500 shadow-sm">
-                                  {farmStatusLabel}
+                                  {isStored ? <ShoppingBag size={13} /> : <Lock size={13} />}
                                 </span>
                               </div>
                             )}
