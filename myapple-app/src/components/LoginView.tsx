@@ -62,7 +62,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onGuestStart }) => {
               <img src={APP_LOGO_SRC} alt={APP_LOGO_ALT} className="h-full w-full object-contain object-center drop-shadow-sm" />
             </motion.div>
             <div className="absolute -right-4 top-3 rounded-2xl border-4 border-white bg-yeoju-gold px-3 py-1 text-xs font-black text-white shadow-lg">
-              영주가 간다
+              사과밭 영주는 나
             </div>
           </div>
 
